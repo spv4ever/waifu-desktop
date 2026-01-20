@@ -110,9 +110,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(pack_group)
 
         # Table
-        self.table = QTableWidget(0, 9)
+        self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Categoría", "Versión", "Estado", "Título", "Descripción", "Ratio", "Base", "Upscale"
+            "ID", "Categoría", "Versión", "Estado", "Título", "Ratio", "Base", "Upscale"
         ])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -157,6 +157,13 @@ class MainWindow(QMainWindow):
         """)
 
         layout.addWidget(self.table)
+
+        # Prompt preview
+        self.prompt_preview_label = QLabel("—")
+        self.prompt_preview_label.setAlignment(Qt.AlignCenter)
+        self.prompt_preview_label.setWordWrap(True)
+        self.prompt_preview_label.setStyleSheet("font-weight: 600;")
+        layout.addWidget(self.prompt_preview_label)
 
         # Preview panel (Base | Upscale)
         preview_row = QHBoxLayout()
@@ -279,12 +286,9 @@ class MainWindow(QMainWindow):
             self.table.setItem(i, 2, QTableWidgetItem(row.variant))
             self.table.setItem(i, 3, QTableWidgetItem(row.status))
             self.table.setItem(i, 4, QTableWidgetItem(row.title))
-            desc_item = QTableWidgetItem(row.prompt_text)
-            desc_item.setToolTip(row.prompt_text)
-            self.table.setItem(i, 5, desc_item)
-            self.table.setItem(i, 6, QTableWidgetItem(row.ratio))
-            self.table.setItem(i, 7, QTableWidgetItem("✅" if row.has_base else "—"))
-            self.table.setItem(i, 8, QTableWidgetItem("✅" if row.has_upscale else "—"))
+            self.table.setItem(i, 5, QTableWidgetItem(row.ratio))
+            self.table.setItem(i, 6, QTableWidgetItem("✅" if row.has_base else "—"))
+            self.table.setItem(i, 7, QTableWidgetItem("✅" if row.has_upscale else "—"))
 
         self.table.resizeColumnsToContents()
 
@@ -428,18 +432,21 @@ class MainWindow(QMainWindow):
             self.open_up_btn.setEnabled(False)
             self.open_folder_base_btn.setEnabled(False)
             self.open_folder_up_btn.setEnabled(False)
+            self.prompt_preview_label.setText("—")
             self._set_preview(which="base", path=None)
             self._set_preview(which="up", path=None)
             return
 
         with get_connection() as conn:
             r = conn.execute(
-                "SELECT base_image_json, upscale_image_json FROM prompt_item WHERE id=?",
+                "SELECT prompt_text, base_image_json, upscale_image_json FROM prompt_item WHERE id=?",
                 (pid,),
             ).fetchone()
 
         has_base = bool(r and r["base_image_json"])
         has_up = bool(r and r["upscale_image_json"])
+
+        self.prompt_preview_label.setText(str(r["prompt_text"]) if r else "—")
 
         self.open_base_btn.setEnabled(has_base)
         self.open_folder_base_btn.setEnabled(has_base)
