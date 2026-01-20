@@ -1,0 +1,144 @@
+defaults:
+  lock_steps: true
+  steps: 50
+  base_subject: "beautiful anime girl"
+  quality_tags:
+    - high quality
+    - ultra detailed
+    - sharp focus
+
+# =========================
+# RATIOS DISPONIBLES
+# =========================
+ratios:
+  "1:1":  { width: 1024, height: 1024, tag: "1x1" }
+  "3:4":  { width: 896,  height: 1152, tag: "3x4" }
+  "9:16": { width: 720,  height: 1280, tag: "9x16" }
+  "16:9": { width: 1280, height: 720,  tag: "16x9" }
+
+# =========================
+# CATEGORÍAS PRINCIPALES
+# =========================
+categories:
+
+  casual:
+    label: "Casual"
+    commercial_goal: "Entrada, volumen, uso diario"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4", "9:16"]
+    base_prompt: >
+      clean modern anime style, beautiful anime girl,
+      casual clothes, natural pose, soft lighting
+
+  fantasy:
+    label: "Fantasy"
+    commercial_goal: "Valor artístico"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4", "16:9"]
+    base_prompt: >
+      fantasy anime illustration, magical atmosphere,
+      detailed outfit, cinematic lighting
+
+  cyberpunk:
+    label: "Cyberpunk"
+    commercial_goal: "Estética moderna"
+    enabled: true
+    allowed_ratios: ["1:1", "9:16", "16:9"]
+    base_prompt: >
+      cyberpunk anime girl, neon lights,
+      futuristic city, high contrast lighting
+
+  school:
+    label: "School"
+    commercial_goal: "Alta demanda / nostalgia"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4"]
+    base_prompt: >
+      anime school girl, school uniform,
+      soft daylight, slice of life style
+
+  streetwear:
+    label: "Streetwear"
+    commercial_goal: "Tendencia / redes"
+    enabled: true
+    allowed_ratios: ["1:1", "9:16"]
+    base_prompt: >
+      anime girl streetwear, urban fashion,
+      dynamic pose, modern anime style
+
+  beach:
+    label: "Beach / Summer"
+    commercial_goal: "Estacional"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4", "9:16"]
+    base_prompt: >
+      anime girl at the beach, summer outfit,
+      warm sunlight, vibrant colors
+
+  goth:
+    label: "Goth / Dark"
+    commercial_goal: "Nicho premium"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4"]
+    base_prompt: >
+      dark gothic anime girl, moody lighting,
+      dramatic atmosphere
+
+  elegant:
+    label: "Elegant / Date"
+    commercial_goal: "Refinado / marketing"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4"]
+    base_prompt: >
+      elegant anime girl, classy outfit,
+      studio lighting, refined pose
+
+# =========================
+# MODULADORES COMBINABLES
+# =========================
+
+wardrobe:
+  tops:
+    - hoodie
+    - t-shirt
+    - sweater
+    - blouse
+    - crop top
+  bottoms:
+    - jeans
+    - skirt
+    - shorts
+    - leggings
+  dresses:
+    - casual dress
+    - elegant dress
+    - summer dress
+  extras:
+    - jacket
+    - cardigan
+    - oversized hoodie
+
+footwear:
+  casual: [sneakers, flats]
+  elegant: [heels, ankle boots]
+  urban: [high-top sneakers, chunky shoes]
+  fantasy: [leather boots, armored boots]
+
+pose:
+  neutral: [standing, relaxed pose]
+  dynamic: [walking, slight movement]
+  cute: [playful, cheerful expression]
+  elegant: [confident pose, graceful posture]
+
+background:
+  urban: [city street, urban background]
+  interior: [cozy room, cafe interior]
+  nature: [park, forest, beach]
+  fantasy: [fantasy landscape, magical ruins]
+  minimal: [simple background, soft gradient]
+
+lighting:
+  soft: [soft natural lighting]
+  cinematic: [cinematic lighting, rim light]
+  night: [neon lighting, night scene]
+  studio: [studio lighting, clean shadows]

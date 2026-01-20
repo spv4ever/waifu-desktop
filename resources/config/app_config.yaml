@@ -1,0 +1,66 @@
+defaults:
+  filename_prefix: "keiko"
+  steps: 50
+  width: 1024
+  height: 1024
+  lock_steps: true
+
+ratios:
+  "1:1": [1024, 1024]
+  "2:3": [832, 1248]
+  "3:4": [864, 1152]
+  "16:9": [1280, 720]
+  "9:16": [720, 1280]
+
+categories:
+  casual:
+    pools:
+      outfit: ["hoodie", "denim jacket", "oversized sweater", "streetwear tee", "casual blazer"]
+      location: ["coffee shop", "city street", "park", "subway station", "bookstore"]
+      lighting: ["soft daylight", "golden hour", "neon evening", "overcast light"]
+      camera: ["35mm", "50mm", "85mm"]
+      mood: ["relaxed", "confident", "playful", "thoughtful"]
+
+variants:
+  v01:
+    mods: ["clean_skin", "sharp_focus", "cinematic_lighting"]
+    prompt_prefix: ""
+    negative_append: "jpeg artifacts, bad hands"
+  v02:
+    mods: ["film_grain", "soft_contrast"]
+    prompt_prefix: "editorial fashion photo, "
+    negative_append: "oversharpen, plastic skin"
+
+comfyui_workflow:
+  prompt_pos:
+    node_id: "6"
+    input: "text"
+
+  prompt_neg:
+    node_id: "7"
+    input: "text"
+
+  seed:
+    node_id: "10"
+    input: "noise_seed"
+
+  steps:
+    node_id: "10"
+    input: "steps"
+
+  width:
+    node_id: "5"
+    input: "width"
+
+  height:
+    node_id: "5"
+    input: "height"
+
+  output_base:
+    node_id: "19"
+    input: "filename_prefix"
+
+  output_upscale:
+    node_id: "52"
+    input: "filename_prefix"
+
