@@ -103,6 +103,7 @@ def fetch_prompt_status_counts() -> dict[str, int]:
 def fetch_prompts(
     *,
     limit: int = 50,
+    prompt_id: int | None = None,
     category: str | None = None,
     variant: str | None = None,
     status: str | None = None,
@@ -145,6 +146,8 @@ def fetch_prompts(
         if status and row_status != status:
             continue
         if ratio and ratio_value != ratio:
+            continue
+        if prompt_id is not None and int(r["id"]) != prompt_id:
             continue
         if dt_from and (row_dt is None or row_dt < dt_from):
             continue
