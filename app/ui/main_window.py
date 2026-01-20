@@ -8,7 +8,7 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
-    QGroupBox, QComboBox
+    QGroupBox, QComboBox, QAbstractItemView
 )
 
 from app.config.app_config import load_app_config
@@ -23,9 +23,15 @@ from app.ui.data_source import fetch_latest_prompts
 from app.ui.worker_thread import WorkerThread
 from app.ui.clickable_label import ClickableLabel
 from app.ui.image_viewer import ImageViewer
+from PySide6.QtGui import QColor, QPalette
+from PySide6.QtWidgets import QProxyStyle, QStyle
 
-
-
+class NoFocusRectStyle(QProxyStyle):
+    """Elimina el rectángulo de foco (focus rect) que en Windows 11 aparece como marcas/lineas."""
+    def drawPrimitive(self, element, option, painter, widget=None):
+        if element == QStyle.PE_FrameFocusRect:
+            return
+        super().drawPrimitive(element, option, painter, widget)
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
@@ -34,7 +40,6 @@ class MainWindow(QMainWindow):
         self.resize(1200, 750)
         self._base_path: Path | None = None
         self._up_path: Path | None = None
-
 
         self.kv = KVStore()
         self.pack_service = PackService()
@@ -67,7 +72,6 @@ class MainWindow(QMainWindow):
         top.addWidget(self.start_worker_btn)
         top.addWidget(self.stop_worker_btn)
         top.addWidget(self.worker_status_label)
-
 
         top.addWidget(self.refresh_btn)
         top.addWidget(self.pause_btn)
@@ -111,7 +115,47 @@ class MainWindow(QMainWindow):
             "ID", "Categoría", "Versión", "Estado", "Título", "Base", "Upscale"
         ])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.table.setAlternatingRowColors(True)
+        self.table.setShowGrid(False)
+
+        # 1) Quita las marcas de foco en Windows 11
+        self.table.setStyle(NoFocusRectStyle(self.table.style()))
+
+        # 2) Fuerza colores de selección (fondo + texto) a nivel de palette
+        pal = self.table.palette()
+        pal.setColor(QPalette.Highlight, QColor("#2b2f36"))
+        pal.setColor(QPalette.HighlightedText, QColor("#ffffff"))
+        self.table.setPalette(pal)
+
+        # 3) Refuerza en QSS (incluye estados active/inactive para que SIEMPRE se vea el texto)
+        self.table.setStyleSheet("""
+        QTableWidget::item {
+        border: 0px;
+        padding: 2px 6px;
+        }
+        QTableWidget::item:selected:active {
+        background-color: #2b2f36;
+        color: #ffffff;
+        }
+        QTableWidget::item:selected:!active {
+        background-color: #2b2f36;
+        color: #ffffff;
+        }
+        QTableWidget::item:focus {
+        outline: none;
+        border: 0px;
+        }
+        QTableWidget:focus {
+        outline: none;
+        }
+        QHeaderView::section {
+        padding: 6px;
+        border: 0px;
+        }
+        """)
+
         layout.addWidget(self.table)
 
         # Preview panel (Base | Upscale)
@@ -145,7 +189,6 @@ class MainWindow(QMainWindow):
         self.base_image_label.doubleClicked.connect(lambda: self.open_preview_dialog("base"))
         self.up_image_label.doubleClicked.connect(lambda: self.open_preview_dialog("upscale"))
 
-
         preview_row.addWidget(self.base_group, 1)
         preview_row.addWidget(self.up_group, 1)
 
@@ -175,6 +218,7 @@ class MainWindow(QMainWindow):
         self.open_folder_up_btn.clicked.connect(lambda: self.open_selected("folder_upscale"))
 
         # Selection changes => enable/disable + preview update
+        self.table.itemSelectionChanged.connect(self._sync_current_cell_to_selection)
         self.table.itemSelectionChanged.connect(self.update_actions_state)
 
         # Estado inicial botones (deshabilitados hasta tener selección válida)
@@ -192,6 +236,18 @@ class MainWindow(QMainWindow):
         self._populate_pack_selectors()
 
         self.refresh()
+
+    def _sync_current_cell_to_selection(self) -> None:
+        selected = self.table.selectionModel().selectedRows()
+        if not selected:
+            return
+        r = selected[0].row()
+        # deja como "current cell" la columna 0 (ID), así no pinta focus raro en columnas vacías
+        self.table.setCurrentCell(r, 0)
+
+    def _clear_current_cell(self) -> None:
+        # Evita que Qt dibuje el indicador de "celda actual" (rayas azules)
+        self.table.setCurrentCell(-1, -1)
 
     # -------- Queue controls --------
 
@@ -296,9 +352,6 @@ class MainWindow(QMainWindow):
     # -------- Preview helpers --------
 
     def _set_preview(self, *, which: str, path: Path | None) -> None:
-        """
-        which: 'base' or 'up'
-        """
         if which == "base":
             self._base_path = path
         else:
@@ -340,7 +393,6 @@ class MainWindow(QMainWindow):
         self._rescale_previews()
 
     def _rescale_previews(self) -> None:
-        # Base
         if self._pix_base and not self._pix_base.isNull():
             target = self.base_image_label.size()
             scaled = self._pix_base.scaled(target, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -350,7 +402,6 @@ class MainWindow(QMainWindow):
             if not self.base_image_label.pixmap():
                 self.base_image_label.setText("(sin base)")
 
-        # Upscale
         if self._pix_up and not self._pix_up.isNull():
             target = self.up_image_label.size()
             scaled = self._pix_up.scaled(target, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -367,10 +418,6 @@ class MainWindow(QMainWindow):
     # -------- Selection: enable actions + update preview --------
 
     def update_actions_state(self) -> None:
-        """
-        Habilita/deshabilita botones según si el item seleccionado tiene outputs guardados.
-        Además actualiza el preview base/upscale.
-        """
         pid = self._selected_prompt_id()
         if pid is None:
             self.open_base_btn.setEnabled(False)
@@ -428,7 +475,7 @@ class MainWindow(QMainWindow):
         if not self.worker_thread:
             return
         self.worker_thread.stop()
-        self.worker_thread.wait(3000)  # 3s
+        self.worker_thread.wait(3000)
 
         self.start_worker_btn.setEnabled(True)
         self.stop_worker_btn.setEnabled(False)
@@ -446,11 +493,8 @@ class MainWindow(QMainWindow):
         else:
             self.worker_status_label.setText(f"Worker: {s}")
 
-
     def on_worker_processed(self) -> None:
-        # refresco ligero: solo refresh completo por ahora
         self.refresh()
-
 
     def open_selected(self, mode: str) -> None:
         pid = self._selected_prompt_id()

@@ -17,24 +17,60 @@ class BuiltPrompt:
     signature: str
 
 
-def _sig_from_meta(meta: dict[str, Any]) -> str:
-    # Firma estable para evitar repeticiones (orden determinista)
-    # Usamos campos clave del combo.
-    combo = meta.get("combo", {})
-    payload = "|".join([
-        str(combo.get("category", "")),
-        str(combo.get("variant", "")),
-        str(combo.get("ratio_key", "")),
-        str(combo.get("top", "")),
-        str(combo.get("bottom", "")),
-        str(combo.get("dress", "")),
-        str(combo.get("extra", "")),
-        str(combo.get("footwear", "")),
-        str(combo.get("pose", "")),
-        str(combo.get("background", "")),
-        str(combo.get("lighting", "")),
-    ])
+def _sig_from_combo(combo: dict[str, Any]) -> str:
+    """
+    Firma estable para evitar repeticiones.
+    Incluye identidad/cámara/mood además de outfit/escena.
+    """
+    keys = [
+        "category", "variant", "ratio_key", "ratio_tag",
+        "base_subject",
+        "face_features", "eye_style",
+        "hair_color", "hair_style", "hair_detail",
+        "camera_focal", "camera_framing", "camera_angle",
+        "mood",
+        "top", "bottom", "dress", "extra", "footwear",
+        "pose", "background", "lighting",
+    ]
+    payload = "|".join(str(combo.get(k, "")) for k in keys)
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
+
+def _pick_from_grouped_dict(
+    rng: random.Random,
+    grouped: dict[str, list[str]] | None,
+    fallback: str,
+) -> str:
+    if not grouped:
+        return fallback
+    groups = [v for v in grouped.values() if isinstance(v, list) and v]
+    if not groups:
+        return fallback
+    return rng.choice(rng.choice(groups))
+
+
+def _pick_from_list(rng: random.Random, items: list[str] | None, fallback: str) -> str:
+    if not items:
+        return fallback
+    items2 = [x for x in items if isinstance(x, str) and x.strip()]
+    if not items2:
+        return fallback
+    return rng.choice(items2)
+
+
+def _build_ratios_plan(rng: random.Random, allowed_ratios: list[str], count: int) -> list[str]:
+    """
+    Garantiza variedad en batches pequeños:
+    - baraja allowed_ratios y los “repite” hasta llegar a count
+    """
+    if not allowed_ratios:
+        allowed_ratios = ["1:1"]
+    plan: list[str] = []
+    while len(plan) < count:
+        chunk = list(allowed_ratios)
+        rng.shuffle(chunk)
+        plan.extend(chunk)
+    return plan[:count]
 
 
 def build_unique_prompts(
@@ -46,9 +82,6 @@ def build_unique_prompts(
     rng_seed: int | None = None,
     used_signatures: set[str] | None = None,
 ) -> list[BuiltPrompt]:
-    """
-    Genera `count` prompts únicos (por firma) para una categoría + variante.
-    """
     used = used_signatures if used_signatures is not None else set()
     rng = random.Random(rng_seed)
 
@@ -56,103 +89,210 @@ def build_unique_prompts(
     if not cat or not cat.get("enabled", True):
         raise ValueError(f"Categoría inválida o deshabilitada: {category_key}")
 
-    allowed_ratios = cat.get("allowed_ratios") or ["1:1"]
+    defaults = catalog.defaults or {}
+    base_subject = str(defaults.get("base_subject", "adult anime woman")).strip()
+    quality_tags = defaults.get("quality_tags", []) or []
+
+    allowed_ratios = list(cat.get("allowed_ratios") or ["1:1"])
     base_prompt = str(cat.get("base_prompt", "")).strip()
-    quality_tags = catalog.defaults.get("quality_tags", [])
 
-    # Pools
-    tops = catalog.wardrobe.get("tops", [])
-    bottoms = catalog.wardrobe.get("bottoms", [])
-    dresses = catalog.wardrobe.get("dresses", [])
-    extras = catalog.wardrobe.get("extras", [])
+    negative_text = str(catalog.raw.get("negative_prompt") or "").strip()
+    if not negative_text:
+        negative_text = "low quality, blurry, bad anatomy, extra fingers, watermark, text"
 
-    pose_groups = list(catalog.pose.values()) or []
-    bg_groups = list(catalog.background.values()) or []
-    light_groups = list(catalog.lighting.values()) or []
+    # Pools: wardrobe
+    wardrobe = catalog.wardrobe or {}
+    tops = wardrobe.get("tops", []) or []
+    bottoms = wardrobe.get("bottoms", []) or []
+    dresses = wardrobe.get("dresses", []) or []
+    extras = wardrobe.get("extras", []) or []
 
-    # Negative base (puedes ampliarlo luego)
-    negative_text = "low quality, blurry, bad anatomy, extra fingers, watermark, text"
+    # Pools: grouped dicts
+    pose_grouped = catalog.pose or {}
+    bg_grouped = catalog.background or {}
+    light_grouped = catalog.lighting or {}
+
+    # Footwear dict
+    footwear = catalog.footwear or {}
+
+    # Identity
+    identity = catalog.raw.get("identity", {}) or {}
+    face_features_list = identity.get("face_features", []) or []
+    eye_styles_list = identity.get("eye_styles", []) or []
+    hair = identity.get("hair", {}) or {}
+    hair_colors = hair.get("colors", []) or []
+    hair_styles = hair.get("styles", []) or []
+    hair_details = hair.get("details", []) or []
+
+    # Camera
+    camera = catalog.raw.get("camera", {}) or {}
+    focal_lengths = camera.get("focal_lengths", []) or []
+    framings = camera.get("framing", []) or []
+    angles = camera.get("angle", []) or []
+
+    # Mood
+    mood_list = catalog.raw.get("mood", []) or []
 
     out: list[BuiltPrompt] = []
     attempts = 0
-    max_attempts = count * 50  # suficiente margen
+    max_attempts = count * 120
+
+    # Plan de ratios para variedad
+    ratios_plan = _build_ratios_plan(rng, allowed_ratios, count)
+
+    # Diversidad suave por batch (cuando el batch es pequeño)
+    small_batch = count <= 12
+    used_bg: set[str] = set()
+    used_pose: set[str] = set()
+    used_light: set[str] = set()
+    used_face: set[str] = set()
+    used_hair: set[str] = set()
 
     while len(out) < count and attempts < max_attempts:
         attempts += 1
 
-        ratio_key = rng.choice(allowed_ratios)
+        # Ratio
+        ratio_key = ratios_plan[len(out)]
         ratio_obj = catalog.ratios.get(ratio_key) or {}
         ratio_tag = str(ratio_obj.get("tag", ratio_key.replace(":", "x")))
+        ratio_w = int(ratio_obj.get("width") or 1024)
+        ratio_h = int(ratio_obj.get("height") or 1024)
 
-        # Outfit logic: o dress o (top+bottom), más optional extra
+        # Outfit logic
         use_dress = rng.random() < 0.35
         top = bottom = dress = ""
         if use_dress and dresses:
             dress = rng.choice(dresses)
         else:
-            if tops:
-                top = rng.choice(tops)
-            if bottoms:
-                bottom = rng.choice(bottoms)
+            top = _pick_from_list(rng, tops, "")
+            bottom = _pick_from_list(rng, bottoms, "")
 
-        extra = rng.choice(extras) if extras and rng.random() < 0.45 else ""
+        extra = _pick_from_list(rng, extras, "") if extras and rng.random() < 0.45 else ""
 
-        # Pose, background, lighting
-        pose = rng.choice(rng.choice(pose_groups)) if pose_groups else "standing"
-        bg = rng.choice(rng.choice(bg_groups)) if bg_groups else "simple background"
-        light = rng.choice(rng.choice(light_groups)) if light_groups else "soft natural lighting"
+        # Pose / background / lighting
+        pose = _pick_from_grouped_dict(rng, pose_grouped, "standing")
+        bg = _pick_from_grouped_dict(rng, bg_grouped, "simple background")
+        light = _pick_from_grouped_dict(rng, light_grouped, "soft natural lighting")
 
-        # Footwear: por categoría (heurística)
-        if category_key in ("fantasy",):
-            footwear_pool = catalog.footwear.get("fantasy", [])
-        elif category_key in ("elegant",):
-            footwear_pool = catalog.footwear.get("elegant", [])
+        if small_batch:
+            # Evita repetir dentro del batch: reintenta esa pieza 1 vez
+            if bg in used_bg:
+                bg = _pick_from_grouped_dict(rng, bg_grouped, bg)
+            if pose in used_pose:
+                pose = _pick_from_grouped_dict(rng, pose_grouped, pose)
+            if light in used_light:
+                light = _pick_from_grouped_dict(rng, light_grouped, light)
+
+        # Footwear por categoría
+        if category_key == "fantasy":
+            footwear_pool = footwear.get("fantasy", [])
+        elif category_key == "elegant":
+            footwear_pool = footwear.get("elegant", [])
         elif category_key in ("streetwear", "cyberpunk"):
-            footwear_pool = catalog.footwear.get("urban", [])
+            footwear_pool = footwear.get("urban", [])
         else:
-            footwear_pool = catalog.footwear.get("casual", [])
+            footwear_pool = footwear.get("casual", [])
 
-        footwear = rng.choice(footwear_pool) if footwear_pool else "sneakers"
+        footwear_pick = _pick_from_list(rng, footwear_pool, "sneakers")
 
-        # Combo/meta (trazable)
-        combo = {
+        # Identity (anti sameface)
+        face_features = _pick_from_list(rng, face_features_list, "distinct facial features")
+        eye_style = _pick_from_list(rng, eye_styles_list, "expressive eyes")
+        hair_color = _pick_from_list(rng, hair_colors, "chestnut brown")
+        hair_style = _pick_from_list(rng, hair_styles, "long wavy hair")
+        hair_detail = _pick_from_list(rng, hair_details, "loose strands framing the face")
+
+        hair_key = f"{hair_color}|{hair_style}|{hair_detail}"
+
+        if small_batch:
+            if face_features in used_face:
+                face_features = _pick_from_list(rng, face_features_list, face_features)
+            if hair_key in used_hair:
+                hair_color = _pick_from_list(rng, hair_colors, hair_color)
+                hair_style = _pick_from_list(rng, hair_styles, hair_style)
+                hair_detail = _pick_from_list(rng, hair_details, hair_detail)
+                hair_key = f"{hair_color}|{hair_style}|{hair_detail}"
+
+        hair_desc = f"{hair_color} {hair_style}, {hair_detail}".strip().strip(",")
+
+        # Camera
+        camera_focal = _pick_from_list(rng, focal_lengths, "50mm look")
+        camera_framing = _pick_from_list(rng, framings, "three-quarter shot")
+        camera_angle = _pick_from_list(rng, angles, "eye-level angle")
+        camera_desc = f"{camera_framing}, {camera_angle}, {camera_focal}".strip().strip(",")
+
+        # Mood
+        mood = _pick_from_list(rng, mood_list, "calm mood")
+
+        outfit_parts = [p for p in [top, bottom, dress, extra, footwear_pick] if p]
+        outfit_text = ", ".join(outfit_parts) if outfit_parts else "casual outfit"
+
+        combo: dict[str, Any] = {
             "category": category_key,
             "variant": variant,
-            "ratio_key": ratio_key,   # semántico (puede llevar :)
-            "ratio_tag": ratio_tag,   # seguro para naming
+            "ratio_key": ratio_key,
+            "ratio_tag": ratio_tag,
+            "width": ratio_w,
+            "height": ratio_h,
+            "base_subject": base_subject,
+
+            "face_features": face_features,
+            "eye_style": eye_style,
+            "hair_color": hair_color,
+            "hair_style": hair_style,
+            "hair_detail": hair_detail,
+
+            "camera_focal": camera_focal,
+            "camera_framing": camera_framing,
+            "camera_angle": camera_angle,
+
+            "mood": mood,
+
             "top": top,
             "bottom": bottom,
             "dress": dress,
             "extra": extra,
-            "footwear": footwear,
+            "footwear": footwear_pick,
             "pose": pose,
             "background": bg,
             "lighting": light,
         }
 
-        meta = {"combo": combo}
-        sig = _sig_from_meta(meta)
-        if sig in used:
+        signature = _sig_from_combo(combo)
+        if signature in used:
             continue
-        used.add(sig)
+        used.add(signature)
 
-        # Prompt final
-        outfit_parts = [p for p in [top, bottom, dress, extra, footwear] if p]
-        outfit_text = ", ".join(outfit_parts) if outfit_parts else "casual outfit"
+        # Ahora que ya fue aceptado, marcamos usados (para diversidad suave)
+        if small_batch:
+            used_bg.add(bg)
+            used_pose.add(pose)
+            used_light.add(light)
+            used_face.add(face_features)
+            used_hair.add(hair_key)
 
-        quality_text = ", ".join(quality_tags) if quality_tags else ""
+        quality_text = ", ".join([q for q in quality_tags if isinstance(q, str) and q.strip()])
+
         prompt_parts = [
             base_prompt,
+            base_subject,
+            face_features,
+            eye_style,
+            hair_desc,
             outfit_text,
             pose,
             bg,
             light,
+            camera_desc,
+            mood,
             quality_text,
         ]
-        prompt_text = ", ".join([p for p in prompt_parts if p]).strip().strip(",")
+        prompt_text = ", ".join([p for p in prompt_parts if isinstance(p, str) and p.strip()]).strip().strip(",")
 
-        # Title
-        title = f"{cat.get('label', category_key)} {variant} — {bg}"
+        cat_label = str(cat.get("label", category_key))
+        title = f"{cat_label} {variant} — {bg}"
+
+        meta = {"combo": combo}
 
         out.append(
             BuiltPrompt(
@@ -160,14 +300,14 @@ def build_unique_prompts(
                 prompt_text=prompt_text,
                 negative_text=negative_text,
                 meta=meta,
-                signature=sig,
+                signature=signature,
             )
         )
 
     if len(out) < count:
         raise RuntimeError(
-            f"No se pudieron generar {count} prompts únicos. Generados={len(out)} "
-            f"(intentos={attempts}). Amplía pools o reduce count."
+            f"No se pudieron generar {count} prompts únicos. Generados={len(out)} (intentos={attempts}). "
+            "Amplía pools (identity/camera/wardrobe) o reduce count."
         )
 
     return out

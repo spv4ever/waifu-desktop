@@ -67,7 +67,7 @@ class QueueWorker:
         # -------------------------
         category = sanitize_segment(combo.get("category", "cat"))
         variant = sanitize_segment(combo.get("variant", "v01"))
-        ratio = sanitize_segment(combo.get("ratio", "1x1"))  # 16:9 -> 16x9
+        ratio = sanitize_segment(combo.get("ratio_tag") or combo.get("ratio") or "1x1")
 
         folder = sanitize_relpath(f"anime/Waifu/{category}/{variant}")
 

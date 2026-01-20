@@ -1,11 +1,24 @@
+# ==========================================================
+# WAIFU PROMPT CATALOG — KEIKODEV
+# ==========================================================
+
 defaults:
   lock_steps: true
   steps: 50
-  base_subject: "beautiful anime girl"
+  base_subject: "adult anime woman"
   quality_tags:
     - high quality
     - ultra detailed
     - sharp focus
+    - clean linework
+    - professional illustration
+
+negative_prompt: >
+  low quality, blurry, out of focus, bad anatomy, bad hands,
+  extra fingers, deformed hands,
+  same face, identical face, generic face, cloned face,
+  doll-like face, plastic skin,
+  watermark, text, logo, jpeg artifacts, oversharpening
 
 # =========================
 # RATIOS DISPONIBLES
@@ -27,8 +40,13 @@ categories:
     enabled: true
     allowed_ratios: ["1:1", "3:4", "9:16"]
     base_prompt: >
-      clean modern anime style, beautiful anime girl,
-      casual clothes, natural pose, soft lighting
+      modern slice-of-life anime illustration of an adult woman,
+      distinct facial features with subtle asymmetry,
+      natural skin shading and soft blush tones,
+      relaxed everyday styling in a candid moment,
+      soft daylight with gentle bounce light,
+      shallow depth of field, 50mm look,
+      clean linework and rich but natural color grading
 
   fantasy:
     label: "Fantasy"
@@ -36,8 +54,13 @@ categories:
     enabled: true
     allowed_ratios: ["1:1", "3:4", "16:9"]
     base_prompt: >
-      fantasy anime illustration, magical atmosphere,
-      detailed outfit, cinematic lighting
+      high-fantasy anime illustration of an adult heroine,
+      distinctive face structure and expressive eyes,
+      intricate costume design with symbolic accessories,
+      magical environment with atmospheric depth,
+      cinematic lighting with volumetric rays,
+      35mm look, dramatic rim light,
+      painterly detail combined with crisp edges
 
   cyberpunk:
     label: "Cyberpunk"
@@ -45,8 +68,13 @@ categories:
     enabled: true
     allowed_ratios: ["1:1", "9:16", "16:9"]
     base_prompt: >
-      cyberpunk anime girl, neon lights,
-      futuristic city, high contrast lighting
+      cyberpunk anime portrait of an adult woman,
+      unique facial silhouette with sharp highlights,
+      neon reflections on skin and wet specular lighting,
+      futuristic city background with holographic signage,
+      high-contrast lighting and deep shadows,
+      50mm look, shallow depth of field,
+      cinematic teal and magenta color palette
 
   school:
     label: "School"
@@ -54,8 +82,12 @@ categories:
     enabled: true
     allowed_ratios: ["1:1", "3:4"]
     base_prompt: >
-      anime school girl, school uniform,
-      soft daylight, slice of life style
+      slice-of-life anime scene featuring an adult student character (college age),
+      distinctive facial proportions and gentle expression,
+      natural makeup and soft shading,
+      tidy school uniform with realistic fabric folds,
+      bright overcast daylight with soft shadows,
+      50mm look, warm pastel color palette
 
   streetwear:
     label: "Streetwear"
@@ -63,8 +95,13 @@ categories:
     enabled: true
     allowed_ratios: ["1:1", "9:16"]
     base_prompt: >
-      anime girl streetwear, urban fashion,
-      dynamic pose, modern anime style
+      contemporary anime fashion editorial of an adult woman,
+      distinctive facial features and confident attitude,
+      layered streetwear outfit with visible textures and stitching,
+      urban environment with strong perspective lines,
+      directional sunlight with rim light,
+      35mm look, dynamic framing,
+      crisp linework and modern color grading
 
   beach:
     label: "Beach / Summer"
@@ -72,8 +109,13 @@ categories:
     enabled: true
     allowed_ratios: ["1:1", "3:4", "9:16"]
     base_prompt: >
-      anime girl at the beach, summer outfit,
-      warm sunlight, vibrant colors
+      summer anime lifestyle scene of an adult woman,
+      distinctive face and natural relaxed expression,
+      sunlit skin shading with warm highlights,
+      beach environment with atmospheric haze,
+      gentle wind movement in hair and fabric,
+      golden hour sunlight, 35mm look,
+      soft lens flare and vibrant summer colors
 
   goth:
     label: "Goth / Dark"
@@ -81,8 +123,13 @@ categories:
     enabled: true
     allowed_ratios: ["1:1", "3:4"]
     base_prompt: >
-      dark gothic anime girl, moody lighting,
-      dramatic atmosphere
+      dark gothic anime portrait of an adult woman,
+      unique facial structure with dramatic makeup,
+      textured fabrics such as lace and velvet,
+      moody environment with candles or stained-glass accents,
+      low-key lighting with strong rim light,
+      50mm look, deep shadows,
+      restrained monochrome palette with crimson accents
 
   elegant:
     label: "Elegant / Date"
@@ -90,33 +137,93 @@ categories:
     enabled: true
     allowed_ratios: ["1:1", "3:4"]
     base_prompt: >
-      elegant anime girl, classy outfit,
-      studio lighting, refined pose
+      elegant anime studio portrait of an adult woman,
+      distinctive face proportions and refined expression,
+      premium fashion styling with subtle jewelry,
+      controlled studio lighting setup (key, fill, rim),
+      clean shadow definition and smooth gradients,
+      85mm look, shallow depth of field,
+      high-end editorial finish
+
+# =========================
+# IDENTIDAD FACIAL (ANTI SAME-FACE)
+# =========================
+identity:
+  face_features:
+    - heart-shaped face with soft cheekbones
+    - oval face with high cheekbones
+    - square jawline with a strong chin
+    - round face with gentle cheeks
+    - sharp jawline with a narrow chin
+    - prominent cheekbones and elegant nose bridge
+
+  eye_styles:
+    - almond-shaped eyes with bright catchlights
+    - slightly hooded eyes with subtle eyeliner
+    - large expressive eyes with soft gradient irises
+    - narrow confident eyes with sharp highlights
+    - gentle eyes with a warm gaze
+
+  hair:
+    colors:
+      - jet black
+      - chestnut brown
+      - ash brown
+      - platinum blonde
+      - silver
+      - auburn
+      - deep blue
+      - rose pink
+    styles:
+      - long wavy hair
+      - short bob cut
+      - twin tails
+      - high ponytail
+      - messy bun
+      - braided hair
+      - shoulder-length straight hair
+    details:
+      - loose strands framing the face
+      - soft flyaway hair
+      - wind-swept hair
+      - neat bangs
+      - side-swept bangs
+
+# =========================
+# CÁMARA / COMPOSICIÓN
+# =========================
+camera:
+  focal_lengths:
+    - 35mm look
+    - 50mm look
+    - 85mm look
+  framing:
+    - medium shot
+    - three-quarter shot
+    - close-up portrait
+  angle:
+    - eye-level angle
+    - slight low angle
+    - slight high angle
+
+# =========================
+# MOOD / ACTITUD
+# =========================
+mood:
+  - calm, introspective mood
+  - playful, cheerful mood
+  - confident, bold mood
+  - soft romantic mood
+  - mysterious, dramatic mood
 
 # =========================
 # MODULADORES COMBINABLES
 # =========================
-
 wardrobe:
-  tops:
-    - hoodie
-    - t-shirt
-    - sweater
-    - blouse
-    - crop top
-  bottoms:
-    - jeans
-    - skirt
-    - shorts
-    - leggings
-  dresses:
-    - casual dress
-    - elegant dress
-    - summer dress
-  extras:
-    - jacket
-    - cardigan
-    - oversized hoodie
+  tops: [hoodie, t-shirt, sweater, blouse, crop top]
+  bottoms: [jeans, skirt, shorts, leggings]
+  dresses: [casual dress, elegant dress, summer dress]
+  extras: [jacket, cardigan, oversized hoodie]
 
 footwear:
   casual: [sneakers, flats]
