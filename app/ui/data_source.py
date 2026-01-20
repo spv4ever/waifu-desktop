@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from app.data.db import get_connection
@@ -18,6 +19,7 @@ class PromptRow:
     ratio: str
     has_base: bool
     has_upscale: bool
+    datestamp: str
 
 
 def _extract_category_variant(meta_json: str | None) -> tuple[str, str]:
@@ -105,11 +107,24 @@ def fetch_prompts(
     variant: str | None = None,
     status: str | None = None,
     ratio: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
 ) -> list[PromptRow]:
+    dt_from = _parse_db_datetime(date_from) if date_from else None
+    dt_to = _parse_db_datetime(date_to) if date_to else None
+
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, title, prompt_text, status, meta_json, base_image_json, upscale_image_json
+            SELECT
+                id,
+                title,
+                prompt_text,
+                status,
+                meta_json,
+                base_image_json,
+                upscale_image_json,
+                COALESCE(updated_at, created_at) AS datestamp
             FROM prompt_item
             ORDER BY id DESC
             """
@@ -120,6 +135,8 @@ def fetch_prompts(
         row_status = str(r["status"])
         category_value, variant_value = _extract_category_variant(r["meta_json"])
         ratio_value = _extract_ratio(r["meta_json"])
+        row_datestamp = str(r["datestamp"]) if r["datestamp"] else ""
+        row_dt = _parse_db_datetime(row_datestamp) if row_datestamp else None
 
         if category and category_value != category:
             continue
@@ -128,6 +145,10 @@ def fetch_prompts(
         if status and row_status != status:
             continue
         if ratio and ratio_value != ratio:
+            continue
+        if dt_from and (row_dt is None or row_dt < dt_from):
+            continue
+        if dt_to and (row_dt is None or row_dt > dt_to):
             continue
 
         result.append(
@@ -141,8 +162,25 @@ def fetch_prompts(
                 ratio=ratio_value,
                 has_base=bool(r["base_image_json"]),
                 has_upscale=bool(r["upscale_image_json"]),
+                datestamp=_format_datestamp(row_datestamp),
             )
         )
         if len(result) >= limit:
             break
     return result
+
+
+def _parse_db_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+
+
+def _format_datestamp(value: str | None) -> str:
+    dt = _parse_db_datetime(value)
+    if not dt:
+        return "—"
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
