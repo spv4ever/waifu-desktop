@@ -743,45 +743,44 @@ class MainWindow(QMainWindow):
             return
 
         with get_connection() as conn:
+            existing_job = conn.execute(
+                """
+                SELECT id, status
+                FROM queue_job
+                WHERE prompt_item_id=? AND status IN ('PENDING','RUNNING')
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (pid,),
+            ).fetchone()
+
+        if existing_job:
+            QMessageBox.information(
+                self,
+                "Reintentar",
+                f"El prompt {pid} ya está en cola (job {existing_job['id']} en {existing_job['status']}).",
+            )
+            return
+
+        with get_connection() as conn:
             with conn:
-                cur = conn.execute(
-                    """
-                    INSERT INTO prompt_item (
-                        pack_id,
-                        title,
-                        prompt_text,
-                        negative_text,
-                        meta_json,
-                        combo_key,
-                        signature,
-                        status
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'QUEUED')
-                    """,
-                    (
-                        row["pack_id"],
-                        row["title"],
-                        row["prompt_text"],
-                        row["negative_text"],
-                        row["meta_json"],
-                        row["combo_key"],
-                        row["signature"],
-                    ),
+                conn.execute(
+                    "UPDATE prompt_item SET status='QUEUED' WHERE id=?",
+                    (pid,),
                 )
-                new_prompt_id = int(cur.lastrowid)
                 conn.execute(
                     """
                     INSERT INTO queue_job(prompt_item_id, priority, status)
                     VALUES (?, 100, 'PENDING')
                     """,
-                    (new_prompt_id,),
+                    (pid,),
                 )
 
         self.refresh()
         QMessageBox.information(
             self,
             "Reintentar",
-            f"Prompt {pid} reencolado como {new_prompt_id}.",
+            f"Prompt {pid} reencolado.",
         )
 
     def delete_selected_prompt(self) -> None:
