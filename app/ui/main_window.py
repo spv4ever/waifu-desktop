@@ -8,13 +8,17 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
-    QGroupBox
+    QGroupBox, QComboBox
 )
 
+from app.config.app_config import load_app_config
+from app.config.waifu_catalog import load_waifu_catalog
 from app.data.db import get_connection
 from app.data.kv_store import KVStore
 from app.services.output_paths import build_output_path
+from app.services.pack_service import PackService
 from app.services.file_open import open_file, open_folder_and_select
+from app.domain.models import PackCreate
 from app.ui.data_source import fetch_latest_prompts
 from app.ui.worker_thread import WorkerThread
 from app.ui.clickable_label import ClickableLabel
@@ -33,6 +37,9 @@ class MainWindow(QMainWindow):
 
 
         self.kv = KVStore()
+        self.pack_service = PackService()
+        self.waifu_catalog = load_waifu_catalog()
+        self.app_config = load_app_config()
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -73,6 +80,30 @@ class MainWindow(QMainWindow):
         top.addWidget(self.limit_spin)
 
         top.addStretch(1)
+
+        # Pack generator
+        pack_group = QGroupBox("Generar Pack")
+        pack_layout = QHBoxLayout(pack_group)
+
+        pack_layout.addWidget(QLabel("Categoría:"))
+        self.pack_category_combo = QComboBox()
+        pack_layout.addWidget(self.pack_category_combo)
+
+        pack_layout.addWidget(QLabel("Variante:"))
+        self.pack_variant_combo = QComboBox()
+        pack_layout.addWidget(self.pack_variant_combo)
+
+        pack_layout.addWidget(QLabel("Cantidad:"))
+        self.pack_quantity_spin = QSpinBox()
+        self.pack_quantity_spin.setRange(1, 500)
+        self.pack_quantity_spin.setValue(10)
+        pack_layout.addWidget(self.pack_quantity_spin)
+
+        self.pack_generate_btn = QPushButton("Generar Pack")
+        pack_layout.addWidget(self.pack_generate_btn)
+        pack_layout.addStretch(1)
+
+        layout.addWidget(pack_group)
 
         # Table
         self.table = QTableWidget(0, 7)
@@ -156,6 +187,9 @@ class MainWindow(QMainWindow):
 
         self.start_worker_btn.clicked.connect(self.start_worker)
         self.stop_worker_btn.clicked.connect(self.stop_worker)
+        self.pack_generate_btn.clicked.connect(self.generate_pack)
+
+        self._populate_pack_selectors()
 
         self.refresh()
 
@@ -213,6 +247,51 @@ class MainWindow(QMainWindow):
         if not pid_item:
             return None
         return int(pid_item.text())
+
+    def _populate_pack_selectors(self) -> None:
+        self.pack_category_combo.clear()
+        for key, data in self.waifu_catalog.categories.items():
+            if not data.get("enabled", True):
+                continue
+            label = str(data.get("label", key))
+            self.pack_category_combo.addItem(label, key)
+
+        self.pack_variant_combo.clear()
+        for key in self.app_config.variants.keys():
+            self.pack_variant_combo.addItem(key, key)
+
+        if self.pack_category_combo.count() == 0:
+            self.pack_generate_btn.setEnabled(False)
+
+    def generate_pack(self) -> None:
+        category = self.pack_category_combo.currentData()
+        variant = self.pack_variant_combo.currentData()
+        quantity = int(self.pack_quantity_spin.value())
+
+        if not category or not variant:
+            QMessageBox.warning(self, "Generar Pack", "Selecciona categoría y variante.")
+            return
+
+        req = PackCreate(
+            category=str(category),
+            variant=str(variant),
+            requested_n=quantity,
+        )
+
+        try:
+            with get_connection() as conn:
+                with conn:
+                    result = self.pack_service.create_pack_and_enqueue(conn, req)
+        except Exception as exc:
+            QMessageBox.critical(self, "Generar Pack", str(exc))
+            return
+
+        self.refresh()
+        QMessageBox.information(
+            self,
+            "Generar Pack",
+            f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} items.",
+        )
 
     # -------- Preview helpers --------
 
@@ -436,4 +515,3 @@ class MainWindow(QMainWindow):
         title = "Preview Base" if which == "base" else "Preview Upscale"
         dlg = ImageViewer(title, path)
         dlg.exec()
-
