@@ -755,10 +755,30 @@ class MainWindow(QMainWindow):
             ).fetchone()
 
         if existing_job:
+            with get_connection() as conn:
+                with conn:
+                    conn.execute(
+                        """
+                        UPDATE queue_job
+                        SET status='PENDING',
+                            remote_id=NULL,
+                            remote_status=NULL,
+                            output_json=NULL,
+                            last_error=NULL
+                        WHERE id=?
+                        """,
+                        (existing_job["id"],),
+                    )
+                    conn.execute(
+                        "UPDATE prompt_item SET status='QUEUED' WHERE id=?",
+                        (pid,),
+                    )
+
+            self.refresh()
             QMessageBox.information(
                 self,
                 "Reintentar",
-                f"El prompt {pid} ya está en cola (job {existing_job['id']} en {existing_job['status']}).",
+                f"Prompt {pid} reencolado (job {existing_job['id']}).",
             )
             return
 
