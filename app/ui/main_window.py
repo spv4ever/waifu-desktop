@@ -19,7 +19,7 @@ from app.services.output_paths import build_output_path
 from app.services.pack_service import PackService
 from app.services.file_open import open_file, open_folder_and_select
 from app.domain.models import PackCreate
-from app.ui.data_source import fetch_latest_prompts
+from app.ui.data_source import fetch_prompts, fetch_prompt_filters, fetch_prompt_status_counts
 from app.ui.worker_thread import WorkerThread
 from app.ui.clickable_label import ClickableLabel
 from app.ui.image_viewer import ImageViewer
@@ -80,6 +80,26 @@ class MainWindow(QMainWindow):
         self.limit_spin.setRange(10, 500)
         self.limit_spin.setValue(50)
         top.addWidget(self.limit_spin)
+
+        top.addWidget(QLabel("Categoría:"))
+        self.filter_category_combo = QComboBox()
+        self.filter_category_combo.setMinimumWidth(130)
+        top.addWidget(self.filter_category_combo)
+
+        top.addWidget(QLabel("Versión:"))
+        self.filter_variant_combo = QComboBox()
+        self.filter_variant_combo.setMinimumWidth(130)
+        top.addWidget(self.filter_variant_combo)
+
+        top.addWidget(QLabel("Estado:"))
+        self.filter_status_combo = QComboBox()
+        self.filter_status_combo.setMinimumWidth(130)
+        top.addWidget(self.filter_status_combo)
+
+        top.addWidget(QLabel("Ratio:"))
+        self.filter_ratio_combo = QComboBox()
+        self.filter_ratio_combo.setMinimumWidth(110)
+        top.addWidget(self.filter_ratio_combo)
 
         top.addStretch(1)
 
@@ -173,8 +193,12 @@ class MainWindow(QMainWindow):
 
         prompt_actions = QHBoxLayout()
         self.copy_prompt_btn = QPushButton("Copiar prompt")
+        self.retry_prompt_btn = QPushButton("Reintentar prompt")
+        self.delete_prompt_btn = QPushButton("Eliminar prompt")
         prompt_actions.addStretch(1)
         prompt_actions.addWidget(self.copy_prompt_btn)
+        prompt_actions.addWidget(self.retry_prompt_btn)
+        prompt_actions.addWidget(self.delete_prompt_btn)
         prompt_layout.addLayout(prompt_actions)
 
         left_column.addWidget(self.prompt_group, 0)
@@ -207,6 +231,27 @@ class MainWindow(QMainWindow):
         bottom.addWidget(self.open_folder_up_btn)
         bottom.addStretch(1)
 
+        # Status counters
+        status_row = QHBoxLayout()
+        self.status_total_label = QLabel("Total: 0")
+        self.status_created_label = QLabel("CREATED: 0")
+        self.status_queued_label = QLabel("QUEUED: 0")
+        self.status_sent_label = QLabel("SENT: 0")
+        self.status_done_label = QLabel("DONE: 0")
+        self.status_failed_label = QLabel("FAILED: 0")
+        status_row.addStretch(1)
+        for lbl in (
+            self.status_total_label,
+            self.status_created_label,
+            self.status_queued_label,
+            self.status_sent_label,
+            self.status_done_label,
+            self.status_failed_label,
+        ):
+            status_row.addWidget(lbl)
+        status_row.addStretch(1)
+        layout.addLayout(status_row)
+
         # Signals
         self.refresh_btn.clicked.connect(self.refresh)
         self.pause_btn.clicked.connect(self.pause_queue)
@@ -227,12 +272,21 @@ class MainWindow(QMainWindow):
         self.open_up_btn.setEnabled(False)
         self.open_folder_base_btn.setEnabled(False)
         self.open_folder_up_btn.setEnabled(False)
+        self.retry_prompt_btn.setEnabled(False)
+        self.delete_prompt_btn.setEnabled(False)
 
         self.worker_thread: WorkerThread | None = None
 
         self.start_worker_btn.clicked.connect(self.start_worker)
         self.stop_worker_btn.clicked.connect(self.stop_worker)
         self.pack_generate_btn.clicked.connect(self.generate_pack)
+        self.retry_prompt_btn.clicked.connect(self.retry_selected_prompt)
+        self.delete_prompt_btn.clicked.connect(self.delete_selected_prompt)
+        self.limit_spin.valueChanged.connect(self.refresh)
+        self.filter_category_combo.currentIndexChanged.connect(self.refresh)
+        self.filter_variant_combo.currentIndexChanged.connect(self.refresh)
+        self.filter_status_combo.currentIndexChanged.connect(self.refresh)
+        self.filter_ratio_combo.currentIndexChanged.connect(self.refresh)
 
         self._populate_pack_selectors()
 
@@ -271,7 +325,18 @@ class MainWindow(QMainWindow):
 
     def refresh(self) -> None:
         limit = int(self.limit_spin.value())
-        data = fetch_latest_prompts(limit=limit)
+        category = self._selected_filter_value(self.filter_category_combo)
+        variant = self._selected_filter_value(self.filter_variant_combo)
+        status = self._selected_filter_value(self.filter_status_combo)
+        ratio = self._selected_filter_value(self.filter_ratio_combo)
+
+        data = fetch_prompts(
+            limit=limit,
+            category=category,
+            variant=variant,
+            status=status,
+            ratio=ratio,
+        )
 
         self.table.setRowCount(len(data))
         for i, row in enumerate(data):
@@ -288,6 +353,9 @@ class MainWindow(QMainWindow):
 
         # Recalcular botones + preview tras refrescar
         self.update_actions_state()
+
+        self._refresh_filters()
+        self._refresh_status_counts()
 
         with get_connection() as conn:
             paused = self.kv.get(conn, "queue_paused", "false")
@@ -404,6 +472,8 @@ class MainWindow(QMainWindow):
             self.open_up_btn.setEnabled(False)
             self.open_folder_base_btn.setEnabled(False)
             self.open_folder_up_btn.setEnabled(False)
+            self.retry_prompt_btn.setEnabled(False)
+            self.delete_prompt_btn.setEnabled(False)
             self.prompt_preview_text.setPlainText("—")
             self._set_preview(which="base", path=None)
             return
@@ -423,6 +493,8 @@ class MainWindow(QMainWindow):
         self.open_folder_base_btn.setEnabled(has_base)
         self.open_up_btn.setEnabled(has_up)
         self.open_folder_up_btn.setEnabled(has_up)
+        self.retry_prompt_btn.setEnabled(True)
+        self.delete_prompt_btn.setEnabled(True)
 
         base_path: Path | None = None
         if r and r["base_image_json"]:
@@ -542,3 +614,105 @@ class MainWindow(QMainWindow):
         if not prompt or prompt == "—":
             return
         QApplication.clipboard().setText(prompt)
+
+    def _selected_filter_value(self, combo: QComboBox) -> str | None:
+        value = combo.currentData()
+        if value is None or value == "__ALL__":
+            return None
+        return str(value)
+
+    def _refresh_filters(self) -> None:
+        filters = fetch_prompt_filters()
+        self._populate_filter_combo(self.filter_category_combo, "Categoría", filters["categories"])
+        self._populate_filter_combo(self.filter_variant_combo, "Versión", filters["variants"])
+        self._populate_filter_combo(self.filter_status_combo, "Estado", filters["statuses"])
+        self._populate_filter_combo(self.filter_ratio_combo, "Ratio", filters["ratios"])
+
+    def _populate_filter_combo(self, combo: QComboBox, label: str, values: list[str]) -> None:
+        current_data = combo.currentData()
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem(f"Todas ({label})", "__ALL__")
+        for value in values:
+            combo.addItem(value, value)
+        if current_data:
+            idx = combo.findData(current_data)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+        combo.blockSignals(False)
+
+    def _refresh_status_counts(self) -> None:
+        counts = fetch_prompt_status_counts()
+        self.status_total_label.setText(f"Total: {counts.get('TOTAL', 0)}")
+        self.status_created_label.setText(f"CREATED: {counts.get('CREATED', 0)}")
+        self.status_queued_label.setText(f"QUEUED: {counts.get('QUEUED', 0)}")
+        self.status_sent_label.setText(f"SENT: {counts.get('SENT', 0)}")
+        self.status_done_label.setText(f"DONE: {counts.get('DONE', 0)}")
+        self.status_failed_label.setText(f"FAILED: {counts.get('FAILED', 0)}")
+
+    def retry_selected_prompt(self) -> None:
+        pid = self._selected_prompt_id()
+        if pid is None:
+            QMessageBox.warning(self, "Reintentar", "Selecciona un prompt primero.")
+            return
+
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT status FROM prompt_item WHERE id=?",
+                (pid,),
+            ).fetchone()
+
+        if not row:
+            QMessageBox.warning(self, "Reintentar", f"No existe prompt_item {pid}.")
+            return
+
+        status = str(row["status"])
+        if status not in {"FAILED", "DONE", "SENT", "QUEUED", "CREATED"}:
+            QMessageBox.information(self, "Reintentar", f"Estado actual: {status}")
+            return
+
+        confirm = QMessageBox.question(
+            self,
+            "Reintentar",
+            f"¿Reintentar prompt {pid} (estado {status})?",
+        )
+        if confirm != QMessageBox.Yes:
+            return
+
+        with get_connection() as conn:
+            with conn:
+                conn.execute(
+                    "UPDATE prompt_item SET status='QUEUED' WHERE id=?",
+                    (pid,),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO queue_job(prompt_item_id, priority, status)
+                    VALUES (?, 100, 'PENDING')
+                    """,
+                    (pid,),
+                )
+
+        self.refresh()
+        QMessageBox.information(self, "Reintentar", f"Prompt {pid} reencolado.")
+
+    def delete_selected_prompt(self) -> None:
+        pid = self._selected_prompt_id()
+        if pid is None:
+            QMessageBox.warning(self, "Eliminar", "Selecciona un prompt primero.")
+            return
+
+        confirm = QMessageBox.question(
+            self,
+            "Eliminar",
+            f"¿Eliminar prompt {pid}?",
+        )
+        if confirm != QMessageBox.Yes:
+            return
+
+        with get_connection() as conn:
+            with conn:
+                conn.execute("DELETE FROM prompt_item WHERE id=?", (pid,))
+
+        self.refresh()
+        QMessageBox.information(self, "Eliminar", f"Prompt {pid} eliminado.")
