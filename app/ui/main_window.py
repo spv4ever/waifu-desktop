@@ -110,9 +110,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(pack_group)
 
         # Table
-        self.table = QTableWidget(0, 7)
+        self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Categoría", "Versión", "Estado", "Título", "Base", "Upscale"
+            "ID", "Categoría", "Versión", "Estado", "Título", "Descripción", "Ratio", "Base", "Upscale"
         ])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -279,8 +279,12 @@ class MainWindow(QMainWindow):
             self.table.setItem(i, 2, QTableWidgetItem(row.variant))
             self.table.setItem(i, 3, QTableWidgetItem(row.status))
             self.table.setItem(i, 4, QTableWidgetItem(row.title))
-            self.table.setItem(i, 5, QTableWidgetItem("✅" if row.has_base else "—"))
-            self.table.setItem(i, 6, QTableWidgetItem("✅" if row.has_upscale else "—"))
+            desc_item = QTableWidgetItem(row.prompt_text)
+            desc_item.setToolTip(row.prompt_text)
+            self.table.setItem(i, 5, desc_item)
+            self.table.setItem(i, 6, QTableWidgetItem(row.ratio))
+            self.table.setItem(i, 7, QTableWidgetItem("✅" if row.has_base else "—"))
+            self.table.setItem(i, 8, QTableWidgetItem("✅" if row.has_upscale else "—"))
 
         self.table.resizeColumnsToContents()
 
