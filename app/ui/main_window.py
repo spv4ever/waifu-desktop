@@ -8,7 +8,7 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
-    QGroupBox, QComboBox, QAbstractItemView
+    QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication
 )
 
 from app.config.app_config import load_app_config
@@ -39,7 +39,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Waifu Desktop — Cola & Resultados")
         self.resize(1200, 750)
         self._base_path: Path | None = None
-        self._up_path: Path | None = None
 
         self.kv = KVStore()
         self.pack_service = PackService()
@@ -48,7 +47,6 @@ class MainWindow(QMainWindow):
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
-        self._pix_up: QPixmap | None = None
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -109,6 +107,12 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(pack_group)
 
+        main_content = QHBoxLayout()
+        layout.addLayout(main_content, 1)
+
+        left_column = QVBoxLayout()
+        main_content.addLayout(left_column, 3)
+
         # Table
         self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels([
@@ -156,20 +160,26 @@ class MainWindow(QMainWindow):
         }
         """)
 
-        layout.addWidget(self.table)
+        left_column.addWidget(self.table, 1)
 
         # Prompt preview
-        self.prompt_preview_label = QLabel("—")
-        self.prompt_preview_label.setAlignment(Qt.AlignCenter)
-        self.prompt_preview_label.setWordWrap(True)
-        self.prompt_preview_label.setStyleSheet("font-weight: 600;")
-        layout.addWidget(self.prompt_preview_label)
+        self.prompt_group = QGroupBox("Prompt")
+        prompt_layout = QVBoxLayout(self.prompt_group)
+        self.prompt_preview_text = QPlainTextEdit("—")
+        self.prompt_preview_text.setReadOnly(True)
+        self.prompt_preview_text.setLineWrapMode(QPlainTextEdit.WidgetWidth)
+        self.prompt_preview_text.setStyleSheet("font-weight: 600;")
+        prompt_layout.addWidget(self.prompt_preview_text)
 
-        # Preview panel (Base | Upscale)
-        preview_row = QHBoxLayout()
-        layout.addLayout(preview_row)
+        prompt_actions = QHBoxLayout()
+        self.copy_prompt_btn = QPushButton("Copiar prompt")
+        prompt_actions.addStretch(1)
+        prompt_actions.addWidget(self.copy_prompt_btn)
+        prompt_layout.addLayout(prompt_actions)
 
-        # Base preview group
+        left_column.addWidget(self.prompt_group, 0)
+
+        # Base preview group (right column)
         self.base_group = QGroupBox("Preview Base")
         base_layout = QVBoxLayout(self.base_group)
         self.base_path_label = QLabel("—")
@@ -181,23 +191,9 @@ class MainWindow(QMainWindow):
         base_layout.addWidget(self.base_path_label)
         base_layout.addWidget(self.base_image_label)
 
-        # Upscale preview group
-        self.up_group = QGroupBox("Preview Upscale")
-        up_layout = QVBoxLayout(self.up_group)
-        self.up_path_label = QLabel("—")
-        self.up_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self.up_image_label = ClickableLabel("(sin upscale)")
-        self.up_image_label.setAlignment(Qt.AlignCenter)
-        self.up_image_label.setMinimumHeight(240)
-        self.up_image_label.setStyleSheet("border: 1px solid #444;")
-        up_layout.addWidget(self.up_path_label)
-        up_layout.addWidget(self.up_image_label)
-
         self.base_image_label.doubleClicked.connect(lambda: self.open_preview_dialog("base"))
-        self.up_image_label.doubleClicked.connect(lambda: self.open_preview_dialog("upscale"))
 
-        preview_row.addWidget(self.base_group, 1)
-        preview_row.addWidget(self.up_group, 1)
+        main_content.addWidget(self.base_group, 2)
 
         # Bottom actions
         bottom = QHBoxLayout()
@@ -223,6 +219,7 @@ class MainWindow(QMainWindow):
         self.open_up_btn.clicked.connect(lambda: self.open_selected("upscale"))
         self.open_folder_base_btn.clicked.connect(lambda: self.open_selected("folder_base"))
         self.open_folder_up_btn.clicked.connect(lambda: self.open_selected("folder_upscale"))
+        self.copy_prompt_btn.clicked.connect(self.copy_prompt_to_clipboard)
 
         # Selection changes => enable/disable + preview update
         self.table.itemSelectionChanged.connect(self._sync_current_cell_to_selection)
@@ -360,19 +357,13 @@ class MainWindow(QMainWindow):
     # -------- Preview helpers --------
 
     def _set_preview(self, *, which: str, path: Path | None) -> None:
-        if which == "base":
-            self._base_path = path
-        else:
-            self._up_path = path
+        if which != "base":
+            return
 
-        if which == "base":
-            img_label = self.base_image_label
-            path_label = self.base_path_label
-            self._pix_base = None
-        else:
-            img_label = self.up_image_label
-            path_label = self.up_path_label
-            self._pix_up = None
+        self._base_path = path
+        img_label = self.base_image_label
+        path_label = self.base_path_label
+        self._pix_base = None
 
         if not path:
             path_label.setText("—")
@@ -393,10 +384,7 @@ class MainWindow(QMainWindow):
             img_label.setPixmap(QPixmap())
             return
 
-        if which == "base":
-            self._pix_base = pix
-        else:
-            self._pix_up = pix
+        self._pix_base = pix
 
         self._rescale_previews()
 
@@ -409,15 +397,6 @@ class MainWindow(QMainWindow):
         else:
             if not self.base_image_label.pixmap():
                 self.base_image_label.setText("(sin base)")
-
-        if self._pix_up and not self._pix_up.isNull():
-            target = self.up_image_label.size()
-            scaled = self._pix_up.scaled(target, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            self.up_image_label.setPixmap(scaled)
-            self.up_image_label.setText("")
-        else:
-            if not self.up_image_label.pixmap():
-                self.up_image_label.setText("(sin upscale)")
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
@@ -432,9 +411,8 @@ class MainWindow(QMainWindow):
             self.open_up_btn.setEnabled(False)
             self.open_folder_base_btn.setEnabled(False)
             self.open_folder_up_btn.setEnabled(False)
-            self.prompt_preview_label.setText("—")
+            self.prompt_preview_text.setPlainText("—")
             self._set_preview(which="base", path=None)
-            self._set_preview(which="up", path=None)
             return
 
         with get_connection() as conn:
@@ -446,7 +424,7 @@ class MainWindow(QMainWindow):
         has_base = bool(r and r["base_image_json"])
         has_up = bool(r and r["upscale_image_json"])
 
-        self.prompt_preview_label.setText(str(r["prompt_text"]) if r else "—")
+        self.prompt_preview_text.setPlainText(str(r["prompt_text"]) if r else "—")
 
         self.open_base_btn.setEnabled(has_base)
         self.open_folder_base_btn.setEnabled(has_base)
@@ -454,18 +432,11 @@ class MainWindow(QMainWindow):
         self.open_folder_up_btn.setEnabled(has_up)
 
         base_path: Path | None = None
-        up_path: Path | None = None
-
         if r and r["base_image_json"]:
             base = json.loads(r["base_image_json"])
             base_path = build_output_path(base)
 
-        if r and r["upscale_image_json"]:
-            up = json.loads(r["upscale_image_json"])
-            up_path = build_output_path(up)
-
         self._set_preview(which="base", path=base_path)
-        self._set_preview(which="up", path=up_path)
 
     # -------- Open actions --------
 
@@ -562,11 +533,19 @@ class MainWindow(QMainWindow):
             super().closeEvent(event)
 
     def open_preview_dialog(self, which: str) -> None:
-        path = self._base_path if which == "base" else self._up_path
+        if which != "base":
+            return
+        path = self._base_path
         if not path or not path.exists():
             QMessageBox.information(self, "Preview", "No hay imagen disponible para ampliar.")
             return
 
-        title = "Preview Base" if which == "base" else "Preview Upscale"
+        title = "Preview Base"
         dlg = ImageViewer(title, path)
         dlg.exec()
+
+    def copy_prompt_to_clipboard(self) -> None:
+        prompt = self.prompt_preview_text.toPlainText().strip()
+        if not prompt or prompt == "—":
+            return
+        QApplication.clipboard().setText(prompt)
