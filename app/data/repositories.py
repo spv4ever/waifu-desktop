@@ -159,6 +159,14 @@ class QueueRepository:
                 """,
                 (row["id"],),
             )
+            conn.execute(
+                """
+                UPDATE prompt_item
+                SET status='SENT'
+                WHERE id=?
+                """,
+                (row["prompt_item_id"],),
+            )
 
             row2 = conn.execute(
                 """
