@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QDateTime, QDate, QTime
-from PySide6.QtCore import Qt, QDateTime
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,

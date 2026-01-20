@@ -23,7 +23,7 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         conn,
         "prompt_item",
         "updated_at",
-        "TEXT NOT NULL DEFAULT (datetime('now'))",
+        "TEXT",
     )
 
     conn.execute(
@@ -31,6 +31,18 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         UPDATE prompt_item
         SET updated_at = created_at
         WHERE updated_at IS NULL
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_prompt_item_inserted_at
+        AFTER INSERT ON prompt_item
+        FOR EACH ROW
+        WHEN NEW.updated_at IS NULL
+        BEGIN
+          UPDATE prompt_item SET updated_at = datetime('now') WHERE id = NEW.id;
+        END;
         """
     )
 
