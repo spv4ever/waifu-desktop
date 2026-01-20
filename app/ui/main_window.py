@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QDateTime
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
-    QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication
+    QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit
 )
 
 from app.config.app_config import load_app_config
@@ -101,6 +101,27 @@ class MainWindow(QMainWindow):
         self.filter_ratio_combo.setMinimumWidth(110)
         top.addWidget(self.filter_ratio_combo)
 
+        self.filter_from_datetime = QDateTimeEdit()
+        self.filter_from_datetime.setCalendarPopup(True)
+        self.filter_from_datetime.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+        self.filter_from_datetime.setMinimumDateTime(QDateTime(2000, 1, 1, 0, 0))
+        self.filter_from_datetime.setSpecialValueText("Desde")
+        self.filter_from_datetime.setDateTime(self.filter_from_datetime.minimumDateTime())
+        self.filter_from_datetime.setMinimumWidth(170)
+
+        self.filter_to_datetime = QDateTimeEdit()
+        self.filter_to_datetime.setCalendarPopup(True)
+        self.filter_to_datetime.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+        self.filter_to_datetime.setMinimumDateTime(QDateTime(2000, 1, 1, 0, 0))
+        self.filter_to_datetime.setSpecialValueText("Hasta")
+        self.filter_to_datetime.setDateTime(self.filter_to_datetime.minimumDateTime())
+        self.filter_to_datetime.setMinimumWidth(170)
+
+        top.addWidget(QLabel("Desde:"))
+        top.addWidget(self.filter_from_datetime)
+        top.addWidget(QLabel("Hasta:"))
+        top.addWidget(self.filter_to_datetime)
+
         top.addStretch(1)
 
         # Pack generator
@@ -134,9 +155,9 @@ class MainWindow(QMainWindow):
         main_content.addLayout(left_column, 7)
 
         # Table
-        self.table = QTableWidget(0, 8)
+        self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Categoría", "Versión", "Estado", "Título", "Ratio", "Base", "Upscale"
+            "ID", "Categoría", "Versión", "Estado", "Fecha", "Título", "Ratio", "Base", "Upscale"
         ])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -287,6 +308,8 @@ class MainWindow(QMainWindow):
         self.filter_variant_combo.currentIndexChanged.connect(self.refresh)
         self.filter_status_combo.currentIndexChanged.connect(self.refresh)
         self.filter_ratio_combo.currentIndexChanged.connect(self.refresh)
+        self.filter_from_datetime.dateTimeChanged.connect(self.refresh)
+        self.filter_to_datetime.dateTimeChanged.connect(self.refresh)
 
         self._populate_pack_selectors()
 
@@ -329,6 +352,8 @@ class MainWindow(QMainWindow):
         variant = self._selected_filter_value(self.filter_variant_combo)
         status = self._selected_filter_value(self.filter_status_combo)
         ratio = self._selected_filter_value(self.filter_ratio_combo)
+        date_from = self._selected_datetime_value(self.filter_from_datetime)
+        date_to = self._selected_datetime_value(self.filter_to_datetime)
 
         data = fetch_prompts(
             limit=limit,
@@ -336,6 +361,8 @@ class MainWindow(QMainWindow):
             variant=variant,
             status=status,
             ratio=ratio,
+            date_from=date_from,
+            date_to=date_to,
         )
 
         self.table.setRowCount(len(data))
@@ -344,10 +371,11 @@ class MainWindow(QMainWindow):
             self.table.setItem(i, 1, QTableWidgetItem(row.category))
             self.table.setItem(i, 2, QTableWidgetItem(row.variant))
             self.table.setItem(i, 3, QTableWidgetItem(row.status))
-            self.table.setItem(i, 4, QTableWidgetItem(row.title))
-            self.table.setItem(i, 5, QTableWidgetItem(row.ratio))
-            self.table.setItem(i, 6, QTableWidgetItem("✅" if row.has_base else "—"))
-            self.table.setItem(i, 7, QTableWidgetItem("✅" if row.has_upscale else "—"))
+            self.table.setItem(i, 4, QTableWidgetItem(row.datestamp))
+            self.table.setItem(i, 5, QTableWidgetItem(row.title))
+            self.table.setItem(i, 6, QTableWidgetItem(row.ratio))
+            self.table.setItem(i, 7, QTableWidgetItem("✅" if row.has_base else "—"))
+            self.table.setItem(i, 8, QTableWidgetItem("✅" if row.has_upscale else "—"))
 
         self.table.resizeColumnsToContents()
 
@@ -620,6 +648,12 @@ class MainWindow(QMainWindow):
         if value is None or value == "__ALL__":
             return None
         return str(value)
+
+    def _selected_datetime_value(self, edit: QDateTimeEdit) -> str | None:
+        value = edit.dateTime()
+        if value == edit.minimumDateTime():
+            return None
+        return value.toString("yyyy-MM-dd HH:mm:ss")
 
     def _refresh_filters(self) -> None:
         filters = fetch_prompt_filters()

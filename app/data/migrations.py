@@ -19,3 +19,28 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
     _add_column_if_missing(conn, "prompt_item", "base_image_json", "TEXT")
     _add_column_if_missing(conn, "prompt_item", "upscale_image_json", "TEXT")
     _add_column_if_missing(conn, "prompt_item", "signature", "TEXT")
+    _add_column_if_missing(
+        conn,
+        "prompt_item",
+        "updated_at",
+        "TEXT NOT NULL DEFAULT (datetime('now'))",
+    )
+
+    conn.execute(
+        """
+        UPDATE prompt_item
+        SET updated_at = created_at
+        WHERE updated_at IS NULL
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_prompt_item_updated_at
+        AFTER UPDATE ON prompt_item
+        FOR EACH ROW
+        BEGIN
+          UPDATE prompt_item SET updated_at = datetime('now') WHERE id = NEW.id;
+        END;
+        """
+    )
