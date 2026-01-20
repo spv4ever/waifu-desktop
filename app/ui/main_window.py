@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from PySide6.QtCore import Qt, QDateTime, QDate, QTime
 from PySide6.QtCore import Qt, QDateTime
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
@@ -104,7 +105,7 @@ class MainWindow(QMainWindow):
         self.filter_from_datetime = QDateTimeEdit()
         self.filter_from_datetime.setCalendarPopup(True)
         self.filter_from_datetime.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        self.filter_from_datetime.setMinimumDateTime(QDateTime(2000, 1, 1, 0, 0))
+        self.filter_from_datetime.setMinimumDateTime(QDateTime(QDate(2000, 1, 1), QTime(0, 0, 0)))
         self.filter_from_datetime.setSpecialValueText("Desde")
         self.filter_from_datetime.setDateTime(self.filter_from_datetime.minimumDateTime())
         self.filter_from_datetime.setMinimumWidth(170)
@@ -112,7 +113,7 @@ class MainWindow(QMainWindow):
         self.filter_to_datetime = QDateTimeEdit()
         self.filter_to_datetime.setCalendarPopup(True)
         self.filter_to_datetime.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
-        self.filter_to_datetime.setMinimumDateTime(QDateTime(2000, 1, 1, 0, 0))
+        self.filter_to_datetime.setMinimumDateTime(QDateTime(QDate(2000, 1, 1), QTime(0, 0, 0)))
         self.filter_to_datetime.setSpecialValueText("Hasta")
         self.filter_to_datetime.setDateTime(self.filter_to_datetime.minimumDateTime())
         self.filter_to_datetime.setMinimumWidth(170)
