@@ -8,7 +8,8 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
-    QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit
+    QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
+    QLineEdit
 )
 
 from app.config.app_config import load_app_config
@@ -78,35 +79,45 @@ class MainWindow(QMainWindow):
         top.addWidget(QLabel("Mostrar:"))
         self.limit_spin = QSpinBox()
         self.limit_spin.setRange(10, 500)
-        self.limit_spin.setValue(50)
+        self.limit_spin.setValue(200)
         top.addWidget(self.limit_spin)
 
-        top.addWidget(QLabel("Categoría:"))
+        top.addStretch(1)
+
+        filters = QHBoxLayout()
+        layout.addLayout(filters)
+
+        filters.addWidget(QLabel("Prompt ID:"))
+        self.prompt_id_input = QLineEdit()
+        self.prompt_id_input.setPlaceholderText("Buscar ID")
+        self.prompt_id_input.setMaximumWidth(120)
+        filters.addWidget(self.prompt_id_input)
+
+        filters.addWidget(QLabel("Categoría:"))
         self.filter_category_combo = QComboBox()
         self.filter_category_combo.setMinimumWidth(130)
-        top.addWidget(self.filter_category_combo)
+        filters.addWidget(self.filter_category_combo)
 
-        top.addWidget(QLabel("Versión:"))
+        filters.addWidget(QLabel("Versión:"))
         self.filter_variant_combo = QComboBox()
         self.filter_variant_combo.setMinimumWidth(130)
-        top.addWidget(self.filter_variant_combo)
+        filters.addWidget(self.filter_variant_combo)
 
-        top.addWidget(QLabel("Estado:"))
+        filters.addWidget(QLabel("Estado:"))
         self.filter_status_combo = QComboBox()
         self.filter_status_combo.setMinimumWidth(130)
-        top.addWidget(self.filter_status_combo)
+        filters.addWidget(self.filter_status_combo)
 
-        top.addWidget(QLabel("Ratio:"))
+        filters.addWidget(QLabel("Ratio:"))
         self.filter_ratio_combo = QComboBox()
         self.filter_ratio_combo.setMinimumWidth(110)
-        top.addWidget(self.filter_ratio_combo)
+        filters.addWidget(self.filter_ratio_combo)
 
         self.filter_from_datetime = QDateTimeEdit()
         self.filter_from_datetime.setCalendarPopup(True)
         self.filter_from_datetime.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
         self.filter_from_datetime.setMinimumDateTime(QDateTime(QDate(2000, 1, 1), QTime(0, 0, 0)))
         self.filter_from_datetime.setSpecialValueText("Desde")
-        self.filter_from_datetime.setDateTime(self.filter_from_datetime.minimumDateTime())
         self.filter_from_datetime.setMinimumWidth(170)
 
         self.filter_to_datetime = QDateTimeEdit()
@@ -114,15 +125,18 @@ class MainWindow(QMainWindow):
         self.filter_to_datetime.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
         self.filter_to_datetime.setMinimumDateTime(QDateTime(QDate(2000, 1, 1), QTime(0, 0, 0)))
         self.filter_to_datetime.setSpecialValueText("Hasta")
-        self.filter_to_datetime.setDateTime(self.filter_to_datetime.minimumDateTime())
         self.filter_to_datetime.setMinimumWidth(170)
 
-        top.addWidget(QLabel("Desde:"))
-        top.addWidget(self.filter_from_datetime)
-        top.addWidget(QLabel("Hasta:"))
-        top.addWidget(self.filter_to_datetime)
+        today = QDate.currentDate()
+        self.filter_from_datetime.setDateTime(QDateTime(today, QTime(0, 0, 0)))
+        self.filter_to_datetime.setDateTime(QDateTime(today, QTime(23, 59, 59)))
 
-        top.addStretch(1)
+        filters.addWidget(QLabel("Desde:"))
+        filters.addWidget(self.filter_from_datetime)
+        filters.addWidget(QLabel("Hasta:"))
+        filters.addWidget(self.filter_to_datetime)
+
+        filters.addStretch(1)
 
         # Pack generator
         pack_group = QGroupBox("Generar Pack")
@@ -304,6 +318,7 @@ class MainWindow(QMainWindow):
         self.retry_prompt_btn.clicked.connect(self.retry_selected_prompt)
         self.delete_prompt_btn.clicked.connect(self.delete_selected_prompt)
         self.limit_spin.valueChanged.connect(self.refresh)
+        self.prompt_id_input.textChanged.connect(self.refresh)
         self.filter_category_combo.currentIndexChanged.connect(self.refresh)
         self.filter_variant_combo.currentIndexChanged.connect(self.refresh)
         self.filter_status_combo.currentIndexChanged.connect(self.refresh)
@@ -348,6 +363,7 @@ class MainWindow(QMainWindow):
 
     def refresh(self) -> None:
         limit = int(self.limit_spin.value())
+        prompt_id = self._selected_prompt_id_filter()
         category = self._selected_filter_value(self.filter_category_combo)
         variant = self._selected_filter_value(self.filter_variant_combo)
         status = self._selected_filter_value(self.filter_status_combo)
@@ -357,6 +373,7 @@ class MainWindow(QMainWindow):
 
         data = fetch_prompts(
             limit=limit,
+            prompt_id=prompt_id,
             category=category,
             variant=variant,
             status=status,
@@ -648,6 +665,14 @@ class MainWindow(QMainWindow):
         if value is None or value == "__ALL__":
             return None
         return str(value)
+
+    def _selected_prompt_id_filter(self) -> int | None:
+        raw = self.prompt_id_input.text().strip()
+        if not raw:
+            return None
+        if not raw.isdigit():
+            return None
+        return int(raw)
 
     def _selected_datetime_value(self, edit: QDateTimeEdit) -> str | None:
         value = edit.dateTime()
