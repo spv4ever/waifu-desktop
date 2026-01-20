@@ -692,7 +692,11 @@ class MainWindow(QMainWindow):
 
         with get_connection() as conn:
             row = conn.execute(
-                "SELECT status FROM prompt_item WHERE id=?",
+                """
+                SELECT id, status, pack_id, title, prompt_text, negative_text, meta_json, combo_key, signature
+                FROM prompt_item
+                WHERE id=?
+                """,
                 (pid,),
             ).fetchone()
 
@@ -715,20 +719,45 @@ class MainWindow(QMainWindow):
 
         with get_connection() as conn:
             with conn:
-                conn.execute(
-                    "UPDATE prompt_item SET status='QUEUED' WHERE id=?",
-                    (pid,),
+                cur = conn.execute(
+                    """
+                    INSERT INTO prompt_item (
+                        pack_id,
+                        title,
+                        prompt_text,
+                        negative_text,
+                        meta_json,
+                        combo_key,
+                        signature,
+                        status
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'QUEUED')
+                    """,
+                    (
+                        row["pack_id"],
+                        row["title"],
+                        row["prompt_text"],
+                        row["negative_text"],
+                        row["meta_json"],
+                        row["combo_key"],
+                        row["signature"],
+                    ),
                 )
+                new_prompt_id = int(cur.lastrowid)
                 conn.execute(
                     """
                     INSERT INTO queue_job(prompt_item_id, priority, status)
                     VALUES (?, 100, 'PENDING')
                     """,
-                    (pid,),
+                    (new_prompt_id,),
                 )
 
         self.refresh()
-        QMessageBox.information(self, "Reintentar", f"Prompt {pid} reencolado.")
+        QMessageBox.information(
+            self,
+            "Reintentar",
+            f"Prompt {pid} reencolado como {new_prompt_id}.",
+        )
 
     def delete_selected_prompt(self) -> None:
         pid = self._selected_prompt_id()
