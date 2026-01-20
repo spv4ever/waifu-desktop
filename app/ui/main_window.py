@@ -111,7 +111,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(main_content, 1)
 
         left_column = QVBoxLayout()
-        main_content.addLayout(left_column, 3)
+        main_content.addLayout(left_column, 7)
 
         # Table
         self.table = QTableWidget(0, 8)
@@ -182,18 +182,15 @@ class MainWindow(QMainWindow):
         # Base preview group (right column)
         self.base_group = QGroupBox("Preview Base")
         base_layout = QVBoxLayout(self.base_group)
-        self.base_path_label = QLabel("—")
-        self.base_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
         self.base_image_label = ClickableLabel("(sin base)")
         self.base_image_label.setAlignment(Qt.AlignCenter)
         self.base_image_label.setMinimumHeight(240)
         self.base_image_label.setStyleSheet("border: 1px solid #444;")
-        base_layout.addWidget(self.base_path_label)
         base_layout.addWidget(self.base_image_label)
 
         self.base_image_label.doubleClicked.connect(lambda: self.open_preview_dialog("base"))
 
-        main_content.addWidget(self.base_group, 2)
+        main_content.addWidget(self.base_group, 3)
 
         # Bottom actions
         bottom = QHBoxLayout()
@@ -362,16 +359,12 @@ class MainWindow(QMainWindow):
 
         self._base_path = path
         img_label = self.base_image_label
-        path_label = self.base_path_label
         self._pix_base = None
 
         if not path:
-            path_label.setText("—")
             img_label.setText("(sin imagen)")
             img_label.setPixmap(QPixmap())
             return
-
-        path_label.setText(str(path))
 
         if not path.exists():
             img_label.setText("(archivo no existe)")
