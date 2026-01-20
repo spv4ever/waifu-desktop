@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS prompt_item (
   combo_key       TEXT NOT NULL, -- referencia a combo_registry
   status          TEXT NOT NULL DEFAULT 'CREATED', -- CREATED | QUEUED | SENT | DONE | FAILED
   created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
 
   FOREIGN KEY(pack_id) REFERENCES prompt_pack(id) ON DELETE CASCADE,
   FOREIGN KEY(combo_key) REFERENCES combo_registry(combo_key) ON DELETE RESTRICT
@@ -40,6 +41,14 @@ CREATE TABLE IF NOT EXISTS prompt_item (
 
 CREATE INDEX IF NOT EXISTS idx_prompt_item_pack_id ON prompt_item(pack_id);
 CREATE INDEX IF NOT EXISTS idx_prompt_item_status ON prompt_item(status);
+
+-- Trigger para updated_at en prompt_item
+CREATE TRIGGER IF NOT EXISTS trg_prompt_item_updated_at
+AFTER UPDATE ON prompt_item
+FOR EACH ROW
+BEGIN
+  UPDATE prompt_item SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
 
 -- 4) Cola de trabajos (para “poner en cola y ya veremos pause/resume”)
 CREATE TABLE IF NOT EXISTS queue_job (
