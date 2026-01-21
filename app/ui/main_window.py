@@ -84,34 +84,42 @@ class MainWindow(QMainWindow):
 
         top.addStretch(1)
 
-        filters = QHBoxLayout()
-        layout.addLayout(filters)
+        filters_layout = QVBoxLayout()
+        layout.addLayout(filters_layout)
 
-        filters.addWidget(QLabel("Prompt ID:"))
+        filters_row_one = QHBoxLayout()
+        filters_layout.addLayout(filters_row_one)
+
+        filters_row_one.addWidget(QLabel("Prompt ID:"))
         self.prompt_id_input = QLineEdit()
         self.prompt_id_input.setPlaceholderText("Buscar ID")
         self.prompt_id_input.setMaximumWidth(120)
-        filters.addWidget(self.prompt_id_input)
+        filters_row_one.addWidget(self.prompt_id_input)
 
-        filters.addWidget(QLabel("Categoría:"))
+        filters_row_one.addWidget(QLabel("Categoría:"))
         self.filter_category_combo = QComboBox()
         self.filter_category_combo.setMinimumWidth(130)
-        filters.addWidget(self.filter_category_combo)
+        filters_row_one.addWidget(self.filter_category_combo)
 
-        filters.addWidget(QLabel("Versión:"))
+        filters_row_one.addWidget(QLabel("Versión:"))
         self.filter_variant_combo = QComboBox()
         self.filter_variant_combo.setMinimumWidth(130)
-        filters.addWidget(self.filter_variant_combo)
+        filters_row_one.addWidget(self.filter_variant_combo)
 
-        filters.addWidget(QLabel("Estado:"))
+        filters_row_one.addWidget(QLabel("Estado:"))
         self.filter_status_combo = QComboBox()
         self.filter_status_combo.setMinimumWidth(130)
-        filters.addWidget(self.filter_status_combo)
+        filters_row_one.addWidget(self.filter_status_combo)
 
-        filters.addWidget(QLabel("Ratio:"))
+        filters_row_one.addStretch(1)
+
+        filters_row_two = QHBoxLayout()
+        filters_layout.addLayout(filters_row_two)
+
+        filters_row_two.addWidget(QLabel("Ratio:"))
         self.filter_ratio_combo = QComboBox()
         self.filter_ratio_combo.setMinimumWidth(110)
-        filters.addWidget(self.filter_ratio_combo)
+        filters_row_two.addWidget(self.filter_ratio_combo)
 
         self.filter_from_datetime = QDateTimeEdit()
         self.filter_from_datetime.setCalendarPopup(True)
@@ -131,22 +139,27 @@ class MainWindow(QMainWindow):
         self.filter_from_datetime.setDateTime(QDateTime(today, QTime(0, 0, 0)))
         self.filter_to_datetime.setDateTime(QDateTime(today, QTime(23, 59, 59)))
 
-        filters.addWidget(QLabel("Desde:"))
-        filters.addWidget(self.filter_from_datetime)
-        filters.addWidget(QLabel("Hasta:"))
-        filters.addWidget(self.filter_to_datetime)
+        self.reset_filters_btn = QPushButton("Restablecer filtros")
+        filters_row_two.addWidget(self.reset_filters_btn)
 
-        filters.addWidget(QLabel("Orden fecha:"))
+        filters_row_two.addStretch(1)
+
+        filters_row_three = QHBoxLayout()
+        filters_layout.addLayout(filters_row_three)
+
+        filters_row_three.addWidget(QLabel("Desde:"))
+        filters_row_three.addWidget(self.filter_from_datetime)
+        filters_row_three.addWidget(QLabel("Hasta:"))
+        filters_row_three.addWidget(self.filter_to_datetime)
+
+        filters_row_three.addWidget(QLabel("Orden fecha:"))
         self.filter_date_order_combo = QComboBox()
         self.filter_date_order_combo.addItem("Más recientes", "desc")
         self.filter_date_order_combo.addItem("Más antiguas", "asc")
         self.filter_date_order_combo.setMinimumWidth(150)
-        filters.addWidget(self.filter_date_order_combo)
+        filters_row_three.addWidget(self.filter_date_order_combo)
 
-        self.reset_filters_btn = QPushButton("Restablecer filtros")
-        filters.addWidget(self.reset_filters_btn)
-
-        filters.addStretch(1)
+        filters_row_three.addStretch(1)
 
         # Pack generator
         pack_group = QGroupBox("Generar Pack")
