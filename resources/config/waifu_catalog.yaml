@@ -203,8 +203,54 @@ categories:
       intimate atmosphere with soft focus background,
       cinematic 50mm look with dreamy highlights
 
+  seductive:
+    label: "Seductive / Hot"
+    commercial_goal: "Alta conversión / premium"
+    enabled: true
+    allowed_ratios: ["4:3", "3:4", "9:16", "16:9"]
+    base_prompt: >
+      seductive anime full-body illustration of an adult woman,
+      confident sensual posture emphasizing hips, waist, and legs,
+      deliberate body language with teasing yet controlled attitude,
+      intense gaze directed toward the viewer with subtle dominance,
+      form-fitting or loosely draped fabric accentuating natural curves,
+      visible skin areas such as thighs, shoulders, or midriff without nudity,
+      warm skin shading with realistic highlights and soft shadow gradients,
+      low-key cinematic lighting enhancing depth and contrast,
+      shallow depth of field isolating the subject in an intimate atmosphere,
+      50mm look, refined adult aesthetic, tasteful erotic tension
   
-  
+  swimwear:
+    label: "Swimwear / Bikini"
+    commercial_goal: "Alta atracción visual / estacional"
+    enabled: true
+    allowed_ratios: ["9:16", "3:4","16:9","4:3"]
+    base_prompt: >
+      stylish anime full-body swimwear illustration of an adult woman,
+      confident relaxed pose highlighting natural body proportions,
+      modern bikini or one-piece swimsuit with realistic fabric tension,
+      visible skin with smooth natural shading and sun-kissed highlights,
+      subtle sensuality through posture and gaze, never explicit,
+      beach or poolside environment with atmospheric depth,
+      warm sunlight with soft shadows and gentle rim light,
+      shallow depth of field separating subject from background,
+      35mm look, refined adult summer aesthetic
+
+  lingerie:
+    label: "Lingerie / Intimate Fashion"
+    commercial_goal: "Premium / alta conversión"
+    enabled: true
+    allowed_ratios: ["9:16", "3:4","16:9","4:3"]
+    base_prompt: >
+      elegant anime full-body lingerie illustration of an adult woman,
+      confident sensual posture emphasizing waist, hips, and legs,
+      refined lingerie fabrics such as lace or silk with realistic folds,
+      teasing yet tasteful body language with controlled expression,
+      partial skin exposure creating erotic tension without nudity,
+      low-key lighting with warm highlights and deep soft shadows,
+      intimate indoor environment with cinematic atmosphere,
+      shallow depth of field and smooth tonal transitions,
+      50mm look, high-end adult fashion aesthetic
 
 # =========================
 # IDENTIDAD FACIAL (ANTI SAME-FACE)
