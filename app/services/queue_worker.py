@@ -207,6 +207,12 @@ class QueueWorker:
                         self.queue.set_backend_status(conn, job_id, backend_status)
                     self._emit_progress()
 
+                backend_status = self._extract_backend_status(entry)
+                if backend_status and backend_status != last_backend_status:
+                    last_backend_status = backend_status
+                    with conn:
+                        self.queue.set_backend_status(conn, job_id, backend_status)
+
             if finished and entry:
                 base_img, up_img = extract_base_and_upscale(entry)
 
