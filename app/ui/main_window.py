@@ -83,6 +83,13 @@ class MainWindow(QMainWindow):
         self.limit_spin.setValue(200)
         top.addWidget(self.limit_spin)
 
+        top.addWidget(QLabel("Pausa (s):"))
+        self.pause_between_spin = QSpinBox()
+        self.pause_between_spin.setRange(0, 60)
+        self.pause_between_spin.setValue(5)
+        self.pause_between_spin.setToolTip("Segundos de descanso entre imágenes procesadas.")
+        top.addWidget(self.pause_between_spin)
+
         self.toggle_preview_checkbox = QCheckBox("Mostrar preview")
         self.toggle_preview_checkbox.setChecked(False)
         top.addWidget(self.toggle_preview_checkbox)
@@ -376,6 +383,7 @@ class MainWindow(QMainWindow):
         self.retry_prompt_btn.clicked.connect(self.retry_selected_prompt)
         self.delete_prompt_btn.clicked.connect(self.delete_selected_prompt)
         self.limit_spin.valueChanged.connect(self.refresh)
+        self.pause_between_spin.valueChanged.connect(self._update_worker_delay)
         self.prompt_id_input.textChanged.connect(self.refresh)
         self.filter_category_combo.currentIndexChanged.connect(self.refresh)
         self.filter_variant_combo.currentIndexChanged.connect(self.refresh)
@@ -655,7 +663,10 @@ class MainWindow(QMainWindow):
         if self.worker_thread and self.worker_thread.isRunning():
             return
 
-        self.worker_thread = WorkerThread(poll_idle_seconds=1.0)
+        self.worker_thread = WorkerThread(
+            poll_idle_seconds=1.0,
+            delay_seconds=float(self.pause_between_spin.value()),
+        )
         self.worker_thread.status.connect(self.on_worker_status)
         self.worker_thread.processed.connect(self.on_worker_processed)
         self.worker_thread.log.connect(self.append_worker_log)
@@ -675,6 +686,10 @@ class MainWindow(QMainWindow):
         self.stop_worker_btn.setEnabled(False)
         self.worker_status_label.setText("Worker: STOPPED")
         self.append_worker_log("[WORKER] STOPPED")
+
+    def _update_worker_delay(self, value: int) -> None:
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.set_delay_seconds(float(value))
 
     def on_worker_status(self, s: str) -> None:
         if s == "PAUSED":

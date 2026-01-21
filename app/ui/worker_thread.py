@@ -12,10 +12,11 @@ class WorkerThread(QThread):
     processed = Signal()         # para refrescar UI
     log = Signal(str)            # logs del worker
 
-    def __init__(self, poll_idle_seconds: float = 1.0) -> None:
+    def __init__(self, poll_idle_seconds: float = 1.0, delay_seconds: float = 0.0) -> None:
         super().__init__()
         self._stop = False
         self.poll_idle_seconds = poll_idle_seconds
+        self.delay_seconds = delay_seconds
         self.worker = QueueWorker(log_callback=self._emit_log)
 
     def _emit_log(self, message: str) -> None:
@@ -24,11 +25,14 @@ class WorkerThread(QThread):
     def stop(self) -> None:
         self._stop = True
 
+    def set_delay_seconds(self, delay_seconds: float) -> None:
+        self.delay_seconds = delay_seconds
+
     def run(self) -> None:
         self.status.emit("RUNNING")
         while not self._stop:
             with get_connection() as conn:
-                result = self.worker.process_one(conn, delay_seconds=0.0)
+                result = self.worker.process_one(conn, delay_seconds=self.delay_seconds)
 
             if result == "PAUSED":
                 self.status.emit("PAUSED")
