@@ -33,11 +33,11 @@ variants:
 
 comfyui_workflow:
   prompt_pos:
-    node_id: "6"
+    node_id: ["6", "15"]
     input: "text"
 
   prompt_neg:
-    node_id: "7"
+    node_id: ["7", "16"]
     input: "text"
 
   seed:
@@ -63,4 +63,3 @@ comfyui_workflow:
   output_upscale:
     node_id: "52"
     input: "filename_prefix"
-
