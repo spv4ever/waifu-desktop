@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit, QCheckBox, QProgressBar
+    QLineEdit, QCheckBox, QToolButton
 )
 
 from app.config.app_config import load_app_config
@@ -266,26 +266,33 @@ class MainWindow(QMainWindow):
         left_column.addWidget(self.table, 1)
 
         # Prompt preview
-        self.prompt_group = QGroupBox("Prompt")
+        self.prompt_group = QWidget()
         prompt_layout = QVBoxLayout(self.prompt_group)
+        prompt_layout.setContentsMargins(0, 0, 0, 0)
+
+        prompt_header = QHBoxLayout()
+        self.prompt_toggle_btn = QToolButton()
+        self.prompt_toggle_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.prompt_toggle_btn.setArrowType(Qt.DownArrow)
+        self.prompt_toggle_btn.setCheckable(True)
+        self.prompt_toggle_btn.setChecked(True)
+        self.prompt_toggle_btn.setText("Prompt")
+        self.prompt_toggle_btn.toggled.connect(self._toggle_prompt_section)
+        prompt_header.addWidget(self.prompt_toggle_btn)
+        prompt_header.addStretch(1)
+        prompt_layout.addLayout(prompt_header)
+
+        self.prompt_content = QWidget()
+        prompt_content_layout = QVBoxLayout(self.prompt_content)
         self.prompt_preview_text = QPlainTextEdit("—")
         self.prompt_preview_text.setReadOnly(True)
         self.prompt_preview_text.setLineWrapMode(QPlainTextEdit.WidgetWidth)
         self.prompt_preview_text.setStyleSheet("font-weight: 600;")
-        prompt_layout.addWidget(self.prompt_preview_text)
-
-        self.prompt_progress_label = QLabel("Progreso del prompt")
-        prompt_layout.addWidget(self.prompt_progress_label)
-
-        self.prompt_progress_bar = QProgressBar()
-        self.prompt_progress_bar.setRange(0, 100)
-        self.prompt_progress_bar.setAlignment(Qt.AlignCenter)
-        self._update_prompt_progress(None)
-        prompt_layout.addWidget(self.prompt_progress_bar)
+        prompt_content_layout.addWidget(self.prompt_preview_text)
 
         self.prompt_backend_status_label = QLabel("Backend: —")
         self.prompt_backend_status_label.setStyleSheet("color: #c0c0c0;")
-        prompt_layout.addWidget(self.prompt_backend_status_label)
+        prompt_content_layout.addWidget(self.prompt_backend_status_label)
 
         prompt_actions = QHBoxLayout()
         self.copy_prompt_btn = QPushButton("Copiar prompt")
@@ -295,7 +302,9 @@ class MainWindow(QMainWindow):
         prompt_actions.addWidget(self.copy_prompt_btn)
         prompt_actions.addWidget(self.retry_prompt_btn)
         prompt_actions.addWidget(self.delete_prompt_btn)
-        prompt_layout.addLayout(prompt_actions)
+        prompt_content_layout.addLayout(prompt_actions)
+
+        prompt_layout.addWidget(self.prompt_content)
 
         left_column.addWidget(self.prompt_group, 0)
 
@@ -508,19 +517,6 @@ class MainWindow(QMainWindow):
             return None
         return int(pid_item.text())
 
-    def _selected_prompt_progress(self) -> int | None:
-        selected = self.table.selectionModel().selectedRows()
-        if not selected:
-            return None
-        row = selected[0].row()
-        pid_item = self.table.item(row, 0)
-        if not pid_item:
-            return None
-        progress = pid_item.data(Qt.UserRole)
-        if isinstance(progress, int):
-            return progress
-        return None
-
     def _selected_prompt_backend_status(self) -> str | None:
         selected = self.table.selectionModel().selectedRows()
         if not selected:
@@ -534,20 +530,15 @@ class MainWindow(QMainWindow):
             return value
         return None
 
-    def _update_prompt_progress(self, progress: int | None) -> None:
-        if progress is None:
-            self.prompt_progress_bar.setValue(0)
-            self.prompt_progress_bar.setFormat("—")
-        else:
-            clamped = max(0, min(100, progress))
-            self.prompt_progress_bar.setValue(clamped)
-            self.prompt_progress_bar.setFormat(f"{clamped}%")
-
     def _update_prompt_backend_status(self, status: str | None) -> None:
         if status:
             self.prompt_backend_status_label.setText(f"Backend: {status}")
         else:
             self.prompt_backend_status_label.setText("Backend: —")
+
+    def _toggle_prompt_section(self, checked: bool) -> None:
+        self.prompt_content.setVisible(checked)
+        self.prompt_toggle_btn.setArrowType(Qt.DownArrow if checked else Qt.RightArrow)
 
     def _populate_pack_selectors(self) -> None:
         self.pack_category_combo.clear()
@@ -686,7 +677,6 @@ class MainWindow(QMainWindow):
             self.retry_prompt_btn.setEnabled(False)
             self.delete_prompt_btn.setEnabled(False)
             self.prompt_preview_text.setPlainText("—")
-            self._update_prompt_progress(None)
             self._update_prompt_backend_status(None)
             self._set_preview(which="base", path=None)
             return
@@ -701,7 +691,6 @@ class MainWindow(QMainWindow):
         has_up = bool(r and r["upscale_image_json"])
 
         self.prompt_preview_text.setPlainText(str(r["prompt_text"]) if r else "—")
-        self._update_prompt_progress(self._selected_prompt_progress())
         self._update_prompt_backend_status(self._selected_prompt_backend_status())
 
         self.open_base_btn.setEnabled(has_base)
