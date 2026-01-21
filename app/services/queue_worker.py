@@ -68,6 +68,29 @@ class QueueWorker:
 
         return None
 
+    def _extract_backend_status(self, entry: dict[str, Any]) -> str | None:
+        status = entry.get("status")
+        if not isinstance(status, dict):
+            return None
+
+        parts: list[str] = []
+        node = status.get("current_node") or status.get("node") or status.get("node_name")
+        if isinstance(node, str) and node.strip():
+            parts.append(node.strip())
+
+        message = status.get("message")
+        if isinstance(message, str) and message.strip():
+            parts.append(message.strip())
+
+        status_str = status.get("status_str")
+        if isinstance(status_str, str) and status_str.strip() and status_str.strip() not in parts:
+            parts.append(status_str.strip())
+
+        if not parts:
+            return None
+
+        return " · ".join(parts)
+
     def process_one(self, conn: sqlite3.Connection, *, delay_seconds: float = 0.2) -> WorkerResult:
         paused = self.kv.get(conn, "queue_paused", "false")
         if paused == "true":
@@ -149,6 +172,7 @@ class QueueWorker:
         # 2) POLL hasta terminar (sin saturar, 1 en vuelo)
         poll = float(settings.comfyui_poll_interval)
         last_progress: int | None = None
+        last_backend_status: str | None = None
         while True:
             paused = self.kv.get(conn, "queue_paused", "false")
             if paused == "true":
@@ -167,6 +191,12 @@ class QueueWorker:
                     with conn:
                         self.queue.set_progress(conn, job_id, progress)
 
+                backend_status = self._extract_backend_status(entry)
+                if backend_status and backend_status != last_backend_status:
+                    last_backend_status = backend_status
+                    with conn:
+                        self.queue.set_backend_status(conn, job_id, backend_status)
+
             if finished and entry:
                 base_img, up_img = extract_base_and_upscale(entry)
 
@@ -174,6 +204,7 @@ class QueueWorker:
                     self.queue.set_remote_status(conn, job_id, "COMPLETED")
                     self.queue.set_output_json(conn, job_id, json.dumps(entry, ensure_ascii=False))
                     self.queue.set_progress(conn, job_id, 100)
+                    self.queue.set_backend_status(conn, job_id, "Completado")
 
                     # Guardar outputs en prompt_item
                     self.items.set_outputs(
