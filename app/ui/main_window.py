@@ -217,9 +217,9 @@ class MainWindow(QMainWindow):
         main_content.addLayout(right_column, 3)
 
         # Table
-        self.table = QTableWidget(0, 10)
+        self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Categoría", "Versión", "Estado", "Progreso", "Fecha", "Título", "Ratio", "Base", "Upscale"
+            "ID", "Categoría", "Versión", "Estado", "Fecha", "Título", "Ratio", "Base", "Upscale"
         ])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -273,6 +273,15 @@ class MainWindow(QMainWindow):
         self.prompt_preview_text.setLineWrapMode(QPlainTextEdit.WidgetWidth)
         self.prompt_preview_text.setStyleSheet("font-weight: 600;")
         prompt_layout.addWidget(self.prompt_preview_text)
+
+        self.prompt_progress_label = QLabel("Progreso del prompt")
+        prompt_layout.addWidget(self.prompt_progress_label)
+
+        self.prompt_progress_bar = QProgressBar()
+        self.prompt_progress_bar.setRange(0, 100)
+        self.prompt_progress_bar.setAlignment(Qt.AlignCenter)
+        self._update_prompt_progress(None)
+        prompt_layout.addWidget(self.prompt_progress_bar)
 
         prompt_actions = QHBoxLayout()
         self.copy_prompt_btn = QPushButton("Copiar prompt")
@@ -457,25 +466,17 @@ class MainWindow(QMainWindow):
 
         self.table.setRowCount(len(data))
         for i, row in enumerate(data):
-            self.table.setItem(i, 0, QTableWidgetItem(str(row.id)))
+            id_item = QTableWidgetItem(str(row.id))
+            id_item.setData(Qt.UserRole, row.progress)
+            self.table.setItem(i, 0, id_item)
             self.table.setItem(i, 1, QTableWidgetItem(row.category))
             self.table.setItem(i, 2, QTableWidgetItem(row.variant))
             self.table.setItem(i, 3, QTableWidgetItem(row.status))
-            progress_bar = QProgressBar()
-            progress_bar.setRange(0, 100)
-            progress_bar.setAlignment(Qt.AlignCenter)
-            if row.progress is None:
-                progress_bar.setValue(0)
-                progress_bar.setFormat("—")
-            else:
-                progress_bar.setValue(row.progress)
-                progress_bar.setFormat(f"{row.progress}%")
-            self.table.setCellWidget(i, 4, progress_bar)
-            self.table.setItem(i, 5, QTableWidgetItem(row.datestamp))
-            self.table.setItem(i, 6, QTableWidgetItem(row.title))
-            self.table.setItem(i, 7, QTableWidgetItem(row.ratio))
-            self.table.setItem(i, 8, QTableWidgetItem("✅" if row.has_base else "—"))
-            self.table.setItem(i, 9, QTableWidgetItem("✅" if row.has_upscale else "—"))
+            self.table.setItem(i, 4, QTableWidgetItem(row.datestamp))
+            self.table.setItem(i, 5, QTableWidgetItem(row.title))
+            self.table.setItem(i, 6, QTableWidgetItem(row.ratio))
+            self.table.setItem(i, 7, QTableWidgetItem("✅" if row.has_base else "—"))
+            self.table.setItem(i, 8, QTableWidgetItem("✅" if row.has_upscale else "—"))
 
         self.table.resizeColumnsToContents()
 
@@ -501,6 +502,28 @@ class MainWindow(QMainWindow):
         if not pid_item:
             return None
         return int(pid_item.text())
+
+    def _selected_prompt_progress(self) -> int | None:
+        selected = self.table.selectionModel().selectedRows()
+        if not selected:
+            return None
+        row = selected[0].row()
+        pid_item = self.table.item(row, 0)
+        if not pid_item:
+            return None
+        progress = pid_item.data(Qt.UserRole)
+        if isinstance(progress, int):
+            return progress
+        return None
+
+    def _update_prompt_progress(self, progress: int | None) -> None:
+        if progress is None:
+            self.prompt_progress_bar.setValue(0)
+            self.prompt_progress_bar.setFormat("—")
+        else:
+            clamped = max(0, min(100, progress))
+            self.prompt_progress_bar.setValue(clamped)
+            self.prompt_progress_bar.setFormat(f"{clamped}%")
 
     def _populate_pack_selectors(self) -> None:
         self.pack_category_combo.clear()
@@ -639,6 +662,7 @@ class MainWindow(QMainWindow):
             self.retry_prompt_btn.setEnabled(False)
             self.delete_prompt_btn.setEnabled(False)
             self.prompt_preview_text.setPlainText("—")
+            self._update_prompt_progress(None)
             self._set_preview(which="base", path=None)
             return
 
@@ -652,6 +676,7 @@ class MainWindow(QMainWindow):
         has_up = bool(r and r["upscale_image_json"])
 
         self.prompt_preview_text.setPlainText(str(r["prompt_text"]) if r else "—")
+        self._update_prompt_progress(self._selected_prompt_progress())
 
         self.open_base_btn.setEnabled(has_base)
         self.open_folder_base_btn.setEnabled(has_base)
