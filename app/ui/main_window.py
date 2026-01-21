@@ -136,6 +136,16 @@ class MainWindow(QMainWindow):
         filters.addWidget(QLabel("Hasta:"))
         filters.addWidget(self.filter_to_datetime)
 
+        filters.addWidget(QLabel("Orden fecha:"))
+        self.filter_date_order_combo = QComboBox()
+        self.filter_date_order_combo.addItem("Más recientes", "desc")
+        self.filter_date_order_combo.addItem("Más antiguas", "asc")
+        self.filter_date_order_combo.setMinimumWidth(150)
+        filters.addWidget(self.filter_date_order_combo)
+
+        self.reset_filters_btn = QPushButton("Restablecer filtros")
+        filters.addWidget(self.reset_filters_btn)
+
         filters.addStretch(1)
 
         # Pack generator
@@ -325,6 +335,8 @@ class MainWindow(QMainWindow):
         self.filter_ratio_combo.currentIndexChanged.connect(self.refresh)
         self.filter_from_datetime.dateTimeChanged.connect(self.refresh)
         self.filter_to_datetime.dateTimeChanged.connect(self.refresh)
+        self.filter_date_order_combo.currentIndexChanged.connect(self.refresh)
+        self.reset_filters_btn.clicked.connect(self.reset_filters)
 
         self._populate_pack_selectors()
 
@@ -370,6 +382,7 @@ class MainWindow(QMainWindow):
         ratio = self._selected_filter_value(self.filter_ratio_combo)
         date_from = self._selected_datetime_value(self.filter_from_datetime)
         date_to = self._selected_datetime_value(self.filter_to_datetime)
+        sort_order = self._selected_sort_order()
 
         data = fetch_prompts(
             limit=limit,
@@ -380,6 +393,7 @@ class MainWindow(QMainWindow):
             ratio=ratio,
             date_from=date_from,
             date_to=date_to,
+            sort_order=sort_order,
         )
 
         self.table.setRowCount(len(data))
@@ -682,6 +696,46 @@ class MainWindow(QMainWindow):
         if value == edit.minimumDateTime():
             return None
         return value.toString("yyyy-MM-dd HH:mm:ss")
+
+    def _selected_sort_order(self) -> str:
+        value = self.filter_date_order_combo.currentData()
+        if value in {"asc", "desc"}:
+            return str(value)
+        return "desc"
+
+    def reset_filters(self) -> None:
+        today = QDate.currentDate()
+        widgets = (
+            self.prompt_id_input,
+            self.filter_category_combo,
+            self.filter_variant_combo,
+            self.filter_status_combo,
+            self.filter_ratio_combo,
+            self.filter_from_datetime,
+            self.filter_to_datetime,
+            self.filter_date_order_combo,
+        )
+        for widget in widgets:
+            widget.blockSignals(True)
+
+        self.prompt_id_input.clear()
+        self._set_combo_value(self.filter_category_combo, "__ALL__")
+        self._set_combo_value(self.filter_variant_combo, "__ALL__")
+        self._set_combo_value(self.filter_status_combo, "__ALL__")
+        self._set_combo_value(self.filter_ratio_combo, "__ALL__")
+        self.filter_from_datetime.setDateTime(QDateTime(today, QTime(0, 0, 0)))
+        self.filter_to_datetime.setDateTime(QDateTime(today, QTime(23, 59, 59)))
+        self._set_combo_value(self.filter_date_order_combo, "desc")
+
+        for widget in widgets:
+            widget.blockSignals(False)
+
+        self.refresh()
+
+    def _set_combo_value(self, combo: QComboBox, value: str) -> None:
+        idx = combo.findData(value)
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
 
     def _refresh_filters(self) -> None:
         filters = fetch_prompt_filters()
