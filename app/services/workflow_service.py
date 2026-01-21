@@ -48,25 +48,30 @@ class WorkflowService:
                 raise KeyError(f"node_id={node_id} no tiene 'inputs'")
             inputs[input_name] = value
 
+        def set_input_for_nodes(node_ids: str | list[str], input_name: str, value: Any) -> None:
+            ids = [node_ids] if isinstance(node_ids, str) else node_ids
+            for node_id in ids:
+                set_input(node_id, input_name, value)
+
         ##mapping = self.cfg.raw.get("comfyui_workflow", {})
         defaults = self.cfg.raw.get("defaults", {})
         lock_steps = bool(defaults.get("lock_steps", False))
 
         if not lock_steps:
-            set_input(mapping["steps"]["node_id"], mapping["steps"]["input"], int(steps))
+            set_input_for_nodes(mapping["steps"]["node_id"], mapping["steps"]["input"], int(steps))
 
-        set_input(mapping["prompt_pos"]["node_id"], mapping["prompt_pos"]["input"], prompt_text)
-        set_input(mapping["prompt_neg"]["node_id"], mapping["prompt_neg"]["input"], negative_text)
+        set_input_for_nodes(mapping["prompt_pos"]["node_id"], mapping["prompt_pos"]["input"], prompt_text)
+        set_input_for_nodes(mapping["prompt_neg"]["node_id"], mapping["prompt_neg"]["input"], negative_text)
 
         if seed is not None:
-            set_input(mapping["seed"]["node_id"], mapping["seed"]["input"], int(seed))
+            set_input_for_nodes(mapping["seed"]["node_id"], mapping["seed"]["input"], int(seed))
 
         
-        set_input(mapping["width"]["node_id"], mapping["width"]["input"], int(width))
-        set_input(mapping["height"]["node_id"], mapping["height"]["input"], int(height))
+        set_input_for_nodes(mapping["width"]["node_id"], mapping["width"]["input"], int(width))
+        set_input_for_nodes(mapping["height"]["node_id"], mapping["height"]["input"], int(height))
 
-        set_input(mapping["output_base"]["node_id"], mapping["output_base"]["input"], filename_prefix_base)
-        set_input(mapping["output_upscale"]["node_id"], mapping["output_upscale"]["input"], filename_prefix_upscale)
+        set_input_for_nodes(mapping["output_base"]["node_id"], mapping["output_base"]["input"], filename_prefix_base)
+        set_input_for_nodes(mapping["output_upscale"]["node_id"], mapping["output_upscale"]["input"], filename_prefix_upscale)
 
 
         return workflow
