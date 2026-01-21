@@ -195,6 +195,9 @@ class MainWindow(QMainWindow):
         left_column = QVBoxLayout()
         main_content.addLayout(left_column, 7)
 
+        right_column = QVBoxLayout()
+        main_content.addLayout(right_column, 3)
+
         # Table
         self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels([
@@ -277,7 +280,23 @@ class MainWindow(QMainWindow):
         self.base_image_label.doubleClicked.connect(lambda: self.open_preview_dialog("base"))
 
         self.base_group.setVisible(False)
-        main_content.addWidget(self.base_group, 3)
+        right_column.addWidget(self.base_group, 3)
+
+        # Worker log group (right column)
+        self.worker_log_group = QGroupBox("Log del Worker")
+        worker_log_layout = QVBoxLayout(self.worker_log_group)
+        self.worker_log_text = QPlainTextEdit("—")
+        self.worker_log_text.setReadOnly(True)
+        self.worker_log_text.document().setMaximumBlockCount(300)
+        worker_log_layout.addWidget(self.worker_log_text)
+
+        worker_log_actions = QHBoxLayout()
+        self.clear_worker_log_btn = QPushButton("Limpiar log")
+        worker_log_actions.addStretch(1)
+        worker_log_actions.addWidget(self.clear_worker_log_btn)
+        worker_log_layout.addLayout(worker_log_actions)
+
+        right_column.addWidget(self.worker_log_group, 2)
 
         # Bottom actions
         bottom = QHBoxLayout()
@@ -356,6 +375,7 @@ class MainWindow(QMainWindow):
         self.filter_date_order_combo.currentIndexChanged.connect(self.refresh)
         self.reset_filters_btn.clicked.connect(self.reset_filters)
         self.toggle_preview_checkbox.toggled.connect(self._toggle_base_preview)
+        self.clear_worker_log_btn.clicked.connect(self.clear_worker_log)
 
         self._populate_pack_selectors()
 
@@ -598,6 +618,7 @@ class MainWindow(QMainWindow):
         self.worker_thread = WorkerThread(poll_idle_seconds=1.0)
         self.worker_thread.status.connect(self.on_worker_status)
         self.worker_thread.processed.connect(self.on_worker_processed)
+        self.worker_thread.log.connect(self.append_worker_log)
         self.worker_thread.start()
 
         self.start_worker_btn.setEnabled(False)
@@ -613,6 +634,7 @@ class MainWindow(QMainWindow):
         self.start_worker_btn.setEnabled(True)
         self.stop_worker_btn.setEnabled(False)
         self.worker_status_label.setText("Worker: STOPPED")
+        self.append_worker_log("[WORKER] STOPPED")
 
     def on_worker_status(self, s: str) -> None:
         if s == "PAUSED":
@@ -625,6 +647,15 @@ class MainWindow(QMainWindow):
             self.worker_status_label.setText("Worker: ERROR")
         else:
             self.worker_status_label.setText(f"Worker: {s}")
+
+    def append_worker_log(self, message: str) -> None:
+        if self.worker_log_text.toPlainText().strip() == "—":
+            self.worker_log_text.setPlainText(message)
+        else:
+            self.worker_log_text.appendPlainText(message)
+
+    def clear_worker_log(self) -> None:
+        self.worker_log_text.setPlainText("—")
 
     def on_worker_processed(self) -> None:
         self.refresh()

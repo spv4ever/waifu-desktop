@@ -10,12 +10,16 @@ from app.services.queue_worker import QueueWorker
 class WorkerThread(QThread):
     status = Signal(str)         # mensajes cortos (RUNNING / IDLE / PAUSED)
     processed = Signal()         # para refrescar UI
+    log = Signal(str)            # logs del worker
 
     def __init__(self, poll_idle_seconds: float = 1.0) -> None:
         super().__init__()
         self._stop = False
         self.poll_idle_seconds = poll_idle_seconds
-        self.worker = QueueWorker()
+        self.worker = QueueWorker(log_callback=self._emit_log)
+
+    def _emit_log(self, message: str) -> None:
+        self.log.emit(message)
 
     def stop(self) -> None:
         self._stop = True

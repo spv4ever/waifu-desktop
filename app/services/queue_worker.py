@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import time
 import sqlite3
-from typing import Literal, Any
+from typing import Literal, Any, Callable
 
 from app.data.repositories import QueueRepository, PromptItemRepository
 from app.data.kv_store import KVStore
@@ -19,13 +19,18 @@ WorkerResult = Literal["PROCESSED", "PAUSED", "EMPTY"]
 
 
 class QueueWorker:
-    def __init__(self) -> None:
+    def __init__(self, *, log_callback: Callable[[str], None] | None = None) -> None:
         self.queue = QueueRepository()
         self.items = PromptItemRepository()
         self.kv = KVStore()
         self.comfy = ComfyClient()
         self.workflow = WorkflowService()
         self.app_cfg = load_app_config()
+        self._log_callback = log_callback
+
+    def _log(self, message: str) -> None:
+        if self._log_callback:
+            self._log_callback(message)
 
     def _is_finished(self, history: dict[str, Any], prompt_id: str) -> tuple[bool, dict[str, Any] | None]:
         entry = history.get(prompt_id)
@@ -111,14 +116,14 @@ class QueueWorker:
             remote_id = self.comfy.submit_prompt(wf)
             with conn:
                 self.queue.set_remote(conn, job_id, remote_id, "SUBMITTED")
-            print(f"[WORKER] SUBMITTED job_id={job_id} remote_id={remote_id}")
+            self._log(f"[WORKER] SUBMITTED job_id={job_id} remote_id={remote_id}")
 
         # 2) POLL hasta terminar (sin saturar, 1 en vuelo)
         poll = float(settings.comfyui_poll_interval)
         while True:
             paused = self.kv.get(conn, "queue_paused", "false")
             if paused == "true":
-                print("[WORKER] Pausado durante polling. Se reanudará más tarde.")
+                self._log("[WORKER] Pausado durante polling. Se reanudará más tarde.")
                 with conn:
                     self.queue.set_remote_status(conn, job_id, "PAUSED_WAITING")
                 return "PROCESSED"
@@ -144,7 +149,7 @@ class QueueWorker:
                     self.queue.mark_done(conn, job_id)
                     self.items.bulk_update_status(conn, ids=[prompt_item_id], status="DONE")
 
-                print(f"[WORKER] COMPLETED job_id={job_id} remote_id={remote_id}")
+                self._log(f"[WORKER] COMPLETED job_id={job_id} remote_id={remote_id}")
                 break
 
             time.sleep(poll)
