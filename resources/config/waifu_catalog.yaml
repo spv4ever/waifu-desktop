@@ -252,69 +252,69 @@ categories:
       shallow depth of field and smooth tonal transitions,
       50mm look, high-end adult fashion aesthetic
 
-    seductivehentai:
-      label: "Seductive Hentai"
-      commercial_goal: "Hentai soft / sensualidad explícita no gráfica"
-      enabled: true
-      allowed_ratios: ["1:1", "3:4", "9:16"]
-      base_prompt: >
-        seductive anime illustration of an adult woman,
-        full body view with pronounced feminine curves,
-        arched back and tilted hips emphasizing waist and thighs,
-        intense direct gaze with half-lidded eyes and parted lips,
-        visible cleavage and subtle underboob through tight fabric,
-        smooth skin shading with warm highlights,
-        intimate low-key lighting with deep shadows,
-        shallow depth of field, cinematic 50mm look,
-        unmistakably erotic anime aesthetic without explicit sexual acts
+  seductivehentai:
+    label: "Seductive Hentai"
+    commercial_goal: "Hentai soft / sensualidad explícita no gráfica"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4", "9:16"]
+    base_prompt: >
+      seductive anime illustration of an adult woman,
+      full body view with pronounced feminine curves,
+      arched back and tilted hips emphasizing waist and thighs,
+      intense direct gaze with half-lidded eyes and parted lips,
+      visible cleavage and subtle underboob through tight fabric,
+      smooth skin shading with warm highlights,
+      intimate low-key lighting with deep shadows,
+      shallow depth of field, cinematic 50mm look,
+      unmistakably erotic anime aesthetic without explicit sexual acts
 
-    allure:
-      label: "Allure"
-      commercial_goal: "Lencería hentai soft / editorial erótico"
-      enabled: true
-      allowed_ratios: ["1:1", "3:4"]
-      base_prompt: >
-        erotic anime fashion illustration of an adult woman,
-        full body or three-quarter pose emphasizing hips and bust,
-        luxury lingerie clinging to skin with realistic tension,
-        visible cleavage and exposed midriff,
-        confident seductive expression with teasing smile,
-        smooth skin highlights and soft shadows,
-        controlled studio lighting,
-        shallow depth of field, 85mm look,
-        refined hentai-inspired lingerie photography style
+  allure:
+    label: "Allure"
+    commercial_goal: "Lencería hentai soft / editorial erótico"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4"]
+    base_prompt: >
+      erotic anime fashion illustration of an adult woman,
+      full body or three-quarter pose emphasizing hips and bust,
+      luxury lingerie clinging to skin with realistic tension,
+      visible cleavage and exposed midriff,
+      confident seductive expression with teasing smile,
+      smooth skin highlights and soft shadows,
+      controlled studio lighting,
+      shallow depth of field, 85mm look,
+      refined hentai-inspired lingerie photography style
 
-    sunkissed:
-      label: "SunKissed"
-      commercial_goal: "Verano sexy / hentai soft comercial"
-      enabled: true
-      allowed_ratios: ["1:1", "3:4", "9:16"]
-      base_prompt: >
-        sexy summer anime scene of an adult woman,
-        full body pose highlighting thighs, hips and bust,
-        revealing bikini or micro swimsuit with realistic fabric stretch,
-        playful sensual posture with slight arch in the back,
-        sunlit skin with glossy highlights,
-        warm golden hour lighting,
-        beach or poolside background softly blurred,
-        35mm look, vibrant colors,
-        unmistakable hentai-soft summer aesthetic
+  sunkissed:
+    label: "SunKissed"
+    commercial_goal: "Verano sexy / hentai soft comercial"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4", "9:16"]
+    base_prompt: >
+      sexy summer anime scene of an adult woman,
+      full body pose highlighting thighs, hips and bust,
+      revealing bikini or micro swimsuit with realistic fabric stretch,
+      playful sensual posture with slight arch in the back,
+      sunlit skin with glossy highlights,
+      warm golden hour lighting,
+      beach or poolside background softly blurred,
+      35mm look, vibrant colors,
+      unmistakable hentai-soft summer aesthetic
 
-    boudoir:
-      label: "Boudoir"
-      commercial_goal: "Hentai soft íntimo / premium"
-      enabled: true
-      allowed_ratios: ["1:1", "3:4"]
-      base_prompt: >
-        intimate boudoir-style anime illustration of an adult woman,
-        full body reclining or seated pose with exposed thighs,
-        delicate lingerie partially revealing breasts and hips,
-        relaxed sensual expression with half-open lips,
-        soft skin texture with realistic shading,
-        private bedroom environment,
-        low-key cinematic lighting with warm highlights,
-        shallow depth of field, 85mm look,
-        high-quality hentai-inspired intimate anime aesthetic
+  boudoir:
+    label: "Boudoir"
+    commercial_goal: "Hentai soft íntimo / premium"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4"]
+    base_prompt: >
+      intimate boudoir-style anime illustration of an adult woman,
+      full body reclining or seated pose with exposed thighs,
+      delicate lingerie partially revealing breasts and hips,
+      relaxed sensual expression with half-open lips,
+      soft skin texture with realistic shading,
+      private bedroom environment,
+      low-key cinematic lighting with warm highlights,
+      shallow depth of field, 85mm look,
+      high-quality hentai-inspired intimate anime aesthetic
 
     
 
