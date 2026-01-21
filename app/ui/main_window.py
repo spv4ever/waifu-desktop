@@ -283,6 +283,10 @@ class MainWindow(QMainWindow):
         self._update_prompt_progress(None)
         prompt_layout.addWidget(self.prompt_progress_bar)
 
+        self.prompt_backend_status_label = QLabel("Backend: —")
+        self.prompt_backend_status_label.setStyleSheet("color: #c0c0c0;")
+        prompt_layout.addWidget(self.prompt_backend_status_label)
+
         prompt_actions = QHBoxLayout()
         self.copy_prompt_btn = QPushButton("Copiar prompt")
         self.retry_prompt_btn = QPushButton("Reintentar prompt")
@@ -468,6 +472,7 @@ class MainWindow(QMainWindow):
         for i, row in enumerate(data):
             id_item = QTableWidgetItem(str(row.id))
             id_item.setData(Qt.UserRole, row.progress)
+            id_item.setData(Qt.UserRole + 1, row.backend_status)
             self.table.setItem(i, 0, id_item)
             self.table.setItem(i, 1, QTableWidgetItem(row.category))
             self.table.setItem(i, 2, QTableWidgetItem(row.variant))
@@ -516,6 +521,19 @@ class MainWindow(QMainWindow):
             return progress
         return None
 
+    def _selected_prompt_backend_status(self) -> str | None:
+        selected = self.table.selectionModel().selectedRows()
+        if not selected:
+            return None
+        row = selected[0].row()
+        pid_item = self.table.item(row, 0)
+        if not pid_item:
+            return None
+        value = pid_item.data(Qt.UserRole + 1)
+        if isinstance(value, str) and value.strip():
+            return value
+        return None
+
     def _update_prompt_progress(self, progress: int | None) -> None:
         if progress is None:
             self.prompt_progress_bar.setValue(0)
@@ -524,6 +542,12 @@ class MainWindow(QMainWindow):
             clamped = max(0, min(100, progress))
             self.prompt_progress_bar.setValue(clamped)
             self.prompt_progress_bar.setFormat(f"{clamped}%")
+
+    def _update_prompt_backend_status(self, status: str | None) -> None:
+        if status:
+            self.prompt_backend_status_label.setText(f"Backend: {status}")
+        else:
+            self.prompt_backend_status_label.setText("Backend: —")
 
     def _populate_pack_selectors(self) -> None:
         self.pack_category_combo.clear()
@@ -663,6 +687,7 @@ class MainWindow(QMainWindow):
             self.delete_prompt_btn.setEnabled(False)
             self.prompt_preview_text.setPlainText("—")
             self._update_prompt_progress(None)
+            self._update_prompt_backend_status(None)
             self._set_preview(which="base", path=None)
             return
 
@@ -677,6 +702,7 @@ class MainWindow(QMainWindow):
 
         self.prompt_preview_text.setPlainText(str(r["prompt_text"]) if r else "—")
         self._update_prompt_progress(self._selected_prompt_progress())
+        self._update_prompt_backend_status(self._selected_prompt_backend_status())
 
         self.open_base_btn.setEnabled(has_base)
         self.open_folder_base_btn.setEnabled(has_base)
@@ -704,6 +730,7 @@ class MainWindow(QMainWindow):
         )
         self.worker_thread.status.connect(self.on_worker_status)
         self.worker_thread.processed.connect(self.on_worker_processed)
+        self.worker_thread.progressed.connect(self.on_worker_progressed)
         self.worker_thread.log.connect(self.append_worker_log)
         self.worker_thread.start()
 
@@ -748,6 +775,9 @@ class MainWindow(QMainWindow):
         self.worker_log_text.setPlainText("—")
 
     def on_worker_processed(self) -> None:
+        self.refresh()
+
+    def on_worker_progressed(self) -> None:
         self.refresh()
 
     def open_selected(self, mode: str) -> None:
