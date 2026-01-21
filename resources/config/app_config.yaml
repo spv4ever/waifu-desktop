@@ -63,3 +63,11 @@ comfyui_workflow:
   output_upscale:
     node_id: "52"
     input: "filename_prefix"
+
+  checkpoint_base:
+    node_id: "4"
+    input: "ckpt_name"
+
+  checkpoint_refiner:
+    node_id: "12"
+    input: "ckpt_name"

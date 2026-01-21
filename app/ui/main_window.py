@@ -19,6 +19,7 @@ from app.data.kv_store import KVStore
 from app.services.output_paths import build_output_path
 from app.services.pack_service import PackService
 from app.services.file_open import open_file, open_folder_and_select
+from app.services.checkpoint_service import CheckpointService
 from app.domain.models import PackCreate
 from app.ui.data_source import fetch_prompts, fetch_prompt_filters, fetch_prompt_status_counts
 from app.ui.worker_thread import WorkerThread
@@ -182,6 +183,16 @@ class MainWindow(QMainWindow):
         self.pack_quantity_spin.setRange(1, 500)
         self.pack_quantity_spin.setValue(10)
         pack_layout.addWidget(self.pack_quantity_spin)
+
+        pack_layout.addWidget(QLabel("Checkpoint Base:"))
+        self.pack_checkpoint_base_combo = QComboBox()
+        self.pack_checkpoint_base_combo.setMinimumWidth(220)
+        pack_layout.addWidget(self.pack_checkpoint_base_combo)
+
+        pack_layout.addWidget(QLabel("Checkpoint Refiner:"))
+        self.pack_checkpoint_refiner_combo = QComboBox()
+        self.pack_checkpoint_refiner_combo.setMinimumWidth(220)
+        pack_layout.addWidget(self.pack_checkpoint_refiner_combo)
 
         self.pack_generate_btn = QPushButton("Generar Pack")
         pack_layout.addWidget(self.pack_generate_btn)
@@ -378,6 +389,7 @@ class MainWindow(QMainWindow):
         self.clear_worker_log_btn.clicked.connect(self.clear_worker_log)
 
         self._populate_pack_selectors()
+        self._populate_checkpoint_selectors()
 
         self.refresh()
 
@@ -490,10 +502,36 @@ class MainWindow(QMainWindow):
         if self.pack_category_combo.count() == 0:
             self.pack_generate_btn.setEnabled(False)
 
+    def _populate_checkpoint_selectors(self) -> None:
+        service = CheckpointService()
+        models = service.list_available()
+        default_base, default_refiner = service.get_default_checkpoints()
+
+        def fill_combo(combo: QComboBox, default_value: str | None) -> None:
+            combo.clear()
+            if not models:
+                combo.addItem("Sin modelos detectados", None)
+                combo.setEnabled(False)
+                return
+
+            combo.setEnabled(True)
+            for name in models:
+                combo.addItem(name, name)
+
+            if default_value:
+                idx = combo.findData(default_value)
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
+
+        fill_combo(self.pack_checkpoint_base_combo, default_base)
+        fill_combo(self.pack_checkpoint_refiner_combo, default_refiner)
+
     def generate_pack(self) -> None:
         category = self.pack_category_combo.currentData()
         variant = self.pack_variant_combo.currentData()
         quantity = int(self.pack_quantity_spin.value())
+        checkpoint_base = self.pack_checkpoint_base_combo.currentData()
+        checkpoint_refiner = self.pack_checkpoint_refiner_combo.currentData()
 
         if not category or not variant:
             QMessageBox.warning(self, "Generar Pack", "Selecciona categoría y variante.")
@@ -503,6 +541,8 @@ class MainWindow(QMainWindow):
             category=str(category),
             variant=str(variant),
             requested_n=quantity,
+            checkpoint_base=str(checkpoint_base) if checkpoint_base else None,
+            checkpoint_refiner=str(checkpoint_refiner) if checkpoint_refiner else None,
         )
 
         try:

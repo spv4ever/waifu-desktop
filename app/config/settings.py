@@ -19,6 +19,7 @@ class Settings:
     comfyui_poll_interval: float = float(os.getenv("COMFYUI_POLL_INTERVAL", "1.0"))
     comfyui_request_timeout: int = int(os.getenv("COMFYUI_REQUEST_TIMEOUT", "120"))
     comfyui_output_dir: str = os.getenv("COMFYUI_OUTPUT_DIR", "output")
+    comfyui_checkpoints_dir: str = os.getenv("COMFYUI_CHECKPOINTS_DIR", "")
 
     # Worker
     queue_max_in_flight: int = int(os.getenv("QUEUE_MAX_IN_FLIGHT", "1"))
