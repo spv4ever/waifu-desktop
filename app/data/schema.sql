@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS queue_job (
   priority        INTEGER NOT NULL DEFAULT 100,
   status          TEXT NOT NULL DEFAULT 'PENDING', -- PENDING | RUNNING | DONE | FAILED | CANCELLED
   progress        INTEGER NOT NULL DEFAULT 0,
+  backend_status  TEXT,
   attempts        INTEGER NOT NULL DEFAULT 0,
   last_error      TEXT,
   created_at      TEXT NOT NULL DEFAULT (datetime('now')),

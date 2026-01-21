@@ -20,6 +20,7 @@ class PromptRow:
     has_base: bool
     has_upscale: bool
     progress: int | None
+    backend_status: str | None
     datestamp: str
 
 
@@ -128,6 +129,7 @@ def fetch_prompts(
                 base_image_json,
                 upscale_image_json,
                 (SELECT progress FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_progress,
+                (SELECT backend_status FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_backend_status,
                 (SELECT status FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_status,
                 COALESCE(updated_at, created_at) AS datestamp
             FROM prompt_item
@@ -140,6 +142,7 @@ def fetch_prompts(
         row_status = str(r["status"])
         job_progress = r["job_progress"]
         job_status = r["job_status"]
+        job_backend_status = r["job_backend_status"]
         category_value, variant_value = _extract_category_variant(r["meta_json"])
         ratio_value = _extract_ratio(r["meta_json"])
         row_datestamp = str(r["datestamp"]) if r["datestamp"] else ""
@@ -175,6 +178,7 @@ def fetch_prompts(
                     has_base=bool(r["base_image_json"]),
                     has_upscale=bool(r["upscale_image_json"]),
                     progress=progress_value,
+                    backend_status=str(job_backend_status) if job_backend_status else None,
                     datestamp=_format_datestamp(row_datestamp),
                 ),
             )
