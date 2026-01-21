@@ -14,6 +14,7 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
     _add_column_if_missing(conn, "queue_job", "remote_id", "TEXT")
     _add_column_if_missing(conn, "queue_job", "remote_status", "TEXT")
     _add_column_if_missing(conn, "queue_job", "output_json", "TEXT")
+    _add_column_if_missing(conn, "queue_job", "progress", "INTEGER NOT NULL DEFAULT 0")
 
     # prompt_item: outputs finales (base y upscale)
     _add_column_if_missing(conn, "prompt_item", "base_image_json", "TEXT")

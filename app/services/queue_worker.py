@@ -45,6 +45,29 @@ class QueueWorker:
 
         return False, entry
 
+    def _extract_progress(self, entry: dict[str, Any]) -> int | None:
+        status = entry.get("status")
+        if not isinstance(status, dict):
+            return None
+
+        completed = status.get("completed")
+        total = status.get("total")
+        if isinstance(completed, (int, float)) and isinstance(total, (int, float)) and total > 0:
+            return int(min(100, max(0, (completed / total) * 100)))
+
+        raw_progress = status.get("progress")
+        if isinstance(raw_progress, (int, float)):
+            if raw_progress <= 1:
+                return int(min(100, max(0, raw_progress * 100)))
+            return int(min(100, max(0, raw_progress)))
+
+        value = status.get("value")
+        maximum = status.get("max")
+        if isinstance(value, (int, float)) and isinstance(maximum, (int, float)) and maximum > 0:
+            return int(min(100, max(0, (value / maximum) * 100)))
+
+        return None
+
     def process_one(self, conn: sqlite3.Connection, *, delay_seconds: float = 0.2) -> WorkerResult:
         paused = self.kv.get(conn, "queue_paused", "false")
         if paused == "true":
@@ -125,6 +148,7 @@ class QueueWorker:
 
         # 2) POLL hasta terminar (sin saturar, 1 en vuelo)
         poll = float(settings.comfyui_poll_interval)
+        last_progress: int | None = None
         while True:
             paused = self.kv.get(conn, "queue_paused", "false")
             if paused == "true":
@@ -136,12 +160,20 @@ class QueueWorker:
             history = self.comfy.get_history(remote_id)
             finished, entry = self._is_finished(history, remote_id)
 
+            if entry:
+                progress = self._extract_progress(entry)
+                if progress is not None and progress != last_progress:
+                    last_progress = progress
+                    with conn:
+                        self.queue.set_progress(conn, job_id, progress)
+
             if finished and entry:
                 base_img, up_img = extract_base_and_upscale(entry)
 
                 with conn:
                     self.queue.set_remote_status(conn, job_id, "COMPLETED")
                     self.queue.set_output_json(conn, job_id, json.dumps(entry, ensure_ascii=False))
+                    self.queue.set_progress(conn, job_id, 100)
 
                     # Guardar outputs en prompt_item
                     self.items.set_outputs(

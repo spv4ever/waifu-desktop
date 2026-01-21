@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit, QCheckBox
+    QLineEdit, QCheckBox, QProgressBar
 )
 
 from app.config.app_config import load_app_config
@@ -217,9 +217,9 @@ class MainWindow(QMainWindow):
         main_content.addLayout(right_column, 3)
 
         # Table
-        self.table = QTableWidget(0, 9)
+        self.table = QTableWidget(0, 10)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Categoría", "Versión", "Estado", "Fecha", "Título", "Ratio", "Base", "Upscale"
+            "ID", "Categoría", "Versión", "Estado", "Progreso", "Fecha", "Título", "Ratio", "Base", "Upscale"
         ])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -461,11 +461,21 @@ class MainWindow(QMainWindow):
             self.table.setItem(i, 1, QTableWidgetItem(row.category))
             self.table.setItem(i, 2, QTableWidgetItem(row.variant))
             self.table.setItem(i, 3, QTableWidgetItem(row.status))
-            self.table.setItem(i, 4, QTableWidgetItem(row.datestamp))
-            self.table.setItem(i, 5, QTableWidgetItem(row.title))
-            self.table.setItem(i, 6, QTableWidgetItem(row.ratio))
-            self.table.setItem(i, 7, QTableWidgetItem("✅" if row.has_base else "—"))
-            self.table.setItem(i, 8, QTableWidgetItem("✅" if row.has_upscale else "—"))
+            progress_bar = QProgressBar()
+            progress_bar.setRange(0, 100)
+            progress_bar.setAlignment(Qt.AlignCenter)
+            if row.progress is None:
+                progress_bar.setValue(0)
+                progress_bar.setFormat("—")
+            else:
+                progress_bar.setValue(row.progress)
+                progress_bar.setFormat(f"{row.progress}%")
+            self.table.setCellWidget(i, 4, progress_bar)
+            self.table.setItem(i, 5, QTableWidgetItem(row.datestamp))
+            self.table.setItem(i, 6, QTableWidgetItem(row.title))
+            self.table.setItem(i, 7, QTableWidgetItem(row.ratio))
+            self.table.setItem(i, 8, QTableWidgetItem("✅" if row.has_base else "—"))
+            self.table.setItem(i, 9, QTableWidgetItem("✅" if row.has_upscale else "—"))
 
         self.table.resizeColumnsToContents()
 
