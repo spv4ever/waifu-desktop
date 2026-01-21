@@ -144,6 +144,65 @@ categories:
       clean shadow definition and smooth gradients,
       85mm look, shallow depth of field,
       high-end editorial finish
+  
+  glamour:
+    label: "Glamour"
+    commercial_goal: "Sensual premium / editorial"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4"]
+    base_prompt: >
+      sensual anime glamour portrait of an adult woman,
+      distinctive facial structure with confident expression,
+      subtle makeup emphasizing eyes and lips,
+      elegant yet alluring outfit highlighting body contours,
+      soft skin highlights with controlled specular lighting,
+      intimate studio atmosphere with shallow depth of field,
+      85mm look, refined editorial composition,
+      premium fashion photography aesthetic
+
+  intimate:
+    label: "Intimate"
+    commercial_goal: "Sensual / mood nocturno"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4"]
+    base_prompt: >
+      intimate anime portrait of an adult woman,
+      close framing emphasizing facial expression and body language,
+      soft lips slightly parted with a subtle teasing gaze,
+      delicate fabric resting on skin with realistic folds,
+      low-key lighting with warm highlights and deep shadows,
+      shallow depth of field creating a private atmosphere,
+      cinematic 50mm look with soft falloff
+  
+  nightlife:
+    label: "Nightlife"
+    commercial_goal: "Sexy urbano / redes"
+    enabled: true
+    allowed_ratios: ["1:1", "9:16"]
+    base_prompt: >
+      nightlife anime portrait of an adult woman,
+      confident and alluring presence with bold expression,
+      stylish evening outfit with reflective fabrics,
+      neon and ambient lighting creating glossy skin highlights,
+      urban night environment with shallow depth of field,
+      dynamic composition with cinematic contrast,
+      35mm look, modern nightlife aesthetic
+
+  romantic:
+    label: "Romantic"
+    commercial_goal: "Sensual suave / wallpapers"
+    enabled: true
+    allowed_ratios: ["1:1", "3:4"]
+    base_prompt: >
+      romantic anime portrait of an adult woman,
+      gentle yet captivating expression with soft eye contact,
+      flowing fabric interacting with body movement,
+      warm lighting enhancing natural skin tones,
+      intimate atmosphere with soft focus background,
+      cinematic 50mm look with dreamy highlights
+
+  
+  
 
 # =========================
 # IDENTIDAD FACIAL (ANTI SAME-FACE)

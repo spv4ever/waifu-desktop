@@ -422,6 +422,9 @@ class MainWindow(QMainWindow):
     def _populate_pack_selectors(self) -> None:
         self.pack_category_combo.clear()
         for key, data in self.waifu_catalog.categories.items():
+            if not isinstance(data, dict):
+                print(f"[WARN] Categoría inválida en YAML: {key}={data!r}")
+                continue
             if not data.get("enabled", True):
                 continue
             label = str(data.get("label", key))
