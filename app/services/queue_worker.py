@@ -27,10 +27,18 @@ class QueueWorker:
         self.workflow = WorkflowService()
         self.app_cfg = load_app_config()
         self._log_callback = log_callback
+        self._progress_callback: Callable[[], None] | None = None
+
+    def set_progress_callback(self, callback: Callable[[], None] | None) -> None:
+        self._progress_callback = callback
 
     def _log(self, message: str) -> None:
         if self._log_callback:
             self._log_callback(message)
+
+    def _emit_progress(self) -> None:
+        if self._progress_callback:
+            self._progress_callback()
 
     def _is_finished(self, history: dict[str, Any], prompt_id: str) -> tuple[bool, dict[str, Any] | None]:
         entry = history.get(prompt_id)
@@ -190,6 +198,14 @@ class QueueWorker:
                     last_progress = progress
                     with conn:
                         self.queue.set_progress(conn, job_id, progress)
+                    self._emit_progress()
+
+                backend_status = self._extract_backend_status(entry)
+                if backend_status and backend_status != last_backend_status:
+                    last_backend_status = backend_status
+                    with conn:
+                        self.queue.set_backend_status(conn, job_id, backend_status)
+                    self._emit_progress()
 
                 backend_status = self._extract_backend_status(entry)
                 if backend_status and backend_status != last_backend_status:
@@ -205,6 +221,7 @@ class QueueWorker:
                     self.queue.set_output_json(conn, job_id, json.dumps(entry, ensure_ascii=False))
                     self.queue.set_progress(conn, job_id, 100)
                     self.queue.set_backend_status(conn, job_id, "Completado")
+                    self._emit_progress()
 
                     # Guardar outputs en prompt_item
                     self.items.set_outputs(

@@ -730,6 +730,7 @@ class MainWindow(QMainWindow):
         )
         self.worker_thread.status.connect(self.on_worker_status)
         self.worker_thread.processed.connect(self.on_worker_processed)
+        self.worker_thread.progressed.connect(self.on_worker_progressed)
         self.worker_thread.log.connect(self.append_worker_log)
         self.worker_thread.start()
 
@@ -774,6 +775,9 @@ class MainWindow(QMainWindow):
         self.worker_log_text.setPlainText("—")
 
     def on_worker_processed(self) -> None:
+        self.refresh()
+
+    def on_worker_progressed(self) -> None:
         self.refresh()
 
     def open_selected(self, mode: str) -> None:
