@@ -113,7 +113,7 @@
   },
   "12": {
     "inputs": {
-      "ckpt_name": "agilPhoto_v10.safetensors"
+      "ckpt_name": "animaPencilXL_v500.safetensors"
     },
     "class_type": "CheckpointLoaderSimple",
     "_meta": {
