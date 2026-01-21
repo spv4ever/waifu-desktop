@@ -25,11 +25,13 @@ class WorkflowService:
             prompt_text: str,
             negative_text: str,
             seed: int | None,
-            steps: int,
+            steps: int | None,
             width: int,
             height: int,
             filename_prefix_base: str,
             filename_prefix_upscale: str,
+            checkpoint_base: str | None,
+            checkpoint_refiner: str | None,
         ) -> dict[str, Any]:
         """
         Aplica cambios a nodos según el mapping en app_config.yaml.
@@ -73,5 +75,18 @@ class WorkflowService:
         set_input_for_nodes(mapping["output_base"]["node_id"], mapping["output_base"]["input"], filename_prefix_base)
         set_input_for_nodes(mapping["output_upscale"]["node_id"], mapping["output_upscale"]["input"], filename_prefix_upscale)
 
+        if checkpoint_base and mapping.get("checkpoint_base"):
+            set_input_for_nodes(
+                mapping["checkpoint_base"]["node_id"],
+                mapping["checkpoint_base"]["input"],
+                checkpoint_base,
+            )
+
+        if checkpoint_refiner and mapping.get("checkpoint_refiner"):
+            set_input_for_nodes(
+                mapping["checkpoint_refiner"]["node_id"],
+                mapping["checkpoint_refiner"]["input"],
+                checkpoint_refiner,
+            )
 
         return workflow

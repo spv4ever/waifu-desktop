@@ -65,6 +65,9 @@ class QueueWorker:
 
         meta = json.loads(item["meta_json"]) if item.get("meta_json") else {}
         combo = meta.get("combo", {})
+        checkpoints = meta.get("checkpoints", {}) if isinstance(meta.get("checkpoints"), dict) else {}
+        checkpoint_base = checkpoints.get("base")
+        checkpoint_refiner = checkpoints.get("refiner")
 
         # -------------------------
         # PATH / NAMING (Jerarquía correcta)
@@ -111,6 +114,8 @@ class QueueWorker:
                 height=height,
                 filename_prefix_base=base_prefix,
                 filename_prefix_upscale=upscale_prefix,
+                checkpoint_base=checkpoint_base,
+                checkpoint_refiner=checkpoint_refiner,
             )
 
             remote_id = self.comfy.submit_prompt(wf)

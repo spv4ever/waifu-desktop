@@ -78,13 +78,20 @@ class PackService:
                 # No debería pasar casi nunca, pero es seguro
                 continue
 
+            meta = dict(built.meta)
+            if req.checkpoint_base or req.checkpoint_refiner:
+                meta["checkpoints"] = {
+                    "base": req.checkpoint_base,
+                    "refiner": req.checkpoint_refiner,
+                }
+
             prompt_item_id = self.item_repo.create(
                 conn,
                 pack_id=pack_id,
                 title=built.title,
                 prompt_text=built.prompt_text,
                 negative_text=built.negative_text,
-                meta=built.meta,
+                meta=meta,
                 signature=signature,
                 status="CREATED",
             )

@@ -10,6 +10,8 @@ class PackCreate:
     variant: str
     requested_n: int
     notes: str = ""
+    checkpoint_base: Optional[str] = None
+    checkpoint_refiner: Optional[str] = None
 
 
 @dataclass(frozen=True)
