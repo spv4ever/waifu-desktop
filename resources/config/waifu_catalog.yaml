@@ -166,13 +166,15 @@ categories:
     enabled: true
     allowed_ratios: ["1:1", "3:4"]
     base_prompt: >
-      intimate anime portrait of an adult woman,
-      close framing emphasizing facial expression and body language,
-      soft lips slightly parted with a subtle teasing gaze,
-      delicate fabric resting on skin with realistic folds,
-      low-key lighting with warm highlights and deep shadows,
-      shallow depth of field creating a private atmosphere,
-      cinematic 50mm look with soft falloff
+      intimate anime full-body illustration of an adult woman,
+      confident yet soft body language with subtle sensual posture,
+      natural curves emphasized through pose rather than exaggeration,
+      bare shoulders or exposed collarbone suggesting intimacy,
+      delicate fabric softly draped over the body with realistic folds,
+      warm skin tones with gentle specular highlights,
+      low-key cinematic lighting creating a private, quiet atmosphere,
+      shallow depth of field separating the subject from the background,
+      50mm look, smooth tonal transitions, refined adult aesthetic
   
   nightlife:
     label: "Nightlife"
