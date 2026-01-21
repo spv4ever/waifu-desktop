@@ -110,6 +110,7 @@ def fetch_prompts(
     ratio: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
+    sort_order: str = "desc",
 ) -> list[PromptRow]:
     dt_from = _parse_db_datetime(date_from) if date_from else None
     dt_to = _parse_db_datetime(date_to) if date_to else None
@@ -131,7 +132,7 @@ def fetch_prompts(
             """
         ).fetchall()
 
-    result: list[PromptRow] = []
+    result: list[tuple[datetime | None, PromptRow]] = []
     for r in rows:
         row_status = str(r["status"])
         category_value, variant_value = _extract_category_variant(r["meta_json"])
@@ -155,22 +156,30 @@ def fetch_prompts(
             continue
 
         result.append(
-            PromptRow(
-                id=int(r["id"]),
-                title=str(r["title"]),
-                prompt_text=str(r["prompt_text"]),
-                status=row_status,
-                category=category_value,
-                variant=variant_value,
-                ratio=ratio_value,
-                has_base=bool(r["base_image_json"]),
-                has_upscale=bool(r["upscale_image_json"]),
-                datestamp=_format_datestamp(row_datestamp),
+            (
+                row_dt,
+                PromptRow(
+                    id=int(r["id"]),
+                    title=str(r["title"]),
+                    prompt_text=str(r["prompt_text"]),
+                    status=row_status,
+                    category=category_value,
+                    variant=variant_value,
+                    ratio=ratio_value,
+                    has_base=bool(r["base_image_json"]),
+                    has_upscale=bool(r["upscale_image_json"]),
+                    datestamp=_format_datestamp(row_datestamp),
+                ),
             )
         )
-        if len(result) >= limit:
-            break
-    return result
+    reverse = sort_order.lower() != "asc"
+    if reverse:
+        sentinel = datetime.min
+    else:
+        sentinel = datetime.max
+
+    result.sort(key=lambda item: item[0] or sentinel, reverse=reverse)
+    return [row for _, row in result[:limit]]
 
 
 def _parse_db_datetime(value: str | None) -> datetime | None:
