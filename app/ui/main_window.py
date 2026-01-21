@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit
+    QLineEdit, QCheckBox
 )
 
 from app.config.app_config import load_app_config
@@ -81,6 +81,10 @@ class MainWindow(QMainWindow):
         self.limit_spin.setRange(10, 500)
         self.limit_spin.setValue(200)
         top.addWidget(self.limit_spin)
+
+        self.toggle_preview_checkbox = QCheckBox("Mostrar preview")
+        self.toggle_preview_checkbox.setChecked(False)
+        top.addWidget(self.toggle_preview_checkbox)
 
         top.addStretch(1)
 
@@ -272,6 +276,7 @@ class MainWindow(QMainWindow):
 
         self.base_image_label.doubleClicked.connect(lambda: self.open_preview_dialog("base"))
 
+        self.base_group.setVisible(False)
         main_content.addWidget(self.base_group, 3)
 
         # Bottom actions
@@ -350,6 +355,7 @@ class MainWindow(QMainWindow):
         self.filter_to_datetime.dateTimeChanged.connect(self.refresh)
         self.filter_date_order_combo.currentIndexChanged.connect(self.refresh)
         self.reset_filters_btn.clicked.connect(self.reset_filters)
+        self.toggle_preview_checkbox.toggled.connect(self._toggle_base_preview)
 
         self._populate_pack_selectors()
 
@@ -495,6 +501,11 @@ class MainWindow(QMainWindow):
         )
 
     # -------- Preview helpers --------
+
+    def _toggle_base_preview(self, checked: bool) -> None:
+        self.base_group.setVisible(checked)
+        if checked:
+            self._rescale_previews()
 
     def _set_preview(self, *, which: str, path: Path | None) -> None:
         if which != "base":
