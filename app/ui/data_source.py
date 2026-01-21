@@ -19,6 +19,7 @@ class PromptRow:
     ratio: str
     has_base: bool
     has_upscale: bool
+    progress: int | None
     datestamp: str
 
 
@@ -126,6 +127,8 @@ def fetch_prompts(
                 meta_json,
                 base_image_json,
                 upscale_image_json,
+                (SELECT progress FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_progress,
+                (SELECT status FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_status,
                 COALESCE(updated_at, created_at) AS datestamp
             FROM prompt_item
             ORDER BY id DESC
@@ -135,10 +138,13 @@ def fetch_prompts(
     result: list[tuple[datetime | None, PromptRow]] = []
     for r in rows:
         row_status = str(r["status"])
+        job_progress = r["job_progress"]
+        job_status = r["job_status"]
         category_value, variant_value = _extract_category_variant(r["meta_json"])
         ratio_value = _extract_ratio(r["meta_json"])
         row_datestamp = str(r["datestamp"]) if r["datestamp"] else ""
         row_dt = _parse_db_datetime(row_datestamp) if row_datestamp else None
+        progress_value = _resolve_progress(row_status, job_status, job_progress)
 
         if category and category_value != category:
             continue
@@ -168,6 +174,7 @@ def fetch_prompts(
                     ratio=ratio_value,
                     has_base=bool(r["base_image_json"]),
                     has_upscale=bool(r["upscale_image_json"]),
+                    progress=progress_value,
                     datestamp=_format_datestamp(row_datestamp),
                 ),
             )
@@ -196,3 +203,15 @@ def _format_datestamp(value: str | None) -> str:
     if not dt:
         return "—"
     return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _resolve_progress(status: str, job_status: str | None, job_progress: int | None) -> int | None:
+    if isinstance(job_progress, int) and 0 <= job_progress <= 100:
+        return job_progress
+    if status == "DONE":
+        return 100
+    if status in {"QUEUED", "SENT"}:
+        return 0
+    if job_status in {"PENDING", "RUNNING"}:
+        return 0
+    return None

@@ -170,7 +170,7 @@ class QueueRepository:
 
             row2 = conn.execute(
                 """
-                SELECT id, prompt_item_id, priority, attempts, remote_id, remote_status
+                SELECT id, prompt_item_id, priority, attempts, remote_id, remote_status, progress
                 FROM queue_job
                 WHERE id=?
                 """,
@@ -194,12 +194,15 @@ class QueueRepository:
 
     def set_remote(self, conn: sqlite3.Connection, job_id: int, remote_id: str, remote_status: str = "SUBMITTED") -> None:
         conn.execute(
-            "UPDATE queue_job SET remote_id=?, remote_status=? WHERE id=?",
+            "UPDATE queue_job SET remote_id=?, remote_status=?, progress=0 WHERE id=?",
             (remote_id, remote_status, job_id),
         )
 
     def set_remote_status(self, conn: sqlite3.Connection, job_id: int, remote_status: str) -> None:
         conn.execute("UPDATE queue_job SET remote_status=? WHERE id=?", (remote_status, job_id))
+
+    def set_progress(self, conn: sqlite3.Connection, job_id: int, progress: int) -> None:
+        conn.execute("UPDATE queue_job SET progress=? WHERE id=?", (progress, job_id))
 
     def set_output_json(self, conn: sqlite3.Connection, job_id: int, output_json: str) -> None:
         conn.execute("UPDATE queue_job SET output_json=? WHERE id=?", (output_json, job_id))
@@ -207,7 +210,7 @@ class QueueRepository:
     def get_job(self, conn: sqlite3.Connection, job_id: int) -> dict | None:
         row = conn.execute(
             """
-            SELECT id, prompt_item_id, status, attempts, remote_id, remote_status, output_json
+            SELECT id, prompt_item_id, status, attempts, remote_id, remote_status, output_json, progress
             FROM queue_job
             WHERE id=?
             """,
