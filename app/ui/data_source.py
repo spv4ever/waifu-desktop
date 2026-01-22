@@ -102,6 +102,26 @@ def fetch_prompt_status_counts() -> dict[str, int]:
     return counts
 
 
+def fetch_category_production_counts() -> list[tuple[str, int]]:
+    counts: dict[str, int] = {}
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT meta_json
+            FROM prompt_item
+            WHERE status = 'DONE'
+            """
+        ).fetchall()
+
+    for r in rows:
+        category, _ = _extract_category_variant(r["meta_json"])
+        if not category or category == "?":
+            continue
+        counts[category] = counts.get(category, 0) + 1
+
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+
+
 def fetch_prompts(
     *,
     limit: int = 50,
