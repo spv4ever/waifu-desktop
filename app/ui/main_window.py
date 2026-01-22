@@ -21,7 +21,12 @@ from app.services.pack_service import PackService
 from app.services.file_open import open_file, open_folder_and_select
 from app.services.checkpoint_service import CheckpointService
 from app.domain.models import PackCreate
-from app.ui.data_source import fetch_prompts, fetch_prompt_filters, fetch_prompt_status_counts
+from app.ui.data_source import (
+    fetch_prompts,
+    fetch_prompt_filters,
+    fetch_prompt_status_counts,
+    fetch_category_production_counts,
+)
 from app.ui.worker_thread import WorkerThread
 from app.ui.clickable_label import ClickableLabel
 from app.ui.image_viewer import ImageViewer
@@ -374,6 +379,15 @@ class MainWindow(QMainWindow):
         status_row.addStretch(1)
         layout.addLayout(status_row)
 
+        production_row = QHBoxLayout()
+        production_row.addStretch(1)
+        production_row.addWidget(QLabel("Producción por categoría:"))
+        self.category_production_combo = QComboBox()
+        self.category_production_combo.setMinimumWidth(220)
+        production_row.addWidget(self.category_production_combo)
+        production_row.addStretch(1)
+        layout.addLayout(production_row)
+
         # Signals
         self.refresh_btn.clicked.connect(self.refresh)
         self.pause_btn.clicked.connect(self.pause_queue)
@@ -499,6 +513,7 @@ class MainWindow(QMainWindow):
 
         self._refresh_filters()
         self._refresh_status_counts()
+        self._refresh_category_production_counts()
 
         with get_connection() as conn:
             paused = self.kv.get(conn, "queue_paused", "false")
@@ -929,6 +944,19 @@ class MainWindow(QMainWindow):
         self.status_sent_label.setText(f"SENT: {counts.get('SENT', 0)}")
         self.status_done_label.setText(f"DONE: {counts.get('DONE', 0)}")
         self.status_failed_label.setText(f"FAILED: {counts.get('FAILED', 0)}")
+
+    def _refresh_category_production_counts(self) -> None:
+        counts = fetch_category_production_counts()
+        self.category_production_combo.blockSignals(True)
+        self.category_production_combo.clear()
+        if not counts:
+            self.category_production_combo.addItem("Sin datos", None)
+            self.category_production_combo.setEnabled(False)
+        else:
+            self.category_production_combo.setEnabled(True)
+            for category, total in counts:
+                self.category_production_combo.addItem(f"{category} ({total})", category)
+        self.category_production_combo.blockSignals(False)
 
     def retry_selected_prompt(self) -> None:
         pid = self._selected_prompt_id()
