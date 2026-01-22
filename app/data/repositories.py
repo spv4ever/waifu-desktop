@@ -185,12 +185,15 @@ class QueueRepository:
     def mark_failed(self, conn: sqlite3.Connection, job_id: int, error: str) -> None:
         conn.execute("UPDATE queue_job SET status='FAILED', last_error=? WHERE id=?", (error, job_id))
 
-    def reset_running_to_pending(self, conn: sqlite3.Connection) -> int:
+    def reset_running_to_pending(self, conn: sqlite3.Connection) -> list[int]:
         """
         Útil si se cae la app a mitad: vuelve RUNNING -> PENDING.
         """
-        cur = conn.execute("UPDATE queue_job SET status='PENDING' WHERE status='RUNNING'")
-        return cur.rowcount
+        rows = conn.execute(
+            "SELECT prompt_item_id FROM queue_job WHERE status='RUNNING'"
+        ).fetchall()
+        conn.execute("UPDATE queue_job SET status='PENDING' WHERE status='RUNNING'")
+        return [int(row["prompt_item_id"]) for row in rows]
 
     def set_remote(self, conn: sqlite3.Connection, job_id: int, remote_id: str, remote_status: str = "SUBMITTED") -> None:
         conn.execute(

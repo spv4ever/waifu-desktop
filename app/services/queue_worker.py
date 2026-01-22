@@ -40,6 +40,16 @@ class QueueWorker:
         if self._progress_callback:
             self._progress_callback()
 
+    def recover_stuck_jobs(self, conn: sqlite3.Connection) -> int:
+        with conn:
+            prompt_ids = self.queue.reset_running_to_pending(conn)
+            if prompt_ids:
+                self.items.bulk_update_status(conn, ids=prompt_ids, status="QUEUED")
+        if prompt_ids:
+            self._log(f"[WORKER] Recuperados {len(prompt_ids)} jobs RUNNING -> PENDING.")
+            self._emit_progress()
+        return len(prompt_ids)
+
     def _is_finished(self, history: dict[str, Any], prompt_id: str) -> tuple[bool, dict[str, Any] | None]:
         entry = history.get(prompt_id)
         if not entry:
