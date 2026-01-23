@@ -9,6 +9,10 @@ from app.services.queue_worker import QueueWorker
 def main():
     worker = QueueWorker()
 
+    with get_connection() as conn:
+        with conn:
+            worker.recover_inflight_jobs(conn)
+
     print("Worker arrancado. CTRL+C para parar.")
     while True:
         with get_connection() as conn:

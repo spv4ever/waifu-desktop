@@ -469,6 +469,7 @@ class MainWindow(QMainWindow):
         with get_connection() as conn:
             with conn:
                 self.kv.set(conn, "queue_paused", "false")
+                self.worker_thread.worker.recover_inflight_jobs(conn)
         self.refresh()
         QMessageBox.information(self, "Cola", "Cola reanudada.")
 

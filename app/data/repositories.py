@@ -111,6 +111,10 @@ class PromptItemRepository:
             (base_image_json, upscale_image_json, item_id),
         )
 
+    def reset_sent_to_queued(self, conn: sqlite3.Connection) -> int:
+        cur = conn.execute("UPDATE prompt_item SET status='QUEUED' WHERE status='SENT'")
+        return cur.rowcount
+
 
 class QueueRepository:
     def enqueue(self, conn: sqlite3.Connection, *, prompt_item_id: int, priority: int = 100) -> int:
