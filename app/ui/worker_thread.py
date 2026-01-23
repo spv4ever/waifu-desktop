@@ -35,10 +35,6 @@ class WorkerThread(QThread):
 
     def run(self) -> None:
         self.status.emit("RUNNING")
-        with get_connection() as conn:
-            recovered = self.worker.recover_stuck_jobs(conn)
-        if recovered:
-            self.processed.emit()
         while not self._stop:
             with get_connection() as conn:
                 result = self.worker.process_one(conn, delay_seconds=self.delay_seconds)
