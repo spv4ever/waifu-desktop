@@ -40,10 +40,11 @@ class QueueWorker:
         if self._progress_callback:
             self._progress_callback()
 
-    def recover_inflight_jobs(self, conn: sqlite3.Connection) -> tuple[int, int]:
+    def recover_inflight_jobs(self, conn: sqlite3.Connection) -> tuple[int, int, int]:
         reset_jobs = self.queue.reset_running_to_pending(conn)
         reset_items = self.items.reset_sent_to_queued(conn)
-        return reset_jobs, reset_items
+        requeued_items = self.queue.enqueue_missing_for_queued_items(conn)
+        return reset_jobs, reset_items, requeued_items
 
     def _is_finished(self, history: dict[str, Any], prompt_id: str) -> tuple[bool, dict[str, Any] | None]:
         entry = history.get(prompt_id)

@@ -127,6 +127,24 @@ class QueueRepository:
         )
         return int(cur.lastrowid)
 
+    def enqueue_missing_for_queued_items(self, conn: sqlite3.Connection, *, priority: int = 100) -> int:
+        cur = conn.execute(
+            """
+            INSERT INTO queue_job(prompt_item_id, priority, status)
+            SELECT prompt_item.id, ?, 'PENDING'
+            FROM prompt_item
+            WHERE prompt_item.status='QUEUED'
+              AND NOT EXISTS (
+                SELECT 1
+                FROM queue_job
+                WHERE queue_job.prompt_item_id = prompt_item.id
+                  AND queue_job.status IN ('PENDING', 'RUNNING')
+              )
+            """,
+            (priority,),
+        )
+        return cur.rowcount
+
     def pause_all(self, conn: sqlite3.Connection) -> int:
         cur = conn.execute(
             "UPDATE queue_job SET status = 'CANCELLED' WHERE status IN ('PENDING','RUNNING')"
