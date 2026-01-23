@@ -138,6 +138,13 @@ class MainWindow(QMainWindow):
         self.filter_ratio_combo.setMinimumWidth(110)
         filters_row_two.addWidget(self.filter_ratio_combo)
 
+        filters_row_two.addWidget(QLabel("Últimos días:"))
+        self.filter_last_days_spin = QSpinBox()
+        self.filter_last_days_spin.setRange(1, 3650)
+        self.filter_last_days_spin.setValue(30)
+        self.filter_last_days_spin.setMinimumWidth(90)
+        filters_row_two.addWidget(self.filter_last_days_spin)
+
         self.filter_from_datetime = QDateTimeEdit()
         self.filter_from_datetime.setCalendarPopup(True)
         self.filter_from_datetime.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
@@ -152,9 +159,7 @@ class MainWindow(QMainWindow):
         self.filter_to_datetime.setSpecialValueText("Hasta")
         self.filter_to_datetime.setMinimumWidth(170)
 
-        today = QDate.currentDate()
-        self.filter_from_datetime.setDateTime(QDateTime(today, QTime(0, 0, 0)))
-        self.filter_to_datetime.setDateTime(QDateTime(today, QTime(23, 59, 59)))
+        self._apply_last_days_range(self.filter_last_days_spin.value())
 
         self.reset_filters_btn = QPushButton("Restablecer filtros")
         filters_row_two.addWidget(self.reset_filters_btn)
@@ -428,6 +433,7 @@ class MainWindow(QMainWindow):
         self.filter_from_datetime.dateTimeChanged.connect(self.refresh)
         self.filter_to_datetime.dateTimeChanged.connect(self.refresh)
         self.filter_date_order_combo.currentIndexChanged.connect(self.refresh)
+        self.filter_last_days_spin.valueChanged.connect(self._on_last_days_changed)
         self.reset_filters_btn.clicked.connect(self.reset_filters)
         self.toggle_preview_checkbox.toggled.connect(self._toggle_base_preview)
         self.clear_worker_log_btn.clicked.connect(self.clear_worker_log)
@@ -882,14 +888,29 @@ class MainWindow(QMainWindow):
             return str(value)
         return "desc"
 
-    def reset_filters(self) -> None:
+    def _apply_last_days_range(self, days: int) -> None:
+        days = max(1, int(days))
         today = QDate.currentDate()
+        start_date = today.addDays(-(days - 1))
+        self.filter_from_datetime.setDateTime(QDateTime(start_date, QTime(0, 0, 0)))
+        self.filter_to_datetime.setDateTime(QDateTime(today, QTime(23, 59, 59)))
+
+    def _on_last_days_changed(self, value: int) -> None:
+        self.filter_from_datetime.blockSignals(True)
+        self.filter_to_datetime.blockSignals(True)
+        self._apply_last_days_range(value)
+        self.filter_from_datetime.blockSignals(False)
+        self.filter_to_datetime.blockSignals(False)
+        self.refresh()
+
+    def reset_filters(self) -> None:
         widgets = (
             self.prompt_id_input,
             self.filter_category_combo,
             self.filter_variant_combo,
             self.filter_status_combo,
             self.filter_ratio_combo,
+            self.filter_last_days_spin,
             self.filter_from_datetime,
             self.filter_to_datetime,
             self.filter_date_order_combo,
@@ -902,8 +923,8 @@ class MainWindow(QMainWindow):
         self._set_combo_value(self.filter_variant_combo, "__ALL__")
         self._set_combo_value(self.filter_status_combo, "__ALL__")
         self._set_combo_value(self.filter_ratio_combo, "__ALL__")
-        self.filter_from_datetime.setDateTime(QDateTime(today, QTime(0, 0, 0)))
-        self.filter_to_datetime.setDateTime(QDateTime(today, QTime(23, 59, 59)))
+        self.filter_last_days_spin.setValue(30)
+        self._apply_last_days_range(self.filter_last_days_spin.value())
         self._set_combo_value(self.filter_date_order_combo, "desc")
 
         for widget in widgets:
