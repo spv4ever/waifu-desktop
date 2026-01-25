@@ -227,9 +227,19 @@ class MainWindow(QMainWindow):
         main_content.addLayout(right_column, 3)
 
         # Table
-        self.table = QTableWidget(0, 9)
+        self.table = QTableWidget(0, 11)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Categoría", "Versión", "Estado", "Fecha", "Título", "Ratio", "Base", "Upscale"
+            "ID",
+            "Categoría",
+            "Versión",
+            "Estado",
+            "Fecha",
+            "Título",
+            "Ratio",
+            "Checkpoint Base",
+            "Checkpoint Refiner",
+            "Base",
+            "Upscale",
         ])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -510,8 +520,10 @@ class MainWindow(QMainWindow):
             self.table.setItem(i, 4, QTableWidgetItem(row.datestamp))
             self.table.setItem(i, 5, QTableWidgetItem(row.title))
             self.table.setItem(i, 6, QTableWidgetItem(row.ratio))
-            self.table.setItem(i, 7, QTableWidgetItem("✅" if row.has_base else "—"))
-            self.table.setItem(i, 8, QTableWidgetItem("✅" if row.has_upscale else "—"))
+            self.table.setItem(i, 7, QTableWidgetItem(row.checkpoint_base or "—"))
+            self.table.setItem(i, 8, QTableWidgetItem(row.checkpoint_refiner or "—"))
+            self.table.setItem(i, 9, QTableWidgetItem("✅" if row.has_base else "—"))
+            self.table.setItem(i, 10, QTableWidgetItem("✅" if row.has_upscale else "—"))
 
         self.table.resizeColumnsToContents()
 
