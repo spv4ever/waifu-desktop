@@ -76,10 +76,34 @@ CREATE TABLE IF NOT EXISTS kv_store (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- 6) Prompts base (categorías y personajes)
+CREATE TABLE IF NOT EXISTS prompt_base (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  key           TEXT NOT NULL UNIQUE,
+  label         TEXT NOT NULL,
+  base_prompt   TEXT NOT NULL,
+  kind          TEXT NOT NULL DEFAULT 'category', -- category | character
+  allowed_ratios TEXT,
+  enabled       INTEGER NOT NULL DEFAULT 1,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_base_kind_enabled
+ON prompt_base(kind, enabled);
+
 -- Trigger para updated_at en queue_job
 CREATE TRIGGER IF NOT EXISTS trg_queue_job_updated_at
 AFTER UPDATE ON queue_job
 FOR EACH ROW
 BEGIN
   UPDATE queue_job SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
+
+-- Trigger para updated_at en prompt_base
+CREATE TRIGGER IF NOT EXISTS trg_prompt_base_updated_at
+AFTER UPDATE ON prompt_base
+FOR EACH ROW
+BEGIN
+  UPDATE prompt_base SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
