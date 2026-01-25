@@ -4,6 +4,14 @@ defaults:
   width: 1024
   height: 1024
   lock_steps: true
+  outfit_mod_blocklist: []
+  outfit_mod_keywords:
+    - "outfit"
+    - "wardrobe"
+    - "clothing"
+    - "dress"
+    - "uniform"
+    - "costume"
 
 ratios:
   "1:1": [1024, 1024]
