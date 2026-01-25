@@ -29,3 +29,5 @@ Thumbs.db
 # Generated images / outputs
 resources/output/
 resources/images/
+
+data/
