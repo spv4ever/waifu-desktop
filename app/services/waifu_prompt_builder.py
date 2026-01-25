@@ -95,6 +95,8 @@ def build_unique_prompts(
 
     allowed_ratios = list(cat.get("allowed_ratios") or ["1:1"])
     base_prompt = str(cat.get("base_prompt", "")).strip()
+    kind = str(cat.get("kind", "category"))
+    is_character = kind == "character"
 
     negative_text = str(catalog.raw.get("negative_prompt") or "").strip()
     if not negative_text:
@@ -171,7 +173,7 @@ def build_unique_prompts(
 
         # Pose / background / lighting
         pose = _pick_from_grouped_dict(rng, pose_grouped, "standing")
-        bg = _pick_from_grouped_dict(rng, bg_grouped, "simple background")
+        bg = "" if is_character else _pick_from_grouped_dict(rng, bg_grouped, "simple background")
         light = _pick_from_grouped_dict(rng, light_grouped, "soft natural lighting")
 
         if small_batch:
@@ -196,15 +198,22 @@ def build_unique_prompts(
         footwear_pick = _pick_from_list(rng, footwear_pool, "sneakers")
 
         # Identity (anti sameface)
-        face_features = _pick_from_list(rng, face_features_list, "distinct facial features")
-        eye_style = _pick_from_list(rng, eye_styles_list, "expressive eyes")
-        hair_color = _pick_from_list(rng, hair_colors, "chestnut brown")
-        hair_style = _pick_from_list(rng, hair_styles, "long wavy hair")
-        hair_detail = _pick_from_list(rng, hair_details, "loose strands framing the face")
+        if is_character:
+            face_features = ""
+            eye_style = ""
+            hair_color = ""
+            hair_style = ""
+            hair_detail = ""
+        else:
+            face_features = _pick_from_list(rng, face_features_list, "distinct facial features")
+            eye_style = _pick_from_list(rng, eye_styles_list, "expressive eyes")
+            hair_color = _pick_from_list(rng, hair_colors, "chestnut brown")
+            hair_style = _pick_from_list(rng, hair_styles, "long wavy hair")
+            hair_detail = _pick_from_list(rng, hair_details, "loose strands framing the face")
 
         hair_key = f"{hair_color}|{hair_style}|{hair_detail}"
 
-        if small_batch:
+        if small_batch and not is_character:
             if face_features in used_face:
                 face_features = _pick_from_list(rng, face_features_list, face_features)
             if hair_key in used_hair:
@@ -213,7 +222,7 @@ def build_unique_prompts(
                 hair_detail = _pick_from_list(rng, hair_details, hair_detail)
                 hair_key = f"{hair_color}|{hair_style}|{hair_detail}"
 
-        hair_desc = f"{hair_color} {hair_style}, {hair_detail}".strip().strip(",")
+        hair_desc = f"{hair_color} {hair_style}, {hair_detail}".strip().strip(",") if not is_character else ""
 
         # Camera
         camera_focal = _pick_from_list(rng, focal_lengths, "50mm look")
@@ -290,7 +299,10 @@ def build_unique_prompts(
         prompt_text = ", ".join([p for p in prompt_parts if isinstance(p, str) and p.strip()]).strip().strip(",")
 
         cat_label = str(cat.get("label", category_key))
-        title = f"{cat_label} {variant} — {bg}"
+        if is_character:
+            title = f"{cat_label} {variant}"
+        else:
+            title = f"{cat_label} {variant} — {bg}"
 
         meta = {"combo": combo}
 
