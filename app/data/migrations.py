@@ -58,3 +58,37 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         END;
         """
     )
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS prompt_base (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          key           TEXT NOT NULL UNIQUE,
+          label         TEXT NOT NULL,
+          base_prompt   TEXT NOT NULL,
+          kind          TEXT NOT NULL DEFAULT 'category',
+          allowed_ratios TEXT,
+          enabled       INTEGER NOT NULL DEFAULT 1,
+          created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_prompt_base_kind_enabled
+        ON prompt_base(kind, enabled);
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_prompt_base_updated_at
+        AFTER UPDATE ON prompt_base
+        FOR EACH ROW
+        BEGIN
+          UPDATE prompt_base SET updated_at = datetime('now') WHERE id = NEW.id;
+        END;
+        """
+    )

@@ -29,7 +29,6 @@ class PackService:
         self.item_repo = PromptItemRepository()
         self.queue_repo = QueueRepository()
         self.combo_registry = ComboRegistryRepository()
-
         self.catalog = load_waifu_catalog()
 
     def create_pack_and_enqueue(
@@ -55,6 +54,7 @@ class PackService:
         created_queue_job_ids: list[int] = []
 
         # 2️⃣ Generar prompts únicos (builder)
+        self.catalog = load_waifu_catalog()
         built_prompts = build_unique_prompts(
             catalog=self.catalog,
             category_key=req.category,

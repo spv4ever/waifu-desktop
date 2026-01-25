@@ -14,6 +14,16 @@ class PackRow:
     requested_n: int
 
 
+@dataclass(frozen=True)
+class PromptBaseRow:
+    key: str
+    label: str
+    base_prompt: str
+    kind: str
+    allowed_ratios: list[str]
+    enabled: bool
+
+
 class PackRepository:
     def create(self, conn: sqlite3.Connection, *, category: str, variant: str, requested_n: int, notes: str) -> int:
         cur = conn.execute(
@@ -42,6 +52,100 @@ class ComboRegistryRepository:
             return True
         except sqlite3.IntegrityError:
             return False
+
+
+class PromptBaseRepository:
+    def list(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        include_disabled: bool = False,
+    ) -> list[PromptBaseRow]:
+        rows = conn.execute(
+            """
+            SELECT key, label, base_prompt, kind, allowed_ratios, enabled
+            FROM prompt_base
+            WHERE (? = 1) OR enabled = 1
+            ORDER BY kind, label
+            """,
+            (1 if include_disabled else 0,),
+        ).fetchall()
+
+        out: list[PromptBaseRow] = []
+        for r in rows:
+            allowed_raw = r["allowed_ratios"]
+            try:
+                allowed_ratios = json.loads(allowed_raw) if allowed_raw else []
+            except json.JSONDecodeError:
+                allowed_ratios = []
+            allowed_ratios = [str(x) for x in allowed_ratios if isinstance(x, (str, int, float))]
+            out.append(
+                PromptBaseRow(
+                    key=str(r["key"]),
+                    label=str(r["label"]),
+                    base_prompt=str(r["base_prompt"]),
+                    kind=str(r["kind"] or "category"),
+                    allowed_ratios=allowed_ratios,
+                    enabled=bool(r["enabled"]),
+                )
+            )
+        return out
+
+    def upsert(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        key: str,
+        label: str,
+        base_prompt: str,
+        kind: str = "category",
+        allowed_ratios: list[str] | None = None,
+        enabled: bool = True,
+    ) -> None:
+        ratios_json = json.dumps(allowed_ratios or [], ensure_ascii=False)
+        conn.execute(
+            """
+            INSERT INTO prompt_base (key, label, base_prompt, kind, allowed_ratios, enabled)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                label = excluded.label,
+                base_prompt = excluded.base_prompt,
+                kind = excluded.kind,
+                allowed_ratios = excluded.allowed_ratios,
+                enabled = excluded.enabled,
+                updated_at = datetime('now')
+            """,
+            (key, label, base_prompt, kind, ratios_json, 1 if enabled else 0),
+        )
+
+    def ensure_seeded(self, conn: sqlite3.Connection, categories: dict[str, Any]) -> int:
+        row = conn.execute("SELECT COUNT(*) AS n FROM prompt_base").fetchone()
+        if row and int(row["n"]) > 0:
+            return 0
+
+        inserted = 0
+        for key, data in (categories or {}).items():
+            if not isinstance(data, dict):
+                continue
+            label = str(data.get("label", key))
+            base_prompt = str(data.get("base_prompt", "")).strip()
+            allowed = data.get("allowed_ratios") or []
+            if not isinstance(allowed, list):
+                allowed = []
+            enabled = bool(data.get("enabled", True))
+            if not base_prompt:
+                continue
+            self.upsert(
+                conn,
+                key=str(key),
+                label=label,
+                base_prompt=base_prompt,
+                kind="category",
+                allowed_ratios=[str(x) for x in allowed],
+                enabled=enabled,
+            )
+            inserted += 1
+        return inserted
 
 
 class PromptItemRepository:
