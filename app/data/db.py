@@ -10,6 +10,18 @@ from app.config.settings import settings
 def ensure_data_dir() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
+SCHEMA_VERSION = 1
+
+
+def _apply_migrations_if_needed(conn: sqlite3.Connection) -> None:
+    current_version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if current_version >= SCHEMA_VERSION:
+        return
+
+    with conn:
+        apply_migrations(conn)
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
 
 def get_connection() -> sqlite3.Connection:
     ensure_data_dir()
@@ -19,7 +31,7 @@ def get_connection() -> sqlite3.Connection:
     conn.execute("PRAGMA busy_timeout = 30000;")
     # Importante: FK activas
     conn.execute("PRAGMA foreign_keys = ON;")
-    apply_migrations(conn)
+    _apply_migrations_if_needed(conn)
     return conn
 
 
