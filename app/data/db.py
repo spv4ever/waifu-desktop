@@ -13,8 +13,10 @@ def ensure_data_dir() -> None:
 
 def get_connection() -> sqlite3.Connection:
     ensure_data_dir()
-    conn = sqlite3.connect(settings.db_path)
+    conn = sqlite3.connect(settings.db_path, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA busy_timeout = 30000;")
     # Importante: FK activas
     conn.execute("PRAGMA foreign_keys = ON;")
     apply_migrations(conn)
