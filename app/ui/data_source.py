@@ -17,6 +17,8 @@ class PromptRow:
     category: str
     variant: str
     ratio: str
+    checkpoint_base: str | None
+    checkpoint_refiner: str | None
     has_base: bool
     has_upscale: bool
     progress: int | None
@@ -50,6 +52,21 @@ def _extract_ratio(meta_json: str | None) -> str:
         )
     except Exception:
         return "?"
+
+
+def _extract_checkpoints(meta_json: str | None) -> tuple[str | None, str | None]:
+    if not meta_json:
+        return None, None
+    try:
+        meta = json.loads(meta_json)
+        checkpoints = meta.get("checkpoints", {})
+        if not isinstance(checkpoints, dict):
+            return None, None
+        base = checkpoints.get("base")
+        refiner = checkpoints.get("refiner")
+        return str(base) if base else None, str(refiner) if refiner else None
+    except Exception:
+        return None, None
 
 
 def fetch_prompt_filters() -> dict[str, list[str]]:
@@ -165,6 +182,7 @@ def fetch_prompts(
         job_backend_status = r["job_backend_status"]
         category_value, variant_value = _extract_category_variant(r["meta_json"])
         ratio_value = _extract_ratio(r["meta_json"])
+        checkpoint_base, checkpoint_refiner = _extract_checkpoints(r["meta_json"])
         row_datestamp = str(r["datestamp"]) if r["datestamp"] else ""
         row_dt = _parse_db_datetime(row_datestamp) if row_datestamp else None
         progress_value = _resolve_progress(row_status, job_status, job_progress)
@@ -195,6 +213,8 @@ def fetch_prompts(
                     category=category_value,
                     variant=variant_value,
                     ratio=ratio_value,
+                    checkpoint_base=checkpoint_base,
+                    checkpoint_refiner=checkpoint_refiner,
                     has_base=bool(r["base_image_json"]),
                     has_upscale=bool(r["upscale_image_json"]),
                     progress=progress_value,
