@@ -63,6 +63,8 @@ def _pick_from_list(rng: random.Random, items: list[str] | None, fallback: str) 
 def _build_combination_prompt(
     rng: random.Random,
     combo_cfg: list[str] | dict[str, Any] | None,
+    *,
+    pick_count: int | None = None,
 ) -> str:
     if not combo_cfg:
         return ""
@@ -70,7 +72,10 @@ def _build_combination_prompt(
         items = [item for item in combo_cfg if isinstance(item, str) and item.strip()]
         if not items:
             return ""
-        pick_count = rng.randint(1, len(items))
+        if pick_count is None:
+            pick_count = rng.randint(1, len(items))
+        else:
+            pick_count = max(1, min(pick_count, len(items)))
         return ", ".join(rng.sample(items, pick_count)).strip()
     if isinstance(combo_cfg, dict):
         return str(combo_cfg.get("prompt", "")).strip()
@@ -105,6 +110,7 @@ def build_unique_prompts(
     variant: str,
     count: int,
     combination_key: str | None = None,
+    nsfw_tag_count: int | None = None,
     rng_seed: int | None = None,
     used_signatures: set[str] | None = None,
 ) -> list[BuiltPrompt]:
@@ -131,7 +137,8 @@ def build_unique_prompts(
         combo_cfg = combinations.get(combination_key)
         if not isinstance(combo_cfg, (list, dict)):
             raise ValueError(f"Combinación inválida: {combination_key}")
-        combination_prompt = _build_combination_prompt(rng, combo_cfg)
+        pick_count = nsfw_tag_count if combination_key == "nsfw" else None
+        combination_prompt = _build_combination_prompt(rng, combo_cfg, pick_count=pick_count)
         if combination_key == "nsfw":
             combination_prompt = _apply_nsfw_prefix(combination_prompt)
 
@@ -190,7 +197,8 @@ def build_unique_prompts(
     while len(out) < count and attempts < max_attempts:
         attempts += 1
         if combo_cfg is not None:
-            combination_prompt = _build_combination_prompt(rng, combo_cfg)
+            pick_count = nsfw_tag_count if combination_key == "nsfw" else None
+            combination_prompt = _build_combination_prompt(rng, combo_cfg, pick_count=pick_count)
             if combination_key == "nsfw":
                 combination_prompt = _apply_nsfw_prefix(combination_prompt)
 

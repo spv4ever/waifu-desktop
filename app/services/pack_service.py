@@ -61,6 +61,7 @@ class PackService:
             variant=req.variant,
             count=req.requested_n,
             combination_key=req.combination_key,
+            nsfw_tag_count=req.nsfw_tag_count,
         )
 
         # 3️⃣ Insertar cada prompt (con control de unicidad global)

@@ -13,6 +13,7 @@ class PackCreate:
     checkpoint_base: Optional[str] = None
     checkpoint_refiner: Optional[str] = None
     combination_key: Optional[str] = None
+    nsfw_tag_count: Optional[int] = None
 
 
 @dataclass(frozen=True)
