@@ -74,6 +74,7 @@ def fetch_prompt_filters() -> dict[str, list[str]]:
     variants: set[str] = set()
     ratios: set[str] = set()
     statuses: set[str] = set()
+    checkpoint_bases: set[str] = set()
 
     with get_connection() as conn:
         rows = conn.execute(
@@ -88,18 +89,22 @@ def fetch_prompt_filters() -> dict[str, list[str]]:
         statuses.add(str(r["status"]))
         category, variant = _extract_category_variant(r["meta_json"])
         ratio = _extract_ratio(r["meta_json"])
+        checkpoint_base, _ = _extract_checkpoints(r["meta_json"])
         if category and category != "?":
             categories.add(category)
         if variant and variant != "?":
             variants.add(variant)
         if ratio and ratio != "?":
             ratios.add(ratio)
+        if checkpoint_base:
+            checkpoint_bases.add(checkpoint_base)
 
     return {
         "categories": sorted(categories),
         "variants": sorted(variants),
         "ratios": sorted(ratios),
         "statuses": sorted(statuses),
+        "checkpoint_bases": sorted(checkpoint_bases),
     }
 
 
@@ -147,6 +152,7 @@ def fetch_prompts(
     variant: str | None = None,
     status: str | None = None,
     ratio: str | None = None,
+    checkpoint_base: str | None = None,
     date_from: str | None = None,
     date_to: str | None = None,
     sort_order: str = "desc",
@@ -182,7 +188,7 @@ def fetch_prompts(
         job_backend_status = r["job_backend_status"]
         category_value, variant_value = _extract_category_variant(r["meta_json"])
         ratio_value = _extract_ratio(r["meta_json"])
-        checkpoint_base, checkpoint_refiner = _extract_checkpoints(r["meta_json"])
+        row_checkpoint_base, checkpoint_refiner = _extract_checkpoints(r["meta_json"])
         row_datestamp = str(r["datestamp"]) if r["datestamp"] else ""
         row_dt = _parse_db_datetime(row_datestamp) if row_datestamp else None
         progress_value = _resolve_progress(row_status, job_status, job_progress)
@@ -194,6 +200,8 @@ def fetch_prompts(
         if status and row_status != status:
             continue
         if ratio and ratio_value != ratio:
+            continue
+        if checkpoint_base and row_checkpoint_base != checkpoint_base:
             continue
         if prompt_id is not None and int(r["id"]) != prompt_id:
             continue
@@ -213,7 +221,7 @@ def fetch_prompts(
                     category=category_value,
                     variant=variant_value,
                     ratio=ratio_value,
-                    checkpoint_base=checkpoint_base,
+                    checkpoint_base=row_checkpoint_base,
                     checkpoint_refiner=checkpoint_refiner,
                     has_base=bool(r["base_image_json"]),
                     has_upscale=bool(r["upscale_image_json"]),
