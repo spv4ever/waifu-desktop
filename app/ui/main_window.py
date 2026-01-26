@@ -106,6 +106,10 @@ class MainWindow(QMainWindow):
         self.toggle_preview_checkbox.setChecked(False)
         top.addWidget(self.toggle_preview_checkbox)
 
+        self.toggle_worker_log_checkbox = QCheckBox("Mostrar log")
+        self.toggle_worker_log_checkbox.setChecked(True)
+        top.addWidget(self.toggle_worker_log_checkbox)
+
         top.addStretch(1)
 
         filters_layout = QVBoxLayout()
@@ -464,6 +468,7 @@ class MainWindow(QMainWindow):
         self.filter_last_days_spin.valueChanged.connect(self._on_last_days_changed)
         self.reset_filters_btn.clicked.connect(self.reset_filters)
         self.toggle_preview_checkbox.toggled.connect(self._toggle_base_preview)
+        self.toggle_worker_log_checkbox.toggled.connect(self._toggle_worker_log)
         self.clear_worker_log_btn.clicked.connect(self.clear_worker_log)
         self.pack_combination_combo.currentIndexChanged.connect(self._update_nsfw_controls)
         self._populate_pack_selectors()
@@ -721,6 +726,9 @@ class MainWindow(QMainWindow):
 
     def _toggle_base_preview(self, checked: bool) -> None:
         self.base_group.setVisible(checked)
+
+    def _toggle_worker_log(self, checked: bool) -> None:
+        self.worker_log_group.setVisible(checked)
         if checked:
             self._rescale_previews()
 
