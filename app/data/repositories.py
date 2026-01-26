@@ -219,6 +219,10 @@ class PromptItemRepository:
         cur = conn.execute("UPDATE prompt_item SET status='QUEUED' WHERE status='SENT'")
         return cur.rowcount
 
+    def reset_created_to_queued(self, conn: sqlite3.Connection) -> int:
+        cur = conn.execute("UPDATE prompt_item SET status='QUEUED' WHERE status='CREATED'")
+        return cur.rowcount
+
 
 class QueueRepository:
     def enqueue(self, conn: sqlite3.Connection, *, prompt_item_id: int, priority: int = 100) -> int:
