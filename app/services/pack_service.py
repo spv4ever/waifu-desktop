@@ -95,7 +95,7 @@ class PackService:
                 negative_text=built.negative_text,
                 meta=meta,
                 signature=signature,
-                status="CREATED",
+                status="QUEUED",
             )
 
             created_prompt_item_ids.append(prompt_item_id)
