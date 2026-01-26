@@ -24,6 +24,7 @@ def _sig_from_combo(combo: dict[str, Any]) -> str:
     """
     keys = [
         "category", "variant", "ratio_key", "ratio_tag",
+        "combination_key",
         "base_subject",
         "face_features", "eye_style",
         "hair_color", "hair_style", "hair_detail",
@@ -79,6 +80,7 @@ def build_unique_prompts(
     category_key: str,
     variant: str,
     count: int,
+    combination_key: str | None = None,
     rng_seed: int | None = None,
     used_signatures: set[str] | None = None,
 ) -> list[BuiltPrompt]:
@@ -97,6 +99,19 @@ def build_unique_prompts(
     base_prompt = str(cat.get("base_prompt", "")).strip()
     kind = str(cat.get("kind", "category"))
     is_character = kind == "character"
+
+    combinations = catalog.combinations or {}
+    combination_prompt = ""
+    if combination_key:
+        combo_cfg = combinations.get(combination_key)
+        if isinstance(combo_cfg, list):
+            combination_prompt = ", ".join(
+                [item for item in combo_cfg if isinstance(item, str) and item.strip()]
+            ).strip()
+        elif isinstance(combo_cfg, dict):
+            combination_prompt = str(combo_cfg.get("prompt", "")).strip()
+        else:
+            raise ValueError(f"Combinación inválida: {combination_key}")
 
     negative_text = str(catalog.raw.get("negative_prompt") or "").strip()
     if not negative_text:
@@ -239,6 +254,7 @@ def build_unique_prompts(
         combo: dict[str, Any] = {
             "category": category_key,
             "variant": variant,
+            "combination_key": combination_key,
             "ratio_key": ratio_key,
             "ratio_tag": ratio_tag,
             "width": ratio_w,
@@ -284,6 +300,7 @@ def build_unique_prompts(
 
         prompt_parts = [
             base_prompt,
+            combination_prompt,
             base_subject,
             face_features,
             eye_style,

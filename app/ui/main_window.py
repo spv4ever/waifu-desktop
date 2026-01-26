@@ -202,6 +202,10 @@ class MainWindow(QMainWindow):
         self.pack_variant_combo = QComboBox()
         pack_layout.addWidget(self.pack_variant_combo)
 
+        pack_layout.addWidget(QLabel("Combinación:"))
+        self.pack_combination_combo = QComboBox()
+        pack_layout.addWidget(self.pack_combination_combo)
+
         pack_layout.addWidget(QLabel("Cantidad:"))
         self.pack_quantity_spin = QSpinBox()
         self.pack_quantity_spin.setRange(1, 500)
@@ -620,6 +624,17 @@ class MainWindow(QMainWindow):
         for key in self.app_config.variants.keys():
             self.pack_variant_combo.addItem(key, key)
 
+        self.pack_combination_combo.clear()
+        self.pack_combination_combo.addItem("Sin combinación", None)
+        for key, combo in (self.waifu_catalog.combinations or {}).items():
+            if isinstance(combo, dict):
+                label = str(combo.get("label", key))
+            elif isinstance(combo, list):
+                label = key
+            else:
+                continue
+            self.pack_combination_combo.addItem(label, key)
+
         if self.pack_category_combo.count() == 0:
             self.pack_generate_btn.setEnabled(False)
 
@@ -653,6 +668,7 @@ class MainWindow(QMainWindow):
         quantity = int(self.pack_quantity_spin.value())
         checkpoint_base = self.pack_checkpoint_base_combo.currentData()
         checkpoint_refiner = self.pack_checkpoint_refiner_combo.currentData()
+        combination_key = self.pack_combination_combo.currentData()
 
         if not category or not variant:
             QMessageBox.warning(self, "Generar Pack", "Selecciona categoría y variante.")
@@ -664,6 +680,7 @@ class MainWindow(QMainWindow):
             requested_n=quantity,
             checkpoint_base=str(checkpoint_base) if checkpoint_base else None,
             checkpoint_refiner=str(checkpoint_refiner) if checkpoint_refiner else None,
+            combination_key=str(combination_key) if combination_key else None,
         )
 
         try:
