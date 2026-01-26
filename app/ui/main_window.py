@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QDateTime, QDate, QTime
+from PySide6.QtCore import Qt, QDateTime, QDate, QTime, QTimer
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -67,6 +67,10 @@ class MainWindow(QMainWindow):
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setSingleShot(True)
+        self._refresh_timer.timeout.connect(self._run_scheduled_refresh)
+        self._refresh_resize_columns = False
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -485,7 +489,21 @@ class MainWindow(QMainWindow):
 
     # -------- Table / Data --------
 
+    def _schedule_refresh(self, *, resize_columns: bool = False) -> None:
+        if resize_columns:
+            self._refresh_resize_columns = True
+        if not self._refresh_timer.isActive():
+            self._refresh_timer.start(300)
+
+    def _run_scheduled_refresh(self) -> None:
+        resize_columns = self._refresh_resize_columns
+        self._refresh_resize_columns = False
+        self._refresh_table(resize_columns=resize_columns)
+
     def refresh(self) -> None:
+        self._refresh_table(resize_columns=True)
+
+    def _refresh_table(self, *, resize_columns: bool) -> None:
         limit = int(self.limit_spin.value())
         prompt_id = self._selected_prompt_id_filter()
         category = self._selected_filter_value(self.filter_category_combo)
@@ -527,7 +545,8 @@ class MainWindow(QMainWindow):
             self.table.setItem(i, 9, QTableWidgetItem(row.checkpoint_base or "—"))
             self.table.setItem(i, 10, QTableWidgetItem(row.checkpoint_refiner or "—"))
 
-        self.table.resizeColumnsToContents()
+        if resize_columns:
+            self.table.resizeColumnsToContents()
 
         # Recalcular botones + preview tras refrescar
         self.update_actions_state()
@@ -906,10 +925,10 @@ class MainWindow(QMainWindow):
         self.worker_log_text.setPlainText("—")
 
     def on_worker_processed(self) -> None:
-        self.refresh()
+        self._schedule_refresh()
 
     def on_worker_progressed(self) -> None:
-        self.refresh()
+        self._schedule_refresh()
 
     def open_selected(self, mode: str) -> None:
         pid = self._selected_prompt_id()
