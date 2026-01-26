@@ -206,6 +206,13 @@ class MainWindow(QMainWindow):
         self.pack_combination_combo = QComboBox()
         pack_layout.addWidget(self.pack_combination_combo)
 
+        self.pack_nsfw_tag_label = QLabel("Etiquetas NSFW:")
+        pack_layout.addWidget(self.pack_nsfw_tag_label)
+        self.pack_nsfw_tag_spin = QSpinBox()
+        self.pack_nsfw_tag_spin.setRange(1, 50)
+        self.pack_nsfw_tag_spin.setValue(6)
+        pack_layout.addWidget(self.pack_nsfw_tag_spin)
+
         pack_layout.addWidget(QLabel("Cantidad:"))
         self.pack_quantity_spin = QSpinBox()
         self.pack_quantity_spin.setRange(1, 500)
@@ -458,8 +465,10 @@ class MainWindow(QMainWindow):
         self.reset_filters_btn.clicked.connect(self.reset_filters)
         self.toggle_preview_checkbox.toggled.connect(self._toggle_base_preview)
         self.clear_worker_log_btn.clicked.connect(self.clear_worker_log)
+        self.pack_combination_combo.currentIndexChanged.connect(self._update_nsfw_controls)
         self._populate_pack_selectors()
         self._populate_checkpoint_selectors()
+        self._update_nsfw_controls()
 
         self.refresh()
 
@@ -638,6 +647,12 @@ class MainWindow(QMainWindow):
         if self.pack_category_combo.count() == 0:
             self.pack_generate_btn.setEnabled(False)
 
+    def _update_nsfw_controls(self) -> None:
+        combination_key = self.pack_combination_combo.currentData()
+        is_nsfw = combination_key == "nsfw"
+        self.pack_nsfw_tag_label.setVisible(is_nsfw)
+        self.pack_nsfw_tag_spin.setVisible(is_nsfw)
+
     def _populate_checkpoint_selectors(self) -> None:
         service = CheckpointService()
         models = service.list_available()
@@ -669,6 +684,9 @@ class MainWindow(QMainWindow):
         checkpoint_base = self.pack_checkpoint_base_combo.currentData()
         checkpoint_refiner = self.pack_checkpoint_refiner_combo.currentData()
         combination_key = self.pack_combination_combo.currentData()
+        nsfw_tag_count = None
+        if combination_key == "nsfw":
+            nsfw_tag_count = int(self.pack_nsfw_tag_spin.value())
 
         if not category or not variant:
             QMessageBox.warning(self, "Generar Pack", "Selecciona categoría y variante.")
@@ -681,6 +699,7 @@ class MainWindow(QMainWindow):
             checkpoint_base=str(checkpoint_base) if checkpoint_base else None,
             checkpoint_refiner=str(checkpoint_refiner) if checkpoint_refiner else None,
             combination_key=str(combination_key) if combination_key else None,
+            nsfw_tag_count=nsfw_tag_count,
         )
 
         try:
