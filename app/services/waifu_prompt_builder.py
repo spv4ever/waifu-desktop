@@ -77,6 +77,12 @@ def _build_combination_prompt(
     raise ValueError("Combinación inválida")
 
 
+def _apply_nsfw_prefix(prompt: str) -> str:
+    parts = [p.strip() for p in str(prompt or "").split(",") if p.strip()]
+    parts = [p for p in parts if p.lower() != "nsfw"]
+    return ", ".join(["nsfw", *parts]).strip().strip(",")
+
+
 def _build_ratios_plan(rng: random.Random, allowed_ratios: list[str], count: int) -> list[str]:
     """
     Garantiza variedad en batches pequeños:
@@ -126,6 +132,8 @@ def build_unique_prompts(
         if not isinstance(combo_cfg, (list, dict)):
             raise ValueError(f"Combinación inválida: {combination_key}")
         combination_prompt = _build_combination_prompt(rng, combo_cfg)
+        if combination_key == "nsfw":
+            combination_prompt = _apply_nsfw_prefix(combination_prompt)
 
     negative_text = str(catalog.raw.get("negative_prompt") or "").strip()
     if not negative_text:
@@ -183,6 +191,8 @@ def build_unique_prompts(
         attempts += 1
         if combo_cfg is not None:
             combination_prompt = _build_combination_prompt(rng, combo_cfg)
+            if combination_key == "nsfw":
+                combination_prompt = _apply_nsfw_prefix(combination_prompt)
 
         # Ratio
         ratio_key = ratios_plan[len(out)]
