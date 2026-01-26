@@ -25,6 +25,7 @@ def _sig_from_combo(combo: dict[str, Any]) -> str:
     keys = [
         "category", "variant", "ratio_key", "ratio_tag",
         "combination_key",
+        "combination_prompt",
         "base_subject",
         "face_features", "eye_style",
         "hair_color", "hair_style", "hair_detail",
@@ -57,6 +58,23 @@ def _pick_from_list(rng: random.Random, items: list[str] | None, fallback: str) 
     if not items2:
         return fallback
     return rng.choice(items2)
+
+
+def _build_combination_prompt(
+    rng: random.Random,
+    combo_cfg: list[str] | dict[str, Any] | None,
+) -> str:
+    if not combo_cfg:
+        return ""
+    if isinstance(combo_cfg, list):
+        items = [item for item in combo_cfg if isinstance(item, str) and item.strip()]
+        if not items:
+            return ""
+        pick_count = rng.randint(1, len(items))
+        return ", ".join(rng.sample(items, pick_count)).strip()
+    if isinstance(combo_cfg, dict):
+        return str(combo_cfg.get("prompt", "")).strip()
+    raise ValueError("Combinación inválida")
 
 
 def _build_ratios_plan(rng: random.Random, allowed_ratios: list[str], count: int) -> list[str]:
@@ -102,16 +120,12 @@ def build_unique_prompts(
 
     combinations = catalog.combinations or {}
     combination_prompt = ""
+    combo_cfg: list[str] | dict[str, Any] | None = None
     if combination_key:
         combo_cfg = combinations.get(combination_key)
-        if isinstance(combo_cfg, list):
-            combination_prompt = ", ".join(
-                [item for item in combo_cfg if isinstance(item, str) and item.strip()]
-            ).strip()
-        elif isinstance(combo_cfg, dict):
-            combination_prompt = str(combo_cfg.get("prompt", "")).strip()
-        else:
+        if not isinstance(combo_cfg, (list, dict)):
             raise ValueError(f"Combinación inválida: {combination_key}")
+        combination_prompt = _build_combination_prompt(rng, combo_cfg)
 
     negative_text = str(catalog.raw.get("negative_prompt") or "").strip()
     if not negative_text:
@@ -167,6 +181,8 @@ def build_unique_prompts(
 
     while len(out) < count and attempts < max_attempts:
         attempts += 1
+        if combo_cfg is not None:
+            combination_prompt = _build_combination_prompt(rng, combo_cfg)
 
         # Ratio
         ratio_key = ratios_plan[len(out)]
@@ -255,6 +271,7 @@ def build_unique_prompts(
             "category": category_key,
             "variant": variant,
             "combination_key": combination_key,
+            "combination_prompt": combination_prompt,
             "ratio_key": ratio_key,
             "ratio_tag": ratio_tag,
             "width": ratio_w,
