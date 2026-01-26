@@ -241,12 +241,17 @@ class MainWindow(QMainWindow):
 
         main_content = QHBoxLayout()
         layout.addLayout(main_content, 1)
+        self.main_content_layout = main_content
 
-        left_column = QVBoxLayout()
-        main_content.addLayout(left_column, 7)
+        left_column_widget = QWidget()
+        left_column = QVBoxLayout(left_column_widget)
+        main_content.addWidget(left_column_widget, 7)
+        self.left_column_widget = left_column_widget
 
-        right_column = QVBoxLayout()
-        main_content.addLayout(right_column, 3)
+        right_column_widget = QWidget()
+        right_column = QVBoxLayout(right_column_widget)
+        main_content.addWidget(right_column_widget, 3)
+        self.right_column_widget = right_column_widget
 
         # Table
         self.table = QTableWidget(0, 11)
@@ -475,6 +480,7 @@ class MainWindow(QMainWindow):
         self._populate_checkpoint_selectors()
         self._update_nsfw_controls()
 
+        self._update_right_column_visibility()
         self.refresh()
 
     def _sync_current_cell_to_selection(self) -> None:
@@ -726,11 +732,23 @@ class MainWindow(QMainWindow):
 
     def _toggle_base_preview(self, checked: bool) -> None:
         self.base_group.setVisible(checked)
+        self._update_right_column_visibility()
 
     def _toggle_worker_log(self, checked: bool) -> None:
         self.worker_log_group.setVisible(checked)
+        self._update_right_column_visibility()
         if checked:
             self._rescale_previews()
+
+    def _update_right_column_visibility(self) -> None:
+        show_right = self.base_group.isVisible() or self.worker_log_group.isVisible()
+        self.right_column_widget.setVisible(show_right)
+        if show_right:
+            self.main_content_layout.setStretch(0, 7)
+            self.main_content_layout.setStretch(1, 3)
+        else:
+            self.main_content_layout.setStretch(0, 10)
+            self.main_content_layout.setStretch(1, 0)
 
     def _set_preview(self, *, which: str, path: Path | None) -> None:
         if which != "base":
