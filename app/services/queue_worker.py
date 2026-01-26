@@ -5,6 +5,8 @@ import time
 import sqlite3
 from typing import Literal, Any, Callable
 
+import requests
+
 from app.data.repositories import QueueRepository, PromptItemRepository
 from app.data.kv_store import KVStore
 from app.config.settings import settings
@@ -105,6 +107,15 @@ class QueueWorker:
 
         return " · ".join(parts)
 
+    def _requeue_for_retry(
+        self, conn: sqlite3.Connection, *, job_id: int, prompt_item_id: int, reason: str
+    ) -> None:
+        self._log(f"[WORKER] Reencolando job_id={job_id} ({reason})")
+        with conn:
+            self.queue.reset_for_retry(conn, job_id)
+            self.items.bulk_update_status(conn, ids=[prompt_item_id], status="QUEUED")
+            self._emit_progress()
+
     def process_one(self, conn: sqlite3.Connection, *, delay_seconds: float = 0.2) -> WorkerResult:
         paused = self.kv.get(conn, "queue_paused", "false")
         if paused == "true":
@@ -161,6 +172,7 @@ class QueueWorker:
 
         # 1) SUBMIT si no tiene remote_id
         remote_id = job.get("remote_id")
+        submitted_now = False
         if not remote_id:
             wf = self.workflow.load_template()
 
@@ -179,6 +191,7 @@ class QueueWorker:
             )
 
             remote_id = self.comfy.submit_prompt(wf)
+            submitted_now = True
             with conn:
                 self.queue.set_remote(conn, job_id, remote_id, "SUBMITTED")
             self._log(f"[WORKER] SUBMITTED job_id={job_id} remote_id={remote_id}")
@@ -187,6 +200,7 @@ class QueueWorker:
         poll = float(settings.comfyui_poll_interval)
         last_progress: int | None = None
         last_backend_status: str | None = None
+        missing_history_polls = 0
         while True:
             paused = self.kv.get(conn, "queue_paused", "false")
             if paused == "true":
@@ -195,7 +209,32 @@ class QueueWorker:
                     self.queue.set_remote_status(conn, job_id, "PAUSED_WAITING")
                 return "PROCESSED"
 
-            history = self.comfy.get_history(remote_id)
+            try:
+                history = self.comfy.get_history(remote_id)
+            except requests.RequestException as exc:
+                self._requeue_for_retry(
+                    conn,
+                    job_id=job_id,
+                    prompt_item_id=prompt_item_id,
+                    reason=f"error consultando history ({exc})",
+                )
+                return "PROCESSED"
+
+            if not history or remote_id not in history:
+                missing_history_polls += 1
+                max_missing = 10 if submitted_now else 3
+                if missing_history_polls >= max_missing:
+                    self._requeue_for_retry(
+                        conn,
+                        job_id=job_id,
+                        prompt_item_id=prompt_item_id,
+                        reason="history sin entrada para remote_id",
+                    )
+                    return "PROCESSED"
+                time.sleep(poll)
+                continue
+            missing_history_polls = 0
+
             finished, entry = self._is_finished(history, remote_id)
 
             if entry:
