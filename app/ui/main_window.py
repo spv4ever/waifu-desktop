@@ -6,10 +6,10 @@ from pathlib import Path
 from PySide6.QtCore import Qt, QDateTime, QDate, QTime
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit, QCheckBox, QToolButton
+    QLineEdit, QToolButton
 )
 
 from app.config.app_config import load_app_config
@@ -46,6 +46,16 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Waifu Desktop — Cola & Resultados")
         self.resize(1200, 750)
+        self.setStyleSheet("""
+        QGroupBox {
+            font-weight: 600;
+        }
+        QGroupBox::title {
+            subcontrol-origin: margin;
+            left: 8px;
+            padding: 0 4px;
+        }
+        """)
         self._base_path: Path | None = None
 
         self.kv = KVStore()
@@ -60,20 +70,74 @@ class MainWindow(QMainWindow):
         root = QWidget()
         self.setCentralWidget(root)
         layout = QVBoxLayout(root)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
         menu = self.menuBar()
+        file_menu = menu.addMenu("Archivo")
+        queue_menu = menu.addMenu("Cola")
+        view_menu = menu.addMenu("Vista")
         maintenance_menu = menu.addMenu("Mantenimiento")
+        self.open_base_action = file_menu.addAction("Abrir Base")
+        self.open_up_action = file_menu.addAction("Abrir Upscale")
+        self.open_folder_base_action = file_menu.addAction("Abrir Carpeta (Base)")
+        self.open_folder_up_action = file_menu.addAction("Abrir Carpeta (Upscale)")
+        file_menu.addSeparator()
+        self.exit_action = file_menu.addAction("Salir")
+        self.exit_action.triggered.connect(self.close)
+
+        self.refresh_action = queue_menu.addAction("Refrescar")
+        self.pause_action = queue_menu.addAction("Pausar cola")
+        self.resume_action = queue_menu.addAction("Reanudar cola")
+        self.refresh_action.setShortcut("F5")
+        self.pause_action.setShortcut("Ctrl+Shift+P")
+        self.resume_action.setShortcut("Ctrl+Shift+R")
+
+        self.toggle_preview_action = view_menu.addAction("Mostrar preview")
+        self.toggle_preview_action.setCheckable(True)
+        self.toggle_preview_action.setChecked(False)
+        self.toggle_worker_log_action = view_menu.addAction("Mostrar log del worker")
+        self.toggle_worker_log_action.setCheckable(True)
+        self.toggle_worker_log_action.setChecked(True)
+
         self.open_prompt_base_action = maintenance_menu.addAction("Categorías y personajes")
         self.open_prompt_base_action.triggered.connect(self.open_prompt_base_window)
 
-        # Top bar
-        top = QHBoxLayout()
-        layout.addLayout(top)
+        header = QHBoxLayout()
+        title_stack = QVBoxLayout()
+        title_label = QLabel("Waifu Desktop")
+        title_label.setStyleSheet("font-size: 22px; font-weight: 700;")
+        subtitle_label = QLabel("Panel comercial de producción, cola y resultados")
+        subtitle_label.setStyleSheet("color: #9aa0a6; font-size: 12px;")
+        title_stack.addWidget(title_label)
+        title_stack.addWidget(subtitle_label)
+        header.addLayout(title_stack)
+        header.addStretch(1)
+        layout.addLayout(header)
 
-        self.refresh_btn = QPushButton("Refrescar")
-        self.pause_btn = QPushButton("Pausar cola")
-        self.resume_btn = QPushButton("Reanudar cola")
+        summary_group = QGroupBox("Resumen rápido")
+        summary_layout = QHBoxLayout(summary_group)
+        self.status_total_label = QLabel("Total: 0")
+        self.status_created_label = QLabel("CREATED: 0")
+        self.status_queued_label = QLabel("QUEUED: 0")
+        self.status_sent_label = QLabel("SENT: 0")
+        self.status_done_label = QLabel("DONE: 0")
+        self.status_failed_label = QLabel("FAILED: 0")
+        summary_layout.addStretch(1)
+        for lbl in (
+            self.status_total_label,
+            self.status_created_label,
+            self.status_queued_label,
+            self.status_sent_label,
+            self.status_done_label,
+            self.status_failed_label,
+        ):
+            summary_layout.addWidget(lbl)
+        summary_layout.addStretch(1)
+        layout.addWidget(summary_group)
 
+        operation_group = QGroupBox("Operación")
+        operation_layout = QGridLayout(operation_group)
         self.start_worker_btn = QPushButton("Iniciar Worker")
         self.stop_worker_btn = QPushButton("Parar Worker")
         self.stop_worker_btn.setEnabled(False)
@@ -81,80 +145,62 @@ class MainWindow(QMainWindow):
         self.worker_status_label = QLabel("Worker: STOPPED")
         self.worker_status_label.setAlignment(Qt.AlignVCenter)
 
-        top.addWidget(self.start_worker_btn)
-        top.addWidget(self.stop_worker_btn)
-        top.addWidget(self.worker_status_label)
+        operation_layout.addWidget(self.start_worker_btn, 0, 0)
+        operation_layout.addWidget(self.stop_worker_btn, 0, 1)
+        operation_layout.addWidget(self.worker_status_label, 0, 2, 1, 3)
 
-        top.addWidget(self.refresh_btn)
-        top.addWidget(self.pause_btn)
-        top.addWidget(self.resume_btn)
-
-        top.addWidget(QLabel("Mostrar:"))
+        operation_layout.addWidget(QLabel("Mostrar:"), 1, 0)
         self.limit_spin = QSpinBox()
         self.limit_spin.setRange(10, 500)
         self.limit_spin.setValue(200)
-        top.addWidget(self.limit_spin)
+        operation_layout.addWidget(self.limit_spin, 1, 1)
 
-        top.addWidget(QLabel("Pausa (s):"))
+        operation_layout.addWidget(QLabel("Pausa (s):"), 1, 2)
         self.pause_between_spin = QSpinBox()
         self.pause_between_spin.setRange(0, 60)
         self.pause_between_spin.setValue(5)
         self.pause_between_spin.setToolTip("Segundos de descanso entre imágenes procesadas.")
-        top.addWidget(self.pause_between_spin)
+        operation_layout.addWidget(self.pause_between_spin, 1, 3)
+        operation_layout.setColumnStretch(4, 1)
+        layout.addWidget(operation_group)
 
-        self.toggle_preview_checkbox = QCheckBox("Mostrar preview")
-        self.toggle_preview_checkbox.setChecked(False)
-        top.addWidget(self.toggle_preview_checkbox)
+        filters_group = QGroupBox("Filtros inteligentes")
+        filters_layout = QGridLayout(filters_group)
+        filters_layout.setHorizontalSpacing(10)
+        filters_layout.setVerticalSpacing(8)
 
-        self.toggle_worker_log_checkbox = QCheckBox("Mostrar log")
-        self.toggle_worker_log_checkbox.setChecked(True)
-        top.addWidget(self.toggle_worker_log_checkbox)
-
-        top.addStretch(1)
-
-        filters_layout = QVBoxLayout()
-        layout.addLayout(filters_layout)
-
-        filters_row_one = QHBoxLayout()
-        filters_layout.addLayout(filters_row_one)
-
-        filters_row_one.addWidget(QLabel("Prompt ID:"))
+        filters_layout.addWidget(QLabel("Prompt ID:"), 0, 0)
         self.prompt_id_input = QLineEdit()
         self.prompt_id_input.setPlaceholderText("Buscar ID")
         self.prompt_id_input.setMaximumWidth(120)
-        filters_row_one.addWidget(self.prompt_id_input)
+        filters_layout.addWidget(self.prompt_id_input, 0, 1)
 
-        filters_row_one.addWidget(QLabel("Categoría:"))
+        filters_layout.addWidget(QLabel("Categoría:"), 0, 2)
         self.filter_category_combo = QComboBox()
         self.filter_category_combo.setMinimumWidth(130)
-        filters_row_one.addWidget(self.filter_category_combo)
+        filters_layout.addWidget(self.filter_category_combo, 0, 3)
 
-        filters_row_one.addWidget(QLabel("Versión:"))
+        filters_layout.addWidget(QLabel("Versión:"), 0, 4)
         self.filter_variant_combo = QComboBox()
         self.filter_variant_combo.setMinimumWidth(130)
-        filters_row_one.addWidget(self.filter_variant_combo)
+        filters_layout.addWidget(self.filter_variant_combo, 0, 5)
 
-        filters_row_one.addWidget(QLabel("Estado:"))
+        filters_layout.addWidget(QLabel("Estado:"), 0, 6)
         self.filter_status_combo = QComboBox()
         self.filter_status_combo.setMinimumWidth(130)
-        filters_row_one.addWidget(self.filter_status_combo)
+        filters_layout.addWidget(self.filter_status_combo, 0, 7)
 
-        filters_row_one.addStretch(1)
-
-        filters_row_two = QHBoxLayout()
-        filters_layout.addLayout(filters_row_two)
-
-        filters_row_two.addWidget(QLabel("Ratio:"))
+        filters_layout.addWidget(QLabel("Ratio:"), 1, 0)
         self.filter_ratio_combo = QComboBox()
         self.filter_ratio_combo.setMinimumWidth(110)
-        filters_row_two.addWidget(self.filter_ratio_combo)
+        filters_layout.addWidget(self.filter_ratio_combo, 1, 1)
 
-        filters_row_two.addWidget(QLabel("Últimos días:"))
+        filters_layout.addWidget(QLabel("Últimos días:"), 1, 2)
         self.filter_last_days_spin = QSpinBox()
         self.filter_last_days_spin.setRange(1, 3650)
         self.filter_last_days_spin.setValue(30)
         self.filter_last_days_spin.setMinimumWidth(90)
-        filters_row_two.addWidget(self.filter_last_days_spin)
+        filters_layout.addWidget(self.filter_last_days_spin, 1, 3)
 
         self.filter_from_datetime = QDateTimeEdit()
         self.filter_from_datetime.setCalendarPopup(True)
@@ -173,69 +219,65 @@ class MainWindow(QMainWindow):
         self._apply_last_days_range(self.filter_last_days_spin.value())
 
         self.reset_filters_btn = QPushButton("Restablecer filtros")
-        filters_row_two.addWidget(self.reset_filters_btn)
+        filters_layout.addWidget(QLabel("Desde:"), 1, 4)
+        filters_layout.addWidget(self.filter_from_datetime, 1, 5)
+        filters_layout.addWidget(QLabel("Hasta:"), 1, 6)
+        filters_layout.addWidget(self.filter_to_datetime, 1, 7)
 
-        filters_row_two.addStretch(1)
-
-        filters_row_three = QHBoxLayout()
-        filters_layout.addLayout(filters_row_three)
-
-        filters_row_three.addWidget(QLabel("Desde:"))
-        filters_row_three.addWidget(self.filter_from_datetime)
-        filters_row_three.addWidget(QLabel("Hasta:"))
-        filters_row_three.addWidget(self.filter_to_datetime)
-
-        filters_row_three.addWidget(QLabel("Orden fecha:"))
+        filters_layout.addWidget(QLabel("Orden fecha:"), 2, 0)
         self.filter_date_order_combo = QComboBox()
         self.filter_date_order_combo.addItem("Más recientes", "desc")
         self.filter_date_order_combo.addItem("Más antiguas", "asc")
         self.filter_date_order_combo.setMinimumWidth(150)
-        filters_row_three.addWidget(self.filter_date_order_combo)
-
-        filters_row_three.addStretch(1)
+        filters_layout.addWidget(self.filter_date_order_combo, 2, 1)
+        filters_layout.addWidget(self.reset_filters_btn, 2, 6, 1, 2)
+        filters_layout.setColumnStretch(8, 1)
+        layout.addWidget(filters_group)
 
         # Pack generator
         pack_group = QGroupBox("Generar Pack")
-        pack_layout = QHBoxLayout(pack_group)
+        pack_layout = QGridLayout(pack_group)
+        pack_layout.setHorizontalSpacing(10)
+        pack_layout.setVerticalSpacing(8)
 
-        pack_layout.addWidget(QLabel("Categoría:"))
+        pack_layout.addWidget(QLabel("Categoría:"), 0, 0)
         self.pack_category_combo = QComboBox()
-        pack_layout.addWidget(self.pack_category_combo)
+        pack_layout.addWidget(self.pack_category_combo, 0, 1)
 
-        pack_layout.addWidget(QLabel("Variante:"))
+        pack_layout.addWidget(QLabel("Variante:"), 0, 2)
         self.pack_variant_combo = QComboBox()
-        pack_layout.addWidget(self.pack_variant_combo)
+        pack_layout.addWidget(self.pack_variant_combo, 0, 3)
 
-        pack_layout.addWidget(QLabel("Combinación:"))
+        pack_layout.addWidget(QLabel("Combinación:"), 0, 4)
         self.pack_combination_combo = QComboBox()
-        pack_layout.addWidget(self.pack_combination_combo)
+        pack_layout.addWidget(self.pack_combination_combo, 0, 5)
 
-        self.pack_nsfw_tag_label = QLabel("Etiquetas NSFW:")
-        pack_layout.addWidget(self.pack_nsfw_tag_label)
-        self.pack_nsfw_tag_spin = QSpinBox()
-        self.pack_nsfw_tag_spin.setRange(1, 50)
-        self.pack_nsfw_tag_spin.setValue(6)
-        pack_layout.addWidget(self.pack_nsfw_tag_spin)
-
-        pack_layout.addWidget(QLabel("Cantidad:"))
+        pack_layout.addWidget(QLabel("Cantidad:"), 0, 6)
         self.pack_quantity_spin = QSpinBox()
         self.pack_quantity_spin.setRange(1, 500)
         self.pack_quantity_spin.setValue(10)
-        pack_layout.addWidget(self.pack_quantity_spin)
+        pack_layout.addWidget(self.pack_quantity_spin, 0, 7)
 
-        pack_layout.addWidget(QLabel("Checkpoint Base:"))
+        self.pack_nsfw_tag_label = QLabel("Etiquetas NSFW:")
+        pack_layout.addWidget(self.pack_nsfw_tag_label, 1, 0)
+        self.pack_nsfw_tag_spin = QSpinBox()
+        self.pack_nsfw_tag_spin.setRange(1, 50)
+        self.pack_nsfw_tag_spin.setValue(6)
+        pack_layout.addWidget(self.pack_nsfw_tag_spin, 1, 1)
+
+        pack_layout.addWidget(QLabel("Checkpoint Base:"), 1, 2)
         self.pack_checkpoint_base_combo = QComboBox()
         self.pack_checkpoint_base_combo.setMinimumWidth(220)
-        pack_layout.addWidget(self.pack_checkpoint_base_combo)
+        pack_layout.addWidget(self.pack_checkpoint_base_combo, 1, 3)
 
-        pack_layout.addWidget(QLabel("Checkpoint Refiner:"))
+        pack_layout.addWidget(QLabel("Checkpoint Refiner:"), 1, 4)
         self.pack_checkpoint_refiner_combo = QComboBox()
         self.pack_checkpoint_refiner_combo.setMinimumWidth(220)
-        pack_layout.addWidget(self.pack_checkpoint_refiner_combo)
+        pack_layout.addWidget(self.pack_checkpoint_refiner_combo, 1, 5)
 
         self.pack_generate_btn = QPushButton("Generar Pack")
-        pack_layout.addWidget(self.pack_generate_btn)
-        pack_layout.addStretch(1)
+        pack_layout.addWidget(self.pack_generate_btn, 1, 6, 1, 2)
+        pack_layout.setColumnStretch(8, 1)
 
         layout.addWidget(pack_group)
 
@@ -385,60 +427,25 @@ class MainWindow(QMainWindow):
 
         right_column.addWidget(self.worker_log_group, 2)
 
-        # Bottom actions
-        bottom = QHBoxLayout()
-        layout.addLayout(bottom)
-
-        self.open_base_btn = QPushButton("Abrir Base")
-        self.open_up_btn = QPushButton("Abrir Upscale")
-        self.open_folder_base_btn = QPushButton("Abrir Carpeta (Base)")
-        self.open_folder_up_btn = QPushButton("Abrir Carpeta (Upscale)")
-
-        bottom.addWidget(self.open_base_btn)
-        bottom.addWidget(self.open_up_btn)
-        bottom.addWidget(self.open_folder_base_btn)
-        bottom.addWidget(self.open_folder_up_btn)
-        bottom.addStretch(1)
-
-        # Status counters
-        status_row = QHBoxLayout()
-        self.status_total_label = QLabel("Total: 0")
-        self.status_created_label = QLabel("CREATED: 0")
-        self.status_queued_label = QLabel("QUEUED: 0")
-        self.status_sent_label = QLabel("SENT: 0")
-        self.status_done_label = QLabel("DONE: 0")
-        self.status_failed_label = QLabel("FAILED: 0")
-        status_row.addStretch(1)
-        for lbl in (
-            self.status_total_label,
-            self.status_created_label,
-            self.status_queued_label,
-            self.status_sent_label,
-            self.status_done_label,
-            self.status_failed_label,
-        ):
-            status_row.addWidget(lbl)
-        status_row.addStretch(1)
-        layout.addLayout(status_row)
-
-        production_row = QHBoxLayout()
-        production_row.addStretch(1)
-        production_row.addWidget(QLabel("Producción por categoría:"))
+        production_group = QGroupBox("Producción")
+        production_layout = QHBoxLayout(production_group)
+        production_layout.addStretch(1)
+        production_layout.addWidget(QLabel("Producción por categoría:"))
         self.category_production_combo = QComboBox()
         self.category_production_combo.setMinimumWidth(220)
-        production_row.addWidget(self.category_production_combo)
-        production_row.addStretch(1)
-        layout.addLayout(production_row)
+        production_layout.addWidget(self.category_production_combo)
+        production_layout.addStretch(1)
+        layout.addWidget(production_group)
 
         # Signals
-        self.refresh_btn.clicked.connect(self.refresh)
-        self.pause_btn.clicked.connect(self.pause_queue)
-        self.resume_btn.clicked.connect(self.resume_queue)
+        self.refresh_action.triggered.connect(self.refresh)
+        self.pause_action.triggered.connect(self.pause_queue)
+        self.resume_action.triggered.connect(self.resume_queue)
 
-        self.open_base_btn.clicked.connect(lambda: self.open_selected("base"))
-        self.open_up_btn.clicked.connect(lambda: self.open_selected("upscale"))
-        self.open_folder_base_btn.clicked.connect(lambda: self.open_selected("folder_base"))
-        self.open_folder_up_btn.clicked.connect(lambda: self.open_selected("folder_upscale"))
+        self.open_base_action.triggered.connect(lambda: self.open_selected("base"))
+        self.open_up_action.triggered.connect(lambda: self.open_selected("upscale"))
+        self.open_folder_base_action.triggered.connect(lambda: self.open_selected("folder_base"))
+        self.open_folder_up_action.triggered.connect(lambda: self.open_selected("folder_upscale"))
         self.copy_prompt_btn.clicked.connect(self.copy_prompt_to_clipboard)
 
         # Selection changes => enable/disable + preview update
@@ -446,10 +453,10 @@ class MainWindow(QMainWindow):
         self.table.itemSelectionChanged.connect(self.update_actions_state)
 
         # Estado inicial botones (deshabilitados hasta tener selección válida)
-        self.open_base_btn.setEnabled(False)
-        self.open_up_btn.setEnabled(False)
-        self.open_folder_base_btn.setEnabled(False)
-        self.open_folder_up_btn.setEnabled(False)
+        self.open_base_action.setEnabled(False)
+        self.open_up_action.setEnabled(False)
+        self.open_folder_base_action.setEnabled(False)
+        self.open_folder_up_action.setEnabled(False)
         self.retry_prompt_btn.setEnabled(False)
         self.delete_prompt_btn.setEnabled(False)
 
@@ -472,8 +479,8 @@ class MainWindow(QMainWindow):
         self.filter_date_order_combo.currentIndexChanged.connect(self.refresh)
         self.filter_last_days_spin.valueChanged.connect(self._on_last_days_changed)
         self.reset_filters_btn.clicked.connect(self.reset_filters)
-        self.toggle_preview_checkbox.toggled.connect(self._toggle_base_preview)
-        self.toggle_worker_log_checkbox.toggled.connect(self._toggle_worker_log)
+        self.toggle_preview_action.toggled.connect(self._toggle_base_preview)
+        self.toggle_worker_log_action.toggled.connect(self._toggle_worker_log)
         self.clear_worker_log_btn.clicked.connect(self.clear_worker_log)
         self.pack_combination_combo.currentIndexChanged.connect(self._update_nsfw_controls)
         self._populate_pack_selectors()
@@ -568,8 +575,8 @@ class MainWindow(QMainWindow):
             paused = self.kv.get(conn, "queue_paused", "false")
 
         is_paused = paused == "true"
-        self.pause_btn.setEnabled(not is_paused)
-        self.resume_btn.setEnabled(is_paused)
+        self.pause_action.setEnabled(not is_paused)
+        self.resume_action.setEnabled(is_paused)
 
     def _selected_prompt_id(self) -> int | None:
         selected = self.table.selectionModel().selectedRows()
@@ -741,8 +748,8 @@ class MainWindow(QMainWindow):
             self._rescale_previews()
 
     def _update_right_column_visibility(self) -> None:
-        show_base = self.toggle_preview_checkbox.isChecked()
-        show_log = self.toggle_worker_log_checkbox.isChecked()
+        show_base = self.toggle_preview_action.isChecked()
+        show_log = self.toggle_worker_log_action.isChecked()
         self.base_group.setVisible(show_base)
         self.worker_log_group.setVisible(show_log)
         show_right = show_base or show_log
@@ -801,10 +808,10 @@ class MainWindow(QMainWindow):
     def update_actions_state(self) -> None:
         pid = self._selected_prompt_id()
         if pid is None:
-            self.open_base_btn.setEnabled(False)
-            self.open_up_btn.setEnabled(False)
-            self.open_folder_base_btn.setEnabled(False)
-            self.open_folder_up_btn.setEnabled(False)
+            self.open_base_action.setEnabled(False)
+            self.open_up_action.setEnabled(False)
+            self.open_folder_base_action.setEnabled(False)
+            self.open_folder_up_action.setEnabled(False)
             self.retry_prompt_btn.setEnabled(False)
             self.delete_prompt_btn.setEnabled(False)
             self.prompt_preview_text.setPlainText("—")
@@ -824,10 +831,10 @@ class MainWindow(QMainWindow):
         self.prompt_preview_text.setPlainText(str(r["prompt_text"]) if r else "—")
         self._update_prompt_backend_status(self._selected_prompt_backend_status())
 
-        self.open_base_btn.setEnabled(has_base)
-        self.open_folder_base_btn.setEnabled(has_base)
-        self.open_up_btn.setEnabled(has_up)
-        self.open_folder_up_btn.setEnabled(has_up)
+        self.open_base_action.setEnabled(has_base)
+        self.open_folder_base_action.setEnabled(has_base)
+        self.open_up_action.setEnabled(has_up)
+        self.open_folder_up_action.setEnabled(has_up)
         self.retry_prompt_btn.setEnabled(True)
         self.delete_prompt_btn.setEnabled(True)
 
