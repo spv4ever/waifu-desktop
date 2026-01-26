@@ -309,6 +309,8 @@ class MainWindow(QMainWindow):
         self.table.setHorizontalHeaderLabels([
             "ID",
             "Categoría",
+            "Base",
+            "Upscale",
             "Versión",
             "Estado",
             "Fecha",
@@ -316,8 +318,6 @@ class MainWindow(QMainWindow):
             "Ratio",
             "Checkpoint Base",
             "Checkpoint Refiner",
-            "Base",
-            "Upscale",
         ])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -517,15 +517,15 @@ class MainWindow(QMainWindow):
             id_item.setData(Qt.UserRole + 1, row.backend_status)
             self.table.setItem(i, 0, id_item)
             self.table.setItem(i, 1, QTableWidgetItem(row.category))
-            self.table.setItem(i, 2, QTableWidgetItem(row.variant))
-            self.table.setItem(i, 3, QTableWidgetItem(row.status))
-            self.table.setItem(i, 4, QTableWidgetItem(row.datestamp))
-            self.table.setItem(i, 5, QTableWidgetItem(row.title))
-            self.table.setItem(i, 6, QTableWidgetItem(row.ratio))
-            self.table.setItem(i, 7, QTableWidgetItem(row.checkpoint_base or "—"))
-            self.table.setItem(i, 8, QTableWidgetItem(row.checkpoint_refiner or "—"))
-            self.table.setItem(i, 9, QTableWidgetItem("✅" if row.has_base else "—"))
-            self.table.setItem(i, 10, QTableWidgetItem("✅" if row.has_upscale else "—"))
+            self.table.setItem(i, 2, QTableWidgetItem("✅" if row.has_base else "—"))
+            self.table.setItem(i, 3, QTableWidgetItem("✅" if row.has_upscale else "—"))
+            self.table.setItem(i, 4, QTableWidgetItem(row.variant))
+            self.table.setItem(i, 5, QTableWidgetItem(row.status))
+            self.table.setItem(i, 6, QTableWidgetItem(row.datestamp))
+            self.table.setItem(i, 7, QTableWidgetItem(row.title))
+            self.table.setItem(i, 8, QTableWidgetItem(row.ratio))
+            self.table.setItem(i, 9, QTableWidgetItem(row.checkpoint_base or "—"))
+            self.table.setItem(i, 10, QTableWidgetItem(row.checkpoint_refiner or "—"))
 
         self.table.resizeColumnsToContents()
 
