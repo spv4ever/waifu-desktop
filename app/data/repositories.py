@@ -318,6 +318,22 @@ class QueueRepository:
         cur = conn.execute("UPDATE queue_job SET status='PENDING' WHERE status='RUNNING'")
         return cur.rowcount
 
+    def reset_for_retry(self, conn: sqlite3.Connection, job_id: int) -> None:
+        conn.execute(
+            """
+            UPDATE queue_job
+            SET status='PENDING',
+                remote_id=NULL,
+                remote_status=NULL,
+                output_json=NULL,
+                last_error=NULL,
+                progress=0,
+                backend_status=NULL
+            WHERE id=?
+            """,
+            (job_id,),
+        )
+
     def set_remote(self, conn: sqlite3.Connection, job_id: int, remote_id: str, remote_status: str = "SUBMITTED") -> None:
         conn.execute(
             "UPDATE queue_job SET remote_id=?, remote_status=?, progress=0, backend_status=NULL WHERE id=?",
