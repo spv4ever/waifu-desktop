@@ -235,6 +235,10 @@ class MainWindow(QMainWindow):
         self.filter_date_order_combo.addItem("Más antiguas", "asc")
         self.filter_date_order_combo.setMinimumWidth(150)
         filters_layout.addWidget(self.filter_date_order_combo, 2, 1)
+        filters_layout.addWidget(QLabel("Checkpoint base:"), 2, 2)
+        self.filter_checkpoint_base_combo = QComboBox()
+        self.filter_checkpoint_base_combo.setMinimumWidth(220)
+        filters_layout.addWidget(self.filter_checkpoint_base_combo, 2, 3, 1, 3)
         filters_layout.addWidget(self.reset_filters_btn, 2, 6, 1, 2)
         filters_layout.setColumnStretch(8, 1)
         layout.addWidget(filters_group)
@@ -430,6 +434,7 @@ class MainWindow(QMainWindow):
         self.filter_variant_combo.currentIndexChanged.connect(self.refresh)
         self.filter_status_combo.currentIndexChanged.connect(self.refresh)
         self.filter_ratio_combo.currentIndexChanged.connect(self.refresh)
+        self.filter_checkpoint_base_combo.currentIndexChanged.connect(self.refresh)
         self.filter_from_datetime.dateTimeChanged.connect(self.refresh)
         self.filter_to_datetime.dateTimeChanged.connect(self.refresh)
         self.filter_date_order_combo.currentIndexChanged.connect(self.refresh)
@@ -487,6 +492,7 @@ class MainWindow(QMainWindow):
         variant = self._selected_filter_value(self.filter_variant_combo)
         status = self._selected_filter_value(self.filter_status_combo)
         ratio = self._selected_filter_value(self.filter_ratio_combo)
+        checkpoint_base = self._selected_filter_value(self.filter_checkpoint_base_combo)
         date_from = self._selected_datetime_value(self.filter_from_datetime)
         date_to = self._selected_datetime_value(self.filter_to_datetime)
         sort_order = self._selected_sort_order()
@@ -498,6 +504,7 @@ class MainWindow(QMainWindow):
             variant=variant,
             status=status,
             ratio=ratio,
+            checkpoint_base=checkpoint_base,
             date_from=date_from,
             date_to=date_to,
             sort_order=sort_order,
@@ -1033,6 +1040,7 @@ class MainWindow(QMainWindow):
             self.filter_variant_combo,
             self.filter_status_combo,
             self.filter_ratio_combo,
+            self.filter_checkpoint_base_combo,
             self.filter_last_days_spin,
             self.filter_from_datetime,
             self.filter_to_datetime,
@@ -1046,6 +1054,7 @@ class MainWindow(QMainWindow):
         self._set_combo_value(self.filter_variant_combo, "__ALL__")
         self._set_combo_value(self.filter_status_combo, "__ALL__")
         self._set_combo_value(self.filter_ratio_combo, "__ALL__")
+        self._set_combo_value(self.filter_checkpoint_base_combo, "__ALL__")
         self.filter_last_days_spin.setValue(30)
         self._apply_last_days_range(self.filter_last_days_spin.value())
         self._set_combo_value(self.filter_date_order_combo, "desc")
@@ -1066,6 +1075,11 @@ class MainWindow(QMainWindow):
         self._populate_filter_combo(self.filter_variant_combo, "Versión", filters["variants"])
         self._populate_filter_combo(self.filter_status_combo, "Estado", filters["statuses"])
         self._populate_filter_combo(self.filter_ratio_combo, "Ratio", filters["ratios"])
+        self._populate_filter_combo(
+            self.filter_checkpoint_base_combo,
+            "Checkpoint base",
+            filters["checkpoint_bases"],
+        )
 
     def _populate_filter_combo(self, combo: QComboBox, label: str, values: list[str]) -> None:
         current_data = combo.currentData()
