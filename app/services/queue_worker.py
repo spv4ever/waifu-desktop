@@ -200,7 +200,8 @@ class QueueWorker:
         poll = float(settings.comfyui_poll_interval)
         last_progress: int | None = None
         last_backend_status: str | None = None
-        missing_history_polls = 0
+        missing_history_started: float | None = None
+        max_missing_seconds = float(settings.comfyui_history_wait_seconds)
         while True:
             paused = self.kv.get(conn, "queue_paused", "false")
             if paused == "true":
@@ -221,9 +222,14 @@ class QueueWorker:
                 return "PROCESSED"
 
             if not history or remote_id not in history:
-                missing_history_polls += 1
-                max_missing = 10 if submitted_now else 3
-                if missing_history_polls >= max_missing:
+                if missing_history_started is None:
+                    missing_history_started = time.monotonic()
+                    with conn:
+                        self.queue.set_remote_status(conn, job_id, "WAITING_HISTORY")
+                    self._emit_progress()
+
+                elapsed = time.monotonic() - missing_history_started
+                if elapsed >= max_missing_seconds:
                     self._requeue_for_retry(
                         conn,
                         job_id=job_id,
@@ -233,7 +239,7 @@ class QueueWorker:
                     return "PROCESSED"
                 time.sleep(poll)
                 continue
-            missing_history_polls = 0
+            missing_history_started = None
 
             finished, entry = self._is_finished(history, remote_id)
 
@@ -251,12 +257,6 @@ class QueueWorker:
                     with conn:
                         self.queue.set_backend_status(conn, job_id, backend_status)
                     self._emit_progress()
-
-                backend_status = self._extract_backend_status(entry)
-                if backend_status and backend_status != last_backend_status:
-                    last_backend_status = backend_status
-                    with conn:
-                        self.queue.set_backend_status(conn, job_id, backend_status)
 
             if finished and entry:
                 base_img, up_img = extract_base_and_upscale(entry)
