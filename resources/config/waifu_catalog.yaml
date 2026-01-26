@@ -408,6 +408,14 @@ mood:
 # =========================
 # MODULADORES COMBINABLES
 # =========================
+combinations:
+  nsfw:
+    - nsfw
+    - erotic atmosphere
+    - mature sensuality
+    - adult content
+    - tasteful suggestive styling
+
 wardrobe:
   tops: [hoodie, t-shirt, sweater, blouse, crop top]
   bottoms: [jeans, skirt, shorts, leggings]

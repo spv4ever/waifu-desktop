@@ -12,6 +12,7 @@ class PackCreate:
     notes: str = ""
     checkpoint_base: Optional[str] = None
     checkpoint_refiner: Optional[str] = None
+    combination_key: Optional[str] = None
 
 
 @dataclass(frozen=True)

@@ -26,6 +26,10 @@ class WaifuCatalog:
         return self.raw.get("categories", {})
 
     @property
+    def combinations(self) -> dict[str, Any]:
+        return self.raw.get("combinations", {})
+
+    @property
     def wardrobe(self) -> dict[str, Any]:
         return self.raw.get("wardrobe", {})
 
