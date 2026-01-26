@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit, QToolButton
+    QLineEdit
 )
 
 from app.config.app_config import load_app_config
@@ -31,6 +31,7 @@ from app.ui.worker_thread import WorkerThread
 from app.ui.clickable_label import ClickableLabel
 from app.ui.image_viewer import ImageViewer
 from app.ui.prompt_base_window import PromptBaseWindow
+from app.ui.prompt_dialog import PromptDetailDialog
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
 
@@ -354,49 +355,6 @@ class MainWindow(QMainWindow):
 
         left_column.addWidget(self.table, 1)
 
-        # Prompt preview
-        self.prompt_group = QWidget()
-        prompt_layout = QVBoxLayout(self.prompt_group)
-        prompt_layout.setContentsMargins(0, 0, 0, 0)
-
-        prompt_header = QHBoxLayout()
-        self.prompt_toggle_btn = QToolButton()
-        self.prompt_toggle_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.prompt_toggle_btn.setArrowType(Qt.DownArrow)
-        self.prompt_toggle_btn.setCheckable(True)
-        self.prompt_toggle_btn.setChecked(True)
-        self.prompt_toggle_btn.setText("Prompt")
-        self.prompt_toggle_btn.toggled.connect(self._toggle_prompt_section)
-        prompt_header.addWidget(self.prompt_toggle_btn)
-        prompt_header.addStretch(1)
-        prompt_layout.addLayout(prompt_header)
-
-        self.prompt_content = QWidget()
-        prompt_content_layout = QVBoxLayout(self.prompt_content)
-        self.prompt_preview_text = QPlainTextEdit("—")
-        self.prompt_preview_text.setReadOnly(True)
-        self.prompt_preview_text.setLineWrapMode(QPlainTextEdit.WidgetWidth)
-        self.prompt_preview_text.setStyleSheet("font-weight: 600;")
-        prompt_content_layout.addWidget(self.prompt_preview_text)
-
-        self.prompt_backend_status_label = QLabel("Backend: —")
-        self.prompt_backend_status_label.setStyleSheet("color: #c0c0c0;")
-        prompt_content_layout.addWidget(self.prompt_backend_status_label)
-
-        prompt_actions = QHBoxLayout()
-        self.copy_prompt_btn = QPushButton("Copiar prompt")
-        self.retry_prompt_btn = QPushButton("Reintentar prompt")
-        self.delete_prompt_btn = QPushButton("Eliminar prompt")
-        prompt_actions.addStretch(1)
-        prompt_actions.addWidget(self.copy_prompt_btn)
-        prompt_actions.addWidget(self.retry_prompt_btn)
-        prompt_actions.addWidget(self.delete_prompt_btn)
-        prompt_content_layout.addLayout(prompt_actions)
-
-        prompt_layout.addWidget(self.prompt_content)
-
-        left_column.addWidget(self.prompt_group, 0)
-
         # Base preview group (right column)
         self.base_group = QGroupBox("Preview Base")
         base_layout = QVBoxLayout(self.base_group)
@@ -446,27 +404,21 @@ class MainWindow(QMainWindow):
         self.open_up_action.triggered.connect(lambda: self.open_selected("upscale"))
         self.open_folder_base_action.triggered.connect(lambda: self.open_selected("folder_base"))
         self.open_folder_up_action.triggered.connect(lambda: self.open_selected("folder_upscale"))
-        self.copy_prompt_btn.clicked.connect(self.copy_prompt_to_clipboard)
-
         # Selection changes => enable/disable + preview update
         self.table.itemSelectionChanged.connect(self._sync_current_cell_to_selection)
         self.table.itemSelectionChanged.connect(self.update_actions_state)
+        self.table.itemDoubleClicked.connect(self.open_prompt_dialog_from_item)
 
         # Estado inicial botones (deshabilitados hasta tener selección válida)
         self.open_base_action.setEnabled(False)
         self.open_up_action.setEnabled(False)
         self.open_folder_base_action.setEnabled(False)
         self.open_folder_up_action.setEnabled(False)
-        self.retry_prompt_btn.setEnabled(False)
-        self.delete_prompt_btn.setEnabled(False)
-
         self.worker_thread: WorkerThread | None = None
 
         self.start_worker_btn.clicked.connect(self.start_worker)
         self.stop_worker_btn.clicked.connect(self.stop_worker)
         self.pack_generate_btn.clicked.connect(self.generate_pack)
-        self.retry_prompt_btn.clicked.connect(self.retry_selected_prompt)
-        self.delete_prompt_btn.clicked.connect(self.delete_selected_prompt)
         self.limit_spin.valueChanged.connect(self.refresh)
         self.pause_between_spin.valueChanged.connect(self._update_worker_delay)
         self.prompt_id_input.textChanged.connect(self.refresh)
@@ -488,6 +440,7 @@ class MainWindow(QMainWindow):
         self._update_nsfw_controls()
 
         self._update_right_column_visibility()
+        self.prompt_dialog: PromptDetailDialog | None = None
         self.refresh()
 
     def _sync_current_cell_to_selection(self) -> None:
@@ -601,15 +554,20 @@ class MainWindow(QMainWindow):
             return value
         return None
 
-    def _update_prompt_backend_status(self, status: str | None) -> None:
-        if status:
-            self.prompt_backend_status_label.setText(f"Backend: {status}")
-        else:
-            self.prompt_backend_status_label.setText("Backend: —")
+    def _prompt_id_for_row(self, row: int) -> int | None:
+        pid_item = self.table.item(row, 0)
+        if not pid_item:
+            return None
+        return int(pid_item.text())
 
-    def _toggle_prompt_section(self, checked: bool) -> None:
-        self.prompt_content.setVisible(checked)
-        self.prompt_toggle_btn.setArrowType(Qt.DownArrow if checked else Qt.RightArrow)
+    def _backend_status_for_row(self, row: int) -> str | None:
+        pid_item = self.table.item(row, 0)
+        if not pid_item:
+            return None
+        value = pid_item.data(Qt.UserRole + 1)
+        if isinstance(value, str) and value.strip():
+            return value
+        return None
 
     def _reload_waifu_catalog(self) -> None:
         self.waifu_catalog = load_waifu_catalog()
@@ -812,10 +770,6 @@ class MainWindow(QMainWindow):
             self.open_up_action.setEnabled(False)
             self.open_folder_base_action.setEnabled(False)
             self.open_folder_up_action.setEnabled(False)
-            self.retry_prompt_btn.setEnabled(False)
-            self.delete_prompt_btn.setEnabled(False)
-            self.prompt_preview_text.setPlainText("—")
-            self._update_prompt_backend_status(None)
             self._set_preview(which="base", path=None)
             return
 
@@ -828,15 +782,10 @@ class MainWindow(QMainWindow):
         has_base = bool(r and r["base_image_json"])
         has_up = bool(r and r["upscale_image_json"])
 
-        self.prompt_preview_text.setPlainText(str(r["prompt_text"]) if r else "—")
-        self._update_prompt_backend_status(self._selected_prompt_backend_status())
-
         self.open_base_action.setEnabled(has_base)
         self.open_folder_base_action.setEnabled(has_base)
         self.open_up_action.setEnabled(has_up)
         self.open_folder_up_action.setEnabled(has_up)
-        self.retry_prompt_btn.setEnabled(True)
-        self.delete_prompt_btn.setEnabled(True)
 
         base_path: Path | None = None
         if r and r["base_image_json"]:
@@ -844,6 +793,41 @@ class MainWindow(QMainWindow):
             base_path = build_output_path(base)
 
         self._set_preview(which="base", path=base_path)
+
+    def open_prompt_dialog_from_item(self, item: QTableWidgetItem) -> None:
+        if self.prompt_dialog and self.prompt_dialog.isVisible():
+            return
+
+        pid = self._prompt_id_for_row(item.row())
+        if pid is None:
+            return
+
+        prompt_text = self._fetch_prompt_text(pid)
+        backend_status = self._backend_status_for_row(item.row())
+
+        dialog = PromptDetailDialog(self)
+        dialog.setAttribute(Qt.WA_DeleteOnClose, True)
+        dialog.setWindowModality(Qt.ApplicationModal)
+        dialog.set_prompt_data(pid, prompt_text or "—", backend_status)
+        dialog.copyRequested.connect(self.copy_prompt_to_clipboard)
+        dialog.retryRequested.connect(self.retry_selected_prompt)
+        dialog.deleteRequested.connect(self.delete_selected_prompt)
+        dialog.finished.connect(self._clear_prompt_dialog)
+        self.prompt_dialog = dialog
+        dialog.show()
+
+    def _clear_prompt_dialog(self) -> None:
+        self.prompt_dialog = None
+
+    def _fetch_prompt_text(self, prompt_id: int) -> str | None:
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT prompt_text FROM prompt_item WHERE id=?",
+                (prompt_id,),
+            ).fetchone()
+        if row:
+            return str(row["prompt_text"])
+        return None
 
     # -------- Open actions --------
 
@@ -973,10 +957,19 @@ class MainWindow(QMainWindow):
         dlg = ImageViewer(title, path)
         dlg.exec()
 
-    def copy_prompt_to_clipboard(self) -> None:
-        prompt = self.prompt_preview_text.toPlainText().strip()
+    def copy_prompt_to_clipboard(self, prompt_id: int | None = None, prompt_text: str | None = None) -> None:
+        prompt = (prompt_text or "").strip()
         if not prompt or prompt == "—":
+            pid = prompt_id if prompt_id is not None else self._selected_prompt_id()
+            if pid is None:
+                QMessageBox.warning(self, "Copiar prompt", "Selecciona un prompt primero.")
+                return
+            prompt = (self._fetch_prompt_text(pid) or "").strip()
+
+        if not prompt or prompt == "—":
+            QMessageBox.warning(self, "Copiar prompt", "No hay prompt para copiar.")
             return
+
         QApplication.clipboard().setText(prompt)
 
     def _selected_filter_value(self, combo: QComboBox) -> str | None:
@@ -1096,8 +1089,8 @@ class MainWindow(QMainWindow):
                 self.category_production_combo.addItem(f"{category} ({total})", category)
         self.category_production_combo.blockSignals(False)
 
-    def retry_selected_prompt(self) -> None:
-        pid = self._selected_prompt_id()
+    def retry_selected_prompt(self, prompt_id: int | None = None) -> None:
+        pid = prompt_id if prompt_id is not None else self._selected_prompt_id()
         if pid is None:
             QMessageBox.warning(self, "Reintentar", "Selecciona un prompt primero.")
             return
@@ -1190,8 +1183,8 @@ class MainWindow(QMainWindow):
             f"Prompt {pid} reencolado.",
         )
 
-    def delete_selected_prompt(self) -> None:
-        pid = self._selected_prompt_id()
+    def delete_selected_prompt(self, prompt_id: int | None = None) -> None:
+        pid = prompt_id if prompt_id is not None else self._selected_prompt_id()
         if pid is None:
             QMessageBox.warning(self, "Eliminar", "Selecciona un prompt primero.")
             return
