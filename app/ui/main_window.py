@@ -741,7 +741,11 @@ class MainWindow(QMainWindow):
             self._rescale_previews()
 
     def _update_right_column_visibility(self) -> None:
-        show_right = self.base_group.isVisible() or self.worker_log_group.isVisible()
+        show_base = self.toggle_preview_checkbox.isChecked()
+        show_log = self.toggle_worker_log_checkbox.isChecked()
+        self.base_group.setVisible(show_base)
+        self.worker_log_group.setVisible(show_log)
+        show_right = show_base or show_log
         self.right_column_widget.setVisible(show_right)
         if show_right:
             self.main_content_layout.setStretch(0, 7)
