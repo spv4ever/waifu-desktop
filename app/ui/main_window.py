@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit
+    QLineEdit, QCheckBox
 )
 
 from app.config.app_config import load_app_config
@@ -162,6 +162,10 @@ class MainWindow(QMainWindow):
         self.pause_between_spin.setValue(5)
         self.pause_between_spin.setToolTip("Segundos de descanso entre imágenes procesadas.")
         operation_layout.addWidget(self.pause_between_spin, 1, 3)
+
+        self.preview_toggle_check = QCheckBox("Mostrar preview")
+        self.preview_toggle_check.setChecked(False)
+        operation_layout.addWidget(self.preview_toggle_check, 2, 0, 1, 2)
         operation_layout.setColumnStretch(4, 1)
         layout.addWidget(operation_group)
 
@@ -432,6 +436,7 @@ class MainWindow(QMainWindow):
         self.filter_last_days_spin.valueChanged.connect(self._on_last_days_changed)
         self.reset_filters_btn.clicked.connect(self.reset_filters)
         self.toggle_preview_action.toggled.connect(self._toggle_base_preview)
+        self.preview_toggle_check.toggled.connect(self._toggle_base_preview)
         self.toggle_worker_log_action.toggled.connect(self._toggle_worker_log)
         self.clear_worker_log_btn.clicked.connect(self.clear_worker_log)
         self.pack_combination_combo.currentIndexChanged.connect(self._update_nsfw_controls)
@@ -696,6 +701,14 @@ class MainWindow(QMainWindow):
     # -------- Preview helpers --------
 
     def _toggle_base_preview(self, checked: bool) -> None:
+        if self.toggle_preview_action.isChecked() != checked:
+            self.toggle_preview_action.blockSignals(True)
+            self.toggle_preview_action.setChecked(checked)
+            self.toggle_preview_action.blockSignals(False)
+        if self.preview_toggle_check.isChecked() != checked:
+            self.preview_toggle_check.blockSignals(True)
+            self.preview_toggle_check.setChecked(checked)
+            self.preview_toggle_check.blockSignals(False)
         self.base_group.setVisible(checked)
         self._update_right_column_visibility()
 
