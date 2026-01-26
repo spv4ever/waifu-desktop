@@ -316,8 +316,8 @@ def build_unique_prompts(
         quality_text = ", ".join([q for q in quality_tags if isinstance(q, str) and q.strip()])
 
         prompt_parts = [
-            base_prompt,
             combination_prompt,
+            base_prompt,
             base_subject,
             face_features,
             eye_style,
