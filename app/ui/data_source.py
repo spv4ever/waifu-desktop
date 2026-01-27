@@ -160,9 +160,46 @@ def fetch_prompts(
     dt_from = _parse_db_datetime(date_from) if date_from else None
     dt_to = _parse_db_datetime(date_to) if date_to else None
 
+    conditions: list[str] = []
+    params: list[Any] = []
+    datestamp_expr = "COALESCE(updated_at, created_at)"
+
+    if category:
+        conditions.append("json_extract(meta_json, '$.combo.category') = ?")
+        params.append(category)
+    if variant:
+        conditions.append("json_extract(meta_json, '$.combo.variant') = ?")
+        params.append(variant)
+    if status:
+        conditions.append("status = ?")
+        params.append(status)
+    if ratio:
+        conditions.append(
+            "COALESCE(json_extract(meta_json, '$.combo.ratio_tag'),"
+            " json_extract(meta_json, '$.combo.ratio_key'),"
+            " json_extract(meta_json, '$.combo.ratio'),"
+            " json_extract(meta_json, '$.ratio')) = ?"
+        )
+        params.append(ratio)
+    if checkpoint_base:
+        conditions.append("json_extract(meta_json, '$.checkpoints.base') = ?")
+        params.append(checkpoint_base)
+    if prompt_id is not None:
+        conditions.append("id = ?")
+        params.append(int(prompt_id))
+    if dt_from:
+        conditions.append(f"{datestamp_expr} >= ?")
+        params.append(_format_db_datetime(dt_from))
+    if dt_to:
+        conditions.append(f"{datestamp_expr} <= ?")
+        params.append(_format_db_datetime(dt_to))
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    order_direction = "ASC" if sort_order.lower() == "asc" else "DESC"
+
     with get_connection() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT
                 id,
                 title,
@@ -174,13 +211,16 @@ def fetch_prompts(
                 (SELECT progress FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_progress,
                 (SELECT backend_status FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_backend_status,
                 (SELECT status FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_status,
-                COALESCE(updated_at, created_at) AS datestamp
+                {datestamp_expr} AS datestamp
             FROM prompt_item
-            ORDER BY id DESC
-            """
+            {where_clause}
+            ORDER BY datestamp {order_direction}
+            LIMIT ?
+            """,
+            (*params, limit),
         ).fetchall()
 
-    result: list[tuple[datetime | None, PromptRow]] = []
+    result: list[PromptRow] = []
     for r in rows:
         row_status = str(r["status"])
         job_progress = r["job_progress"]
@@ -193,52 +233,25 @@ def fetch_prompts(
         row_dt = _parse_db_datetime(row_datestamp) if row_datestamp else None
         progress_value = _resolve_progress(row_status, job_status, job_progress)
 
-        if category and category_value != category:
-            continue
-        if variant and variant_value != variant:
-            continue
-        if status and row_status != status:
-            continue
-        if ratio and ratio_value != ratio:
-            continue
-        if checkpoint_base and row_checkpoint_base != checkpoint_base:
-            continue
-        if prompt_id is not None and int(r["id"]) != prompt_id:
-            continue
-        if dt_from and (row_dt is None or row_dt < dt_from):
-            continue
-        if dt_to and (row_dt is None or row_dt > dt_to):
-            continue
-
         result.append(
-            (
-                row_dt,
-                PromptRow(
-                    id=int(r["id"]),
-                    title=str(r["title"]),
-                    prompt_text=str(r["prompt_text"]),
-                    status=row_status,
-                    category=category_value,
-                    variant=variant_value,
-                    ratio=ratio_value,
-                    checkpoint_base=row_checkpoint_base,
-                    checkpoint_refiner=checkpoint_refiner,
-                    has_base=bool(r["base_image_json"]),
-                    has_upscale=bool(r["upscale_image_json"]),
-                    progress=progress_value,
-                    backend_status=str(job_backend_status) if job_backend_status else None,
-                    datestamp=_format_datestamp(row_datestamp),
-                ),
+            PromptRow(
+                id=int(r["id"]),
+                title=str(r["title"]),
+                prompt_text=str(r["prompt_text"]),
+                status=row_status,
+                category=category_value,
+                variant=variant_value,
+                ratio=ratio_value,
+                checkpoint_base=row_checkpoint_base,
+                checkpoint_refiner=checkpoint_refiner,
+                has_base=bool(r["base_image_json"]),
+                has_upscale=bool(r["upscale_image_json"]),
+                progress=progress_value,
+                backend_status=str(job_backend_status) if job_backend_status else None,
+                datestamp=_format_datestamp(row_datestamp),
             )
         )
-    reverse = sort_order.lower() != "asc"
-    if reverse:
-        sentinel = datetime.min
-    else:
-        sentinel = datetime.max
-
-    result.sort(key=lambda item: item[0] or sentinel, reverse=reverse)
-    return [row for _, row in result[:limit]]
+    return result
 
 
 def _parse_db_datetime(value: str | None) -> datetime | None:
@@ -255,6 +268,12 @@ def _format_datestamp(value: str | None) -> str:
     if not dt:
         return "—"
     return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _format_db_datetime(value: datetime) -> str:
+    if value.tzinfo is not None:
+        value = value.replace(tzinfo=None)
+    return value.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _resolve_progress(status: str, job_status: str | None, job_progress: int | None) -> int | None:
