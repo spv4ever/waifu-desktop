@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit, QCheckBox
+    QLineEdit, QCheckBox, QDialog
 )
 
 from app.config.app_config import load_app_config
@@ -104,6 +104,8 @@ class MainWindow(QMainWindow):
         self.toggle_worker_log_action = view_menu.addAction("Mostrar log del worker")
         self.toggle_worker_log_action.setCheckable(True)
         self.toggle_worker_log_action.setChecked(True)
+        self.view_production_action = view_menu.addAction("Ver producción")
+        self.view_production_action.triggered.connect(self.open_production_dialog)
 
         self.open_prompt_base_action = maintenance_menu.addAction("Categorías y personajes")
         self.open_prompt_base_action.triggered.connect(self.open_prompt_base_window)
@@ -397,15 +399,19 @@ class MainWindow(QMainWindow):
 
         right_column.addWidget(self.worker_log_group, 2)
 
-        production_group = QGroupBox("Producción")
-        production_layout = QHBoxLayout(production_group)
-        production_layout.addStretch(1)
-        production_layout.addWidget(QLabel("Producción por categoría:"))
+        self.production_dialog = QDialog(self)
+        self.production_dialog.setWindowTitle("Producción por categoría")
+        self.production_dialog.setModal(False)
+        production_dialog_layout = QVBoxLayout(self.production_dialog)
+        production_row = QHBoxLayout()
+        production_row.addWidget(QLabel("Producción por categoría:"))
         self.category_production_combo = QComboBox()
         self.category_production_combo.setMinimumWidth(220)
-        production_layout.addWidget(self.category_production_combo)
-        production_layout.addStretch(1)
-        layout.addWidget(production_group)
+        production_row.addWidget(self.category_production_combo)
+        production_dialog_layout.addLayout(production_row)
+        production_close_btn = QPushButton("Cerrar")
+        production_close_btn.clicked.connect(self.production_dialog.close)
+        production_dialog_layout.addWidget(production_close_btn, alignment=Qt.AlignRight)
 
         # Signals
         self.refresh_action.triggered.connect(self.refresh)
@@ -602,6 +608,12 @@ class MainWindow(QMainWindow):
 
     def _reload_waifu_catalog(self) -> None:
         self.waifu_catalog = load_waifu_catalog()
+
+    def open_production_dialog(self) -> None:
+        self._refresh_category_production_counts()
+        self.production_dialog.show()
+        self.production_dialog.raise_()
+        self.production_dialog.activateWindow()
 
     def open_prompt_base_window(self) -> None:
         if self.prompt_base_window and self.prompt_base_window.isVisible():
