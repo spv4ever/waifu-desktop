@@ -405,10 +405,17 @@ class MainWindow(QMainWindow):
         production_dialog_layout = QVBoxLayout(self.production_dialog)
         production_row = QHBoxLayout()
         production_row.addWidget(QLabel("Producción por categoría:"))
-        self.category_production_combo = QComboBox()
-        self.category_production_combo.setMinimumWidth(220)
-        production_row.addWidget(self.category_production_combo)
         production_dialog_layout.addLayout(production_row)
+
+        self.category_production_table = QTableWidget(0, 2)
+        self.category_production_table.setHorizontalHeaderLabels(["Categoría", "Total"])
+        self.category_production_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.category_production_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.category_production_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.category_production_table.verticalHeader().setVisible(False)
+        self.category_production_table.horizontalHeader().setStretchLastSection(True)
+        self.category_production_table.setMinimumHeight(240)
+        production_dialog_layout.addWidget(self.category_production_table)
         production_close_btn = QPushButton("Cerrar")
         production_close_btn.clicked.connect(self.production_dialog.close)
         production_dialog_layout.addWidget(production_close_btn, alignment=Qt.AlignRight)
@@ -1136,16 +1143,27 @@ class MainWindow(QMainWindow):
 
     def _refresh_category_production_counts(self) -> None:
         counts = fetch_category_production_counts()
-        self.category_production_combo.blockSignals(True)
-        self.category_production_combo.clear()
+        self.category_production_table.setRowCount(0)
         if not counts:
-            self.category_production_combo.addItem("Sin datos", None)
-            self.category_production_combo.setEnabled(False)
+            self.category_production_table.setRowCount(1)
+            self.category_production_table.setItem(0, 0, QTableWidgetItem("Sin datos"))
+            self.category_production_table.setItem(0, 1, QTableWidgetItem("—"))
+            self.category_production_table.setEnabled(False)
         else:
-            self.category_production_combo.setEnabled(True)
-            for category, total in counts:
-                self.category_production_combo.addItem(f"{category} ({total})", category)
-        self.category_production_combo.blockSignals(False)
+            self.category_production_table.setEnabled(True)
+            self.category_production_table.setRowCount(len(counts))
+            for row_index, (category, total) in enumerate(counts):
+                self.category_production_table.setItem(
+                    row_index,
+                    0,
+                    QTableWidgetItem(category),
+                )
+                self.category_production_table.setItem(
+                    row_index,
+                    1,
+                    QTableWidgetItem(str(total)),
+                )
+        self.category_production_table.resizeColumnsToContents()
 
     def retry_selected_prompt(self, prompt_id: int | None = None) -> None:
         pid = prompt_id if prompt_id is not None else self._selected_prompt_id()
