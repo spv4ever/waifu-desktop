@@ -42,55 +42,95 @@ class ReelService:
     _SOCIAL_FONT_SIZE = 60
     _CTA_FONT_SIZE = 84
 
+    # Márgenes para que el texto no “toque” laterales
+    _TEXT_SIDE_MARGIN_PX = 120
+
+    def _normalize_newlines(self, text: str) -> str:
+        if not text:
+            return ""
+        for marker in ("\\\\n", "\\n", "/n"):
+            text = text.replace(marker, "\n")
+        lines = [ln.strip() for ln in text.splitlines()]
+        lines = [ln for ln in lines if ln]
+        if not lines:
+            return ""
+        if len(lines) == 1:
+            return " ".join(lines[0].split())
+        return "\n".join([" ".join(lines[0].split()), " ".join(lines[1].split())])
+
     def _wrap_text_two_lines(self, text: str, *, max_chars: int) -> str:
-        if "\\n" in text or "/n" in text or "\\\\n" in text:
-            for marker in ("\\\\n", "\\n", "/n"):
-                text = text.replace(marker, "\n")
+        text = self._normalize_newlines(text)
+
         if "\n" in text:
-            lines = [line.strip() for line in text.splitlines() if line.strip()]
-            if lines:
-                if len(lines) == 1:
-                    text = lines[0]
-                else:
-                    return "\n".join(lines[:2])
+            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            if len(lines) == 1:
+                return lines[0]
+            return "\n".join(lines[:2])
+
         clean_text = " ".join(text.split())
         if len(clean_text) <= max_chars:
             return clean_text
+
         for separator in (" | ", " • "):
             if separator in clean_text:
-                parts = [part.strip() for part in clean_text.split(separator) if part.strip()]
+                parts = [p.strip() for p in clean_text.split(separator) if p.strip()]
                 if len(parts) > 1:
                     midpoint = (len(parts) + 1) // 2
                     return separator.join(parts[:midpoint]) + "\n" + separator.join(parts[midpoint:])
+
         words = clean_text.split()
         if len(words) <= 1:
             return clean_text
-        best_split: tuple[str, str] | None = None
-        best_score: tuple[int, int, int] | None = None
-        for split_idx in range(1, len(words)):
-            line_one = " ".join(words[:split_idx])
-            line_two = " ".join(words[split_idx:])
-            max_len = max(len(line_one), len(line_two))
-            overage = max(0, max_len - max_chars)
-            balance = abs(len(line_one) - len(line_two))
-            score = (overage, max_len, balance)
-            if best_score is None or score < best_score:
-                best_score = score
-                best_split = (line_one, line_two)
-        if best_split is None:
-            return clean_text
-        return f"{best_split[0]}\n{best_split[1]}"
 
-    def _format_reel_text(self, text: str, *, max_chars: int, font_size: int, reduce_by: int) -> tuple[str, int]:
+        line_one: list[str] = []
+        remaining = words[:]
+        while remaining:
+            next_word = remaining[0]
+            candidate = " ".join(line_one + [next_word])
+            if len(candidate) <= max_chars or not line_one:
+                line_one.append(next_word)
+                remaining.pop(0)
+                continue
+            break
+
+        if not remaining:
+            return " ".join(line_one)
+
+        return " ".join(line_one) + "\n" + " ".join(remaining)
+
+    def _estimate_max_chars_for_width(self, *, font_size: int) -> int:
+        usable_width = max(self._OUTPUT_WIDTH - (2 * self._TEXT_SIDE_MARGIN_PX), 200)
+        avg_char_px = max(int(font_size * 0.58), 8)
+        return max(int(usable_width / avg_char_px), 8)
+
+    def _format_reel_text(self, text: str, *, font_size: int, reduce_by: int) -> tuple[str, int]:
+        text = self._normalize_newlines(text)
+        if not text:
+            return "", font_size
+
+        current_font = font_size
+
+        if "\n" in text:
+            lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+            text = "\n".join(lines[:2])
+            return text, max(current_font - reduce_by, 12)
+
+        for _ in range(10):
+            max_chars = self._estimate_max_chars_for_width(font_size=current_font)
+            wrapped = self._wrap_text_two_lines(text, max_chars=max_chars)
+
+            if "\n" in wrapped:
+                return wrapped, max(current_font - reduce_by, 12)
+
+            if len(wrapped) > max_chars and current_font > 12:
+                current_font = max(current_font - 4, 12)
+                continue
+
+            return wrapped, current_font
+
+        max_chars = self._estimate_max_chars_for_width(font_size=current_font)
         wrapped = self._wrap_text_two_lines(text, max_chars=max_chars)
-        lines = [line for line in wrapped.splitlines() if line]
-        max_len = max((len(line) for line in lines), default=0)
-        adjusted_font = font_size
-        if "\n" in wrapped:
-            adjusted_font = max(adjusted_font - reduce_by, 12)
-        if max_len > max_chars:
-            adjusted_font = max(adjusted_font - ((max_len - max_chars) * 4), 12)
-        return wrapped, adjusted_font
+        return wrapped, max(current_font - reduce_by, 12) if "\n" in wrapped else current_font
 
     def _select_reel_title(self, *, category_key: str) -> str | None:
         catalog = load_waifu_catalog()
@@ -118,26 +158,32 @@ class ReelService:
             return template.replace("{category}", category_label)
         return f"{category_label} {template}".strip()
 
-    @staticmethod
-    def _escape_drawtext(text: str) -> str:
-        return (
-            text.replace("\\", "\\\\")
-            .replace("\n", "\\n")
-            .replace(":", "\\:")
-            .replace("'", "\\'")
-        )
-
     def _build_social_text(self) -> str:
         x_handle = (settings.reel_x_handle or "").strip()
         if x_handle:
             return f"X: {x_handle}"
         return "X"
 
-    def _drawtext_filter(self, text: str, *, font_size: int, y_expr: str, line_spacing: int = 8) -> str:
-        escaped_text = self._escape_drawtext(text)
+    def _write_overlay_file(self, *, folder: Path, filename: str, text: str) -> str:
+        safe_text = self._normalize_newlines(text)
+        (folder / filename).write_text(safe_text, encoding="utf-8")
+        return filename
+
+    def _drawtext_filter_textfile(
+        self,
+        *,
+        textfile: str,
+        font_size: int,
+        y_expr: str,
+        line_spacing: int = 8,
+    ) -> str:
+        # CLAVE: text_align=center para que cada línea del multilinea quede centrada
         return (
-            f"drawtext=text='{escaped_text}':fontcolor=white:fontsize={font_size}:"
-            f"box=1:boxcolor=black@0.45:boxborderw=20:line_spacing={line_spacing}:"
+            f"drawtext=textfile='{textfile}':reload=0:"
+            f"fontcolor=white:fontsize={font_size}:"
+            f"box=1:boxcolor=black@0.45:boxborderw=20:"
+            f"line_spacing={line_spacing}:fix_bounds=1:"
+            f"text_align=center:"
             f"x=(w-text_w)/2:y={y_expr}"
         )
 
@@ -302,28 +348,36 @@ class ReelService:
                 cmd += ["-stream_loop", "-1"]
             cmd += ["-ss", f"{start_time}", "-t", f"{total_duration}", "-i", str(audio_path)]
 
+        # ====== TEXTOS (formateo + archivos) ======
         social_text = self._build_social_text()
         social_text, social_font = self._format_reel_text(
             social_text,
-            max_chars=26,
             font_size=self._SOCIAL_FONT_SIZE,
             reduce_by=8,
         )
         cta_text, cta_font = self._format_reel_text(
             "Follow • Reply • Like",
-            max_chars=24,
             font_size=self._CTA_FONT_SIZE,
             reduce_by=16,
         )
+
         title_text = None
         title_font = self._TITLE_FONT_SIZE
         if title:
             title_text, title_font = self._format_reel_text(
                 title,
-                max_chars=16,
                 font_size=self._TITLE_FONT_SIZE,
                 reduce_by=8,
             )
+
+        title_file = None
+        if title_text:
+            title_file = self._write_overlay_file(folder=folder, filename="overlay_title.txt", text=title_text)
+
+        social_file = self._write_overlay_file(folder=folder, filename="overlay_social.txt", text=social_text)
+        cta_file = self._write_overlay_file(folder=folder, filename="overlay_cta.txt", text=cta_text)
+
+        # ====== FILTER GRAPH ======
         filter_parts: list[str] = []
         for idx in range(image_count):
             filters = (
@@ -334,13 +388,16 @@ class ReelService:
             )
             is_last = idx == image_count - 1
             is_penultimate = idx == image_count - 2
-            if title_text and idx < image_count - 2:
-                filters += f",{self._drawtext_filter(title_text, font_size=title_font, y_expr='h*0.12')}"
+
+            if title_file and idx < image_count - 2:
+                filters += f",{self._drawtext_filter_textfile(textfile=title_file, font_size=title_font, y_expr='h*0.12')}"
             elif is_penultimate:
-                filters += f",{self._drawtext_filter(social_text, font_size=social_font, y_expr='h*0.12')}"
+                filters += f",{self._drawtext_filter_textfile(textfile=social_file, font_size=social_font, y_expr='h*0.12')}"
+
             if is_last:
-                filters += f",{self._drawtext_filter(social_text, font_size=social_font, y_expr='h*0.12')}"
-                filters += f",{self._drawtext_filter(cta_text, font_size=cta_font, y_expr='h*0.22')}"
+                filters += f",{self._drawtext_filter_textfile(textfile=social_file, font_size=social_font, y_expr='h*0.12')}"
+                filters += f",{self._drawtext_filter_textfile(textfile=cta_file, font_size=cta_font, y_expr='h*0.22')}"
+
             filters += ",format=rgba"
             filter_parts.append(f"{filters}[v{idx}]")
 
@@ -395,6 +452,7 @@ class ReelService:
                 "-shortest",
             ]
         cmd.append(str(output_path))
+
         subprocess.run(cmd, cwd=str(folder), check=True, capture_output=True, text=True)
         return output_path, selected_audio_path
 
