@@ -65,25 +65,32 @@ class ReelService:
         words = clean_text.split()
         if len(words) <= 1:
             return clean_text
-        line_one: list[str] = []
-        remaining = words[:]
-        while remaining:
-            next_word = remaining[0]
-            candidate = " ".join(line_one + [next_word])
-            if len(candidate) <= max_chars or not line_one:
-                line_one.append(next_word)
-                remaining.pop(0)
-                continue
-            break
-        if not remaining:
-            return " ".join(line_one)
-        return " ".join(line_one) + "\n" + " ".join(remaining)
+        best_split: tuple[str, str] | None = None
+        best_score: tuple[int, int, int] | None = None
+        for split_idx in range(1, len(words)):
+            line_one = " ".join(words[:split_idx])
+            line_two = " ".join(words[split_idx:])
+            max_len = max(len(line_one), len(line_two))
+            overage = max(0, max_len - max_chars)
+            balance = abs(len(line_one) - len(line_two))
+            score = (overage, max_len, balance)
+            if best_score is None or score < best_score:
+                best_score = score
+                best_split = (line_one, line_two)
+        if best_split is None:
+            return clean_text
+        return f"{best_split[0]}\n{best_split[1]}"
 
     def _format_reel_text(self, text: str, *, max_chars: int, font_size: int, reduce_by: int) -> tuple[str, int]:
         wrapped = self._wrap_text_two_lines(text, max_chars=max_chars)
+        lines = [line for line in wrapped.splitlines() if line]
+        max_len = max((len(line) for line in lines), default=0)
+        adjusted_font = font_size
         if "\n" in wrapped:
-            return wrapped, max(font_size - reduce_by, 12)
-        return wrapped, font_size
+            adjusted_font = max(adjusted_font - reduce_by, 12)
+        if max_len > max_chars:
+            adjusted_font = max(adjusted_font - ((max_len - max_chars) * 4), 12)
+        return wrapped, adjusted_font
 
     def _select_reel_title(self, *, category_key: str) -> str | None:
         catalog = load_waifu_catalog()
@@ -313,7 +320,7 @@ class ReelService:
         if title:
             title_text, title_font = self._format_reel_text(
                 title,
-                max_chars=20,
+                max_chars=16,
                 font_size=self._TITLE_FONT_SIZE,
                 reduce_by=8,
             )
