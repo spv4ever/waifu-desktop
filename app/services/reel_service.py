@@ -18,6 +18,7 @@ from app.utils.path_sanitize import sanitize_relpath, sanitize_segment
 @dataclass(frozen=True)
 class ReelCreateResult:
     category: str
+    variant: str | None
     image_count: int
     folder: Path
     video_path: Path
@@ -94,19 +95,28 @@ class ReelService:
         conn,
         *,
         category: str,
+        variant: str | None,
         image_count: int,
     ) -> list[_ReelImage]:
+        conditions = [
+            "status = 'DONE'",
+            "used_in_reel = 0",
+            "(base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)",
+            "json_extract(meta_json, '$.combo.category') = ?",
+        ]
+        params: list[str] = [category]
+        if variant:
+            conditions.append("json_extract(meta_json, '$.combo.variant') = ?")
+            params.append(variant)
+
         rows = conn.execute(
-            """
+            f"""
             SELECT id, base_image_json, upscale_image_json
             FROM prompt_item
-            WHERE status = 'DONE'
-              AND used_in_reel = 0
-              AND (base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)
-              AND json_extract(meta_json, '$.combo.category') = ?
+            WHERE {' AND '.join(conditions)}
             ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
             """,
-            (category,),
+            params,
         ).fetchall()
 
         selected: list[_ReelImage] = []
@@ -135,10 +145,14 @@ class ReelService:
 
         return selected
 
-    def _create_reel_folder(self, *, category: str) -> Path:
+    def _create_reel_folder(self, *, category: str, variant: str | None) -> Path:
         category_safe = sanitize_segment(category)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        rel_folder = sanitize_relpath(f"anime/Waifu/{category_safe}/reels/reel_{timestamp}")
+        if variant:
+            variant_safe = sanitize_segment(variant)
+            rel_folder = sanitize_relpath(f"anime/Waifu/{category_safe}/{variant_safe}/reels/reel_{timestamp}")
+        else:
+            rel_folder = sanitize_relpath(f"anime/Waifu/{category_safe}/reels/reel_{timestamp}")
         folder = Path(settings.comfyui_output_dir) / rel_folder
         folder.mkdir(parents=True, exist_ok=True)
         return folder
@@ -317,6 +331,7 @@ class ReelService:
         conn,
         *,
         category: str,
+        variant: str | None,
         image_count: int,
         seconds_per_image: float,
     ) -> ReelCreateResult:
@@ -327,14 +342,19 @@ class ReelService:
         if seconds_per_image <= self._TRANSITION_SECONDS:
             raise ValueError("Los segundos por imagen deben ser mayores a la duración de la transición.")
 
-        images = self._select_unused_images(conn, category=category, image_count=image_count)
+        images = self._select_unused_images(
+            conn,
+            category=category,
+            variant=variant,
+            image_count=image_count,
+        )
         if len(images) < image_count:
             raise RuntimeError(
                 f"No hay suficientes imágenes disponibles para el reel. "
                 f"Disponibles: {len(images)}, solicitadas: {image_count}."
             )
 
-        folder = self._create_reel_folder(category=category)
+        folder = self._create_reel_folder(category=category, variant=variant)
         copied_paths = self._copy_images(images, folder=folder)
         ext = copied_paths[0].suffix if copied_paths else ".png"
         title = self._select_reel_title(category_key=category)
@@ -348,6 +368,7 @@ class ReelService:
 
         manifest = {
             "category": category,
+            "variant": variant,
             "title": title,
             "created_at": datetime.now().isoformat(timespec="seconds"),
             "image_count": len(images),
@@ -375,6 +396,7 @@ class ReelService:
 
         return ReelCreateResult(
             category=category,
+            variant=variant,
             image_count=len(images),
             folder=folder,
             video_path=video_path,
