@@ -37,6 +37,9 @@ class ReelService:
     _TRANSITION_SECONDS = 0.5
     _FADE_OUT_SECONDS = 0.5
     _FPS = 30
+    _TITLE_FONT_SIZE = 64
+    _SOCIAL_FONT_SIZE = 60
+    _CTA_FONT_SIZE = 84
 
     def _select_reel_title(self, *, category_key: str) -> str | None:
         catalog = load_waifu_catalog()
@@ -67,6 +70,24 @@ class ReelService:
     @staticmethod
     def _escape_drawtext(text: str) -> str:
         return text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+
+    def _build_social_text(self) -> str:
+        instagram = (settings.reel_instagram_handle or "").strip()
+        x_handle = (settings.reel_x_handle or "").strip()
+        parts = []
+        if instagram:
+            parts.append(f"Instagram: {instagram}")
+        if x_handle:
+            parts.append(f"X: {x_handle}")
+        return " | ".join(parts) if parts else "Instagram | X"
+
+    def _drawtext_filter(self, text: str, *, font_size: int, y_expr: str) -> str:
+        escaped_text = self._escape_drawtext(text)
+        return (
+            f"drawtext=text='{escaped_text}':fontcolor=white:fontsize={font_size}:"
+            f"box=1:boxcolor=black@0.45:boxborderw=20:"
+            f"x=(w-text_w)/2:y={y_expr}"
+        )
 
     def _select_unused_images(
         self,
@@ -216,6 +237,7 @@ class ReelService:
                 cmd += ["-stream_loop", "-1"]
             cmd += ["-ss", f"{start_time}", "-t", f"{total_duration}", "-i", str(audio_path)]
 
+        social_text = self._build_social_text()
         filter_parts: list[str] = []
         for idx in range(image_count):
             filters = (
@@ -224,13 +246,15 @@ class ReelService:
                 f"pad={self._OUTPUT_WIDTH}:{self._OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=black,"
                 f"fps={self._FPS},setsar=1"
             )
-            if idx == 0 and title:
-                escaped_title = self._escape_drawtext(title)
-                filters += (
-                    f",drawtext=text='{escaped_title}':fontcolor=white:fontsize=64:"
-                    f"box=1:boxcolor=black@0.45:boxborderw=20:"
-                    f"x=(w-text_w)/2:y=h*0.12"
-                )
+            is_last = idx == image_count - 1
+            is_penultimate = idx == image_count - 2
+            if title and idx < image_count - 2:
+                filters += f",{self._drawtext_filter(title, font_size=self._TITLE_FONT_SIZE, y_expr='h*0.12')}"
+            elif is_penultimate:
+                filters += f",{self._drawtext_filter(social_text, font_size=self._SOCIAL_FONT_SIZE, y_expr='h*0.12')}"
+            if is_last:
+                filters += f",{self._drawtext_filter(social_text, font_size=self._SOCIAL_FONT_SIZE, y_expr='h*0.12')}"
+                filters += f",{self._drawtext_filter('Follow • Reply • Like', font_size=self._CTA_FONT_SIZE, y_expr='h*0.22')}"
             filters += ",format=rgba"
             filter_parts.append(f"{filters}[v{idx}]")
 

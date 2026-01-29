@@ -25,12 +25,17 @@ negative_prompt: >
 # =========================
 reel_titles:
   default:
-    - "{category} vibes del día"
-    - "Momentos {category} en alta definición"
-    - "Especial {category}: luz, actitud y estilo"
-    - "Inspiración {category} para tu mood"
-    - "{category} edition — detalles que enamoran"
-    - "Ruta {category}: looks y sensaciones"
+    - "{category} vibes of the day"
+    - "{category} moments in high definition"
+    - "{category} spotlight: light, attitude, and style"
+    - "{category} inspiration for your mood"
+    - "{category} edition — details that captivate"
+    - "{category} route: looks and feelings"
+    - "Fresh {category} energy for today"
+    - "{category} highlights you can't miss"
+    - "Signature {category} looks in focus"
+    - "{category} moodboard: bold and beautiful"
+    - "New {category} favorites this week"
 
 # =========================
 # RATIOS DISPONIBLES
