@@ -43,8 +43,9 @@ class ReelService:
     _CTA_FONT_SIZE = 84
 
     def _wrap_text_two_lines(self, text: str, *, max_chars: int) -> str:
-        if "\\n" in text or "/n" in text:
-            text = text.replace("\\n", "\n").replace("/n", "\n")
+        if "\\n" in text or "/n" in text or "\\\\n" in text:
+            for marker in ("\\\\n", "\\n", "/n"):
+                text = text.replace(marker, "\n")
         if "\n" in text:
             lines = [line.strip() for line in text.splitlines() if line.strip()]
             if lines:
