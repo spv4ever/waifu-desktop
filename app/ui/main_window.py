@@ -27,6 +27,7 @@ from app.ui.data_source import (
     fetch_prompt_filters,
     fetch_prompt_status_counts,
     fetch_category_production_counts,
+    fetch_variants_for_category,
 )
 from app.ui.worker_thread import WorkerThread
 from app.ui.clickable_label import ClickableLabel
@@ -307,22 +308,27 @@ class MainWindow(QMainWindow):
         self.reel_category_combo = QComboBox()
         reel_layout.addWidget(self.reel_category_combo, 0, 1)
 
-        reel_layout.addWidget(QLabel("Cantidad imágenes:"), 0, 2)
+        reel_layout.addWidget(QLabel("Variante:"), 0, 2)
+        self.reel_variant_combo = QComboBox()
+        self.reel_variant_combo.setMinimumWidth(130)
+        reel_layout.addWidget(self.reel_variant_combo, 0, 3)
+
+        reel_layout.addWidget(QLabel("Cantidad imágenes:"), 0, 4)
         self.reel_quantity_spin = QSpinBox()
         self.reel_quantity_spin.setRange(1, 30)
         self.reel_quantity_spin.setValue(5)
-        reel_layout.addWidget(self.reel_quantity_spin, 0, 3)
+        reel_layout.addWidget(self.reel_quantity_spin, 0, 5)
 
-        reel_layout.addWidget(QLabel("Segundos por imagen:"), 0, 4)
+        reel_layout.addWidget(QLabel("Segundos por imagen:"), 0, 6)
         self.reel_seconds_spin = QDoubleSpinBox()
         self.reel_seconds_spin.setRange(1.0, 10.0)
         self.reel_seconds_spin.setSingleStep(0.5)
         self.reel_seconds_spin.setValue(2.0)
-        reel_layout.addWidget(self.reel_seconds_spin, 0, 5)
+        reel_layout.addWidget(self.reel_seconds_spin, 0, 7)
 
         self.reel_generate_btn = QPushButton("Crear Reel")
-        reel_layout.addWidget(self.reel_generate_btn, 0, 6)
-        reel_layout.setColumnStretch(7, 1)
+        reel_layout.addWidget(self.reel_generate_btn, 0, 8)
+        reel_layout.setColumnStretch(9, 1)
 
         layout.addWidget(reel_group)
 
@@ -487,6 +493,7 @@ class MainWindow(QMainWindow):
         self.filter_to_datetime.dateTimeChanged.connect(self.refresh)
         self.filter_date_order_combo.currentIndexChanged.connect(self.refresh)
         self.filter_last_days_spin.valueChanged.connect(self._on_last_days_changed)
+        self.reel_category_combo.currentIndexChanged.connect(self._populate_reel_variants)
         self.reset_filters_btn.clicked.connect(self.reset_filters)
         self.toggle_preview_action.toggled.connect(self._toggle_base_preview)
         self.preview_toggle_check.toggled.connect(self._toggle_base_preview)
@@ -718,6 +725,28 @@ class MainWindow(QMainWindow):
             if kind == "character":
                 label = f"{label} [Personaje]"
             self.reel_category_combo.addItem(label, key)
+        self._populate_reel_variants()
+
+    def _populate_reel_variants(self) -> None:
+        category = self.reel_category_combo.currentData()
+        variants = fetch_variants_for_category(str(category)) if category else []
+        current_data = self.reel_variant_combo.currentData()
+
+        self.reel_variant_combo.blockSignals(True)
+        self.reel_variant_combo.clear()
+        self.reel_variant_combo.addItem("Todas (Variantes)", "__ALL__")
+        for variant in variants:
+            self.reel_variant_combo.addItem(variant, variant)
+
+        if len(variants) == 1:
+            self.reel_variant_combo.setCurrentIndex(1)
+        elif current_data:
+            idx = self.reel_variant_combo.findData(current_data)
+            if idx >= 0:
+                self.reel_variant_combo.setCurrentIndex(idx)
+
+        self.reel_variant_combo.setEnabled(len(variants) > 1)
+        self.reel_variant_combo.blockSignals(False)
 
     def _update_nsfw_controls(self) -> None:
         combination_key = self.pack_combination_combo.currentData()
@@ -793,6 +822,9 @@ class MainWindow(QMainWindow):
         category = self.reel_category_combo.currentData()
         quantity = int(self.reel_quantity_spin.value())
         seconds_per_image = float(self.reel_seconds_spin.value())
+        variant = self.reel_variant_combo.currentData()
+        if variant == "__ALL__":
+            variant = None
 
         if not category:
             QMessageBox.warning(self, "Reel Instagram", "Selecciona una categoría.")
@@ -804,6 +836,7 @@ class MainWindow(QMainWindow):
                     result = self.reel_service.create_reel(
                         conn,
                         category=str(category),
+                        variant=str(variant) if variant else None,
                         image_count=quantity,
                         seconds_per_image=seconds_per_image,
                     )

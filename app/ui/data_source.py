@@ -124,6 +124,33 @@ def fetch_prompt_status_counts() -> dict[str, int]:
     return counts
 
 
+def fetch_variants_for_category(category: str | None) -> list[str]:
+    if not category:
+        return []
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT json_extract(meta_json, '$.combo.variant') AS variant
+            FROM prompt_item
+            WHERE status = 'DONE'
+              AND (base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)
+              AND json_extract(meta_json, '$.combo.category') = ?
+            ORDER BY variant
+            """,
+            (category,),
+        ).fetchall()
+
+    variants: list[str] = []
+    for row in rows:
+        value = row["variant"]
+        if value is None:
+            continue
+        variant = str(value).strip()
+        if variant and variant != "?":
+            variants.append(variant)
+    return variants
+
+
 def fetch_category_production_counts() -> list[tuple[str, int]]:
     counts: dict[str, int] = {}
     with get_connection() as conn:
