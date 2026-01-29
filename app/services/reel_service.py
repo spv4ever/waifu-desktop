@@ -103,8 +103,8 @@ class ReelService:
     @staticmethod
     def _escape_drawtext(text: str) -> str:
         return (
-            text.replace("\n", "\\n")
-            .replace("\\", "\\\\")
+            text.replace("\\", "\\\\")
+            .replace("\n", "\\n")
             .replace(":", "\\:")
             .replace("'", "\\'")
         )
@@ -117,7 +117,9 @@ class ReelService:
             parts.append(f"Instagram: {instagram}")
         if x_handle:
             parts.append(f"X: {x_handle}")
-        return " | ".join(parts) if parts else "Instagram | X"
+        if len(parts) > 1:
+            return "\n".join(parts)
+        return parts[0] if parts else "Instagram\nX"
 
     def _drawtext_filter(self, text: str, *, font_size: int, y_expr: str, line_spacing: int = 8) -> str:
         escaped_text = self._escape_drawtext(text)
