@@ -21,6 +21,18 @@ negative_prompt: >
   watermark, text, logo, jpeg artifacts, oversharpening
 
 # =========================
+# TÍTULOS DEMO PARA REELS
+# =========================
+reel_titles:
+  default:
+    - "{category} vibes del día"
+    - "Momentos {category} en alta definición"
+    - "Especial {category}: luz, actitud y estilo"
+    - "Inspiración {category} para tu mood"
+    - "{category} edition — detalles que enamoran"
+    - "Ruta {category}: looks y sensaciones"
+
+# =========================
 # RATIOS DISPONIBLES
 # =========================
 ratios:
