@@ -846,11 +846,10 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Reel Instagram", str(exc))
             return
 
-        QMessageBox.information(
-            self,
-            "Reel Instagram",
-            f"Reel creado en {result.folder} con {result.image_count} imágenes.",
-        )
+        try:
+            open_folder_and_select(result.folder)
+        except Exception as exc:
+            QMessageBox.critical(self, "Reel Instagram", f"No se pudo abrir la carpeta: {exc}")
 
     # -------- Preview helpers --------
 
