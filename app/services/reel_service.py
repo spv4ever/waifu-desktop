@@ -46,11 +46,12 @@ class ReelService:
         clean_text = " ".join(text.split())
         if len(clean_text) <= max_chars:
             return clean_text
-        if " | " in clean_text:
-            parts = [part.strip() for part in clean_text.split(" | ") if part.strip()]
-            if len(parts) > 1:
-                midpoint = (len(parts) + 1) // 2
-                return " | ".join(parts[:midpoint]) + "\n" + " | ".join(parts[midpoint:])
+        for separator in (" | ", " • "):
+            if separator in clean_text:
+                parts = [part.strip() for part in clean_text.split(separator) if part.strip()]
+                if len(parts) > 1:
+                    midpoint = (len(parts) + 1) // 2
+                    return separator.join(parts[:midpoint]) + "\n" + separator.join(parts[midpoint:])
         words = clean_text.split()
         if len(words) <= 1:
             return clean_text
@@ -299,9 +300,9 @@ class ReelService:
         )
         cta_text, cta_font = self._format_reel_text(
             "Follow • Reply • Like",
-            max_chars=18,
+            max_chars=14,
             font_size=self._CTA_FONT_SIZE,
-            reduce_by=12,
+            reduce_by=16,
         )
         title_text = None
         title_font = self._TITLE_FONT_SIZE
