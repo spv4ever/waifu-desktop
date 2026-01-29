@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit, QCheckBox, QDialog
+    QLineEdit, QCheckBox, QDialog, QDoubleSpinBox
 )
 
 from app.config.app_config import load_app_config
@@ -313,9 +313,16 @@ class MainWindow(QMainWindow):
         self.reel_quantity_spin.setValue(5)
         reel_layout.addWidget(self.reel_quantity_spin, 0, 3)
 
+        reel_layout.addWidget(QLabel("Segundos por imagen:"), 0, 4)
+        self.reel_seconds_spin = QDoubleSpinBox()
+        self.reel_seconds_spin.setRange(1.0, 10.0)
+        self.reel_seconds_spin.setSingleStep(0.5)
+        self.reel_seconds_spin.setValue(2.0)
+        reel_layout.addWidget(self.reel_seconds_spin, 0, 5)
+
         self.reel_generate_btn = QPushButton("Crear Reel")
-        reel_layout.addWidget(self.reel_generate_btn, 0, 4)
-        reel_layout.setColumnStretch(5, 1)
+        reel_layout.addWidget(self.reel_generate_btn, 0, 6)
+        reel_layout.setColumnStretch(7, 1)
 
         layout.addWidget(reel_group)
 
@@ -785,6 +792,7 @@ class MainWindow(QMainWindow):
     def generate_reel(self) -> None:
         category = self.reel_category_combo.currentData()
         quantity = int(self.reel_quantity_spin.value())
+        seconds_per_image = float(self.reel_seconds_spin.value())
 
         if not category:
             QMessageBox.warning(self, "Reel Instagram", "Selecciona una categoría.")
@@ -797,6 +805,7 @@ class MainWindow(QMainWindow):
                         conn,
                         category=str(category),
                         image_count=quantity,
+                        seconds_per_image=seconds_per_image,
                     )
         except Exception as exc:
             QMessageBox.critical(self, "Reel Instagram", str(exc))

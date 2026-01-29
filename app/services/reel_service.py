@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -30,6 +31,12 @@ class _ReelImage:
 
 
 class ReelService:
+    _OUTPUT_WIDTH = 1080
+    _OUTPUT_HEIGHT = 1920
+    _TRANSITION_SECONDS = 0.5
+    _FADE_OUT_SECONDS = 0.5
+    _FPS = 30
+
     def _select_unused_images(
         self,
         conn,
@@ -96,28 +103,143 @@ class ReelService:
             copied_paths.append(target_path)
         return copied_paths
 
-    def _render_video(self, *, folder: Path, ext: str, image_count: int) -> Path:
+    def _select_audio_fragment(self, *, total_duration: float) -> tuple[Path, float, bool] | None:
+        repo_root = Path(__file__).resolve().parents[2]
+        audio_dir = repo_root / "resources" / "audio"
+        if not audio_dir.exists():
+            return None
+
+        audio_files = sorted(audio_dir.glob("*.mp3"))
+        if not audio_files:
+            return None
+
+        audio_path = random.choice(audio_files)
+        ffprobe_path = shutil.which("ffprobe")
+        start_time = 0.0
+        loop_audio = False
+
+        if ffprobe_path:
+            try:
+                probe = subprocess.run(
+                    [
+                        ffprobe_path,
+                        "-v",
+                        "error",
+                        "-show_entries",
+                        "format=duration",
+                        "-of",
+                        "default=noprint_wrappers=1:nokey=1",
+                        str(audio_path),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                duration = float(probe.stdout.strip())
+                if duration > total_duration:
+                    start_time = random.uniform(0.0, max(duration - total_duration, 0.0))
+                else:
+                    loop_audio = True
+            except (ValueError, subprocess.CalledProcessError):
+                loop_audio = True
+        else:
+            loop_audio = True
+
+        return audio_path, start_time, loop_audio
+
+    def _render_video(
+        self,
+        *,
+        folder: Path,
+        ext: str,
+        image_count: int,
+        seconds_per_image: float,
+    ) -> tuple[Path, Path | None]:
         ffmpeg_path = shutil.which("ffmpeg")
         if not ffmpeg_path:
             raise RuntimeError("No se encontró ffmpeg en el sistema para renderizar el reel.")
 
         output_path = folder / "reel.mp4"
-        pattern = f"frame_%03d{ext}"
+        total_duration = (image_count * seconds_per_image) - ((image_count - 1) * self._TRANSITION_SECONDS)
+        total_duration = max(total_duration, seconds_per_image)
+        fade_out_start = max(total_duration - self._FADE_OUT_SECONDS, 0.0)
+
+        cmd = [ffmpeg_path, "-y"]
+        for idx in range(1, image_count + 1):
+            cmd += [
+                "-loop",
+                "1",
+                "-t",
+                f"{seconds_per_image}",
+                "-i",
+                f"frame_{idx:03d}{ext}",
+            ]
+
+        audio_selection = self._select_audio_fragment(total_duration=total_duration)
+        selected_audio_path: Path | None = None
+        if audio_selection:
+            audio_path, start_time, loop_audio = audio_selection
+            selected_audio_path = audio_path
+            if loop_audio:
+                cmd += ["-stream_loop", "-1"]
+            cmd += ["-ss", f"{start_time}", "-t", f"{total_duration}", "-i", str(audio_path)]
+
+        filter_parts: list[str] = []
+        for idx in range(image_count):
+            filter_parts.append(
+                (
+                    f"[{idx}:v]scale={self._OUTPUT_WIDTH}:{self._OUTPUT_HEIGHT}"
+                    f":force_original_aspect_ratio=decrease,"
+                    f"pad={self._OUTPUT_WIDTH}:{self._OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=black,"
+                    f"fps={self._FPS},setsar=1,format=rgba[v{idx}]"
+                )
+            )
+
+        current_label = "v0"
+        offset = seconds_per_image - self._TRANSITION_SECONDS
+        for idx in range(1, image_count):
+            next_label = f"v{idx}"
+            out_label = f"vxf{idx}"
+            filter_parts.append(
+                (
+                    f"[{current_label}][{next_label}]"
+                    f"xfade=transition=fade:duration={self._TRANSITION_SECONDS}:offset={offset}"
+                    f"[{out_label}]"
+                )
+            )
+            current_label = out_label
+            offset += seconds_per_image - self._TRANSITION_SECONDS
+
+        filter_parts.append(
+            f"[{current_label}]fade=t=out:st={fade_out_start}:d={self._FADE_OUT_SECONDS},format=yuv420p[v]"
+        )
+
+        filter_complex = ";".join(filter_parts)
+
         cmd = [
-            ffmpeg_path,
-            "-y",
-            "-framerate",
-            "1",
-            "-i",
-            pattern,
+            *cmd,
+            "-filter_complex",
+            filter_complex,
+            "-map",
+            "[v]",
             "-c:v",
             "libx264",
             "-pix_fmt",
             "yuv420p",
-            str(output_path),
+            "-movflags",
+            "+faststart",
         ]
+        if audio_selection:
+            cmd += [
+                "-map",
+                f"{image_count}:a",
+                "-c:a",
+                "aac",
+                "-shortest",
+            ]
+        cmd.append(str(output_path))
         subprocess.run(cmd, cwd=str(folder), check=True, capture_output=True, text=True)
-        return output_path
+        return output_path, selected_audio_path
 
     def create_reel(
         self,
@@ -125,9 +247,14 @@ class ReelService:
         *,
         category: str,
         image_count: int,
+        seconds_per_image: float,
     ) -> ReelCreateResult:
         if image_count <= 0:
             raise ValueError("La cantidad de imágenes debe ser mayor a cero.")
+        if seconds_per_image <= 0:
+            raise ValueError("Los segundos por imagen deben ser mayores a cero.")
+        if seconds_per_image <= self._TRANSITION_SECONDS:
+            raise ValueError("Los segundos por imagen deben ser mayores a la duración de la transición.")
 
         images = self._select_unused_images(conn, category=category, image_count=image_count)
         if len(images) < image_count:
@@ -139,13 +266,21 @@ class ReelService:
         folder = self._create_reel_folder(category=category)
         copied_paths = self._copy_images(images, folder=folder)
         ext = copied_paths[0].suffix if copied_paths else ".png"
-        video_path = self._render_video(folder=folder, ext=ext, image_count=image_count)
+        video_path, audio_path = self._render_video(
+            folder=folder,
+            ext=ext,
+            image_count=image_count,
+            seconds_per_image=seconds_per_image,
+        )
 
         manifest = {
             "category": category,
             "created_at": datetime.now().isoformat(timespec="seconds"),
             "image_count": len(images),
+            "seconds_per_image": seconds_per_image,
+            "transition_seconds": self._TRANSITION_SECONDS,
             "video": video_path.name,
+            "audio": audio_path.name if audio_path else None,
             "items": [
                 {
                     "prompt_item_id": image.prompt_item_id,
