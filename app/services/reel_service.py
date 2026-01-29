@@ -43,6 +43,8 @@ class ReelService:
     _CTA_FONT_SIZE = 84
 
     def _wrap_text_two_lines(self, text: str, *, max_chars: int) -> str:
+        if "/n" in text:
+            text = text.replace("/n", "\n")
         if "\n" in text:
             lines = [line.strip() for line in text.splitlines() if line.strip()]
             if lines:
@@ -118,16 +120,10 @@ class ReelService:
         )
 
     def _build_social_text(self) -> str:
-        instagram = (settings.reel_instagram_handle or "").strip()
         x_handle = (settings.reel_x_handle or "").strip()
-        parts = []
-        if instagram:
-            parts.append(f"Instagram: {instagram}")
         if x_handle:
-            parts.append(f"X: {x_handle}")
-        if len(parts) > 1:
-            return "\n".join(parts)
-        return parts[0] if parts else "Instagram\nX"
+            return f"X: {x_handle}"
+        return "X"
 
     def _drawtext_filter(self, text: str, *, font_size: int, y_expr: str, line_spacing: int = 8) -> str:
         escaped_text = self._escape_drawtext(text)
