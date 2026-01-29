@@ -21,6 +21,7 @@ class PromptRow:
     checkpoint_refiner: str | None
     has_base: bool
     has_upscale: bool
+    used_in_reel: bool
     progress: int | None
     backend_status: str | None
     datestamp: str
@@ -232,6 +233,7 @@ def fetch_prompts(
                 title,
                 prompt_text,
                 status,
+                used_in_reel,
                 meta_json,
                 base_image_json,
                 upscale_image_json,
@@ -273,6 +275,7 @@ def fetch_prompts(
                 checkpoint_refiner=checkpoint_refiner,
                 has_base=bool(r["base_image_json"]),
                 has_upscale=bool(r["upscale_image_json"]),
+                used_in_reel=bool(r["used_in_reel"]),
                 progress=progress_value,
                 backend_status=str(job_backend_status) if job_backend_status else None,
                 datestamp=_format_datestamp(row_datestamp),
