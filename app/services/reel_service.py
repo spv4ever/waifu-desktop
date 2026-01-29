@@ -215,6 +215,8 @@ class ReelService:
             """,
             params,
         ).fetchall()
+        if rows:
+            random.shuffle(rows)
 
         selected: list[_ReelImage] = []
         for row in rows:
