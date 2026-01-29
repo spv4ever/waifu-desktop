@@ -42,6 +42,38 @@ class ReelService:
     _SOCIAL_FONT_SIZE = 60
     _CTA_FONT_SIZE = 84
 
+    def _wrap_text_two_lines(self, text: str, *, max_chars: int) -> str:
+        clean_text = " ".join(text.split())
+        if len(clean_text) <= max_chars:
+            return clean_text
+        if " | " in clean_text:
+            parts = [part.strip() for part in clean_text.split(" | ") if part.strip()]
+            if len(parts) > 1:
+                midpoint = (len(parts) + 1) // 2
+                return " | ".join(parts[:midpoint]) + "\n" + " | ".join(parts[midpoint:])
+        words = clean_text.split()
+        if len(words) <= 1:
+            return clean_text
+        line_one: list[str] = []
+        remaining = words[:]
+        while remaining:
+            next_word = remaining[0]
+            candidate = " ".join(line_one + [next_word])
+            if len(candidate) <= max_chars or not line_one:
+                line_one.append(next_word)
+                remaining.pop(0)
+                continue
+            break
+        if not remaining:
+            return " ".join(line_one)
+        return " ".join(line_one) + "\n" + " ".join(remaining)
+
+    def _format_reel_text(self, text: str, *, max_chars: int, font_size: int, reduce_by: int) -> tuple[str, int]:
+        wrapped = self._wrap_text_two_lines(text, max_chars=max_chars)
+        if "\n" in wrapped:
+            return wrapped, max(font_size - reduce_by, 12)
+        return wrapped, font_size
+
     def _select_reel_title(self, *, category_key: str) -> str | None:
         catalog = load_waifu_catalog()
         titles_config = catalog.raw.get("reel_titles", {})
@@ -70,7 +102,12 @@ class ReelService:
 
     @staticmethod
     def _escape_drawtext(text: str) -> str:
-        return text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
+        return (
+            text.replace("\n", "\\n")
+            .replace("\\", "\\\\")
+            .replace(":", "\\:")
+            .replace("'", "\\'")
+        )
 
     def _build_social_text(self) -> str:
         instagram = (settings.reel_instagram_handle or "").strip()
@@ -82,11 +119,11 @@ class ReelService:
             parts.append(f"X: {x_handle}")
         return " | ".join(parts) if parts else "Instagram | X"
 
-    def _drawtext_filter(self, text: str, *, font_size: int, y_expr: str) -> str:
+    def _drawtext_filter(self, text: str, *, font_size: int, y_expr: str, line_spacing: int = 8) -> str:
         escaped_text = self._escape_drawtext(text)
         return (
             f"drawtext=text='{escaped_text}':fontcolor=white:fontsize={font_size}:"
-            f"box=1:boxcolor=black@0.45:boxborderw=20:"
+            f"box=1:boxcolor=black@0.45:boxborderw=20:line_spacing={line_spacing}:"
             f"x=(w-text_w)/2:y={y_expr}"
         )
 
@@ -252,6 +289,27 @@ class ReelService:
             cmd += ["-ss", f"{start_time}", "-t", f"{total_duration}", "-i", str(audio_path)]
 
         social_text = self._build_social_text()
+        social_text, social_font = self._format_reel_text(
+            social_text,
+            max_chars=26,
+            font_size=self._SOCIAL_FONT_SIZE,
+            reduce_by=8,
+        )
+        cta_text, cta_font = self._format_reel_text(
+            "Follow • Reply • Like",
+            max_chars=18,
+            font_size=self._CTA_FONT_SIZE,
+            reduce_by=12,
+        )
+        title_text = None
+        title_font = self._TITLE_FONT_SIZE
+        if title:
+            title_text, title_font = self._format_reel_text(
+                title,
+                max_chars=20,
+                font_size=self._TITLE_FONT_SIZE,
+                reduce_by=8,
+            )
         filter_parts: list[str] = []
         for idx in range(image_count):
             filters = (
@@ -262,13 +320,13 @@ class ReelService:
             )
             is_last = idx == image_count - 1
             is_penultimate = idx == image_count - 2
-            if title and idx < image_count - 2:
-                filters += f",{self._drawtext_filter(title, font_size=self._TITLE_FONT_SIZE, y_expr='h*0.12')}"
+            if title_text and idx < image_count - 2:
+                filters += f",{self._drawtext_filter(title_text, font_size=title_font, y_expr='h*0.12')}"
             elif is_penultimate:
-                filters += f",{self._drawtext_filter(social_text, font_size=self._SOCIAL_FONT_SIZE, y_expr='h*0.12')}"
+                filters += f",{self._drawtext_filter(social_text, font_size=social_font, y_expr='h*0.12')}"
             if is_last:
-                filters += f",{self._drawtext_filter(social_text, font_size=self._SOCIAL_FONT_SIZE, y_expr='h*0.12')}"
-                filters += f",{self._drawtext_filter('Follow • Reply • Like', font_size=self._CTA_FONT_SIZE, y_expr='h*0.22')}"
+                filters += f",{self._drawtext_filter(social_text, font_size=social_font, y_expr='h*0.12')}"
+                filters += f",{self._drawtext_filter(cta_text, font_size=cta_font, y_expr='h*0.22')}"
             filters += ",format=rgba"
             filter_parts.append(f"{filters}[v{idx}]")
 
