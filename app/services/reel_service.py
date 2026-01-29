@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from app.config.waifu_catalog import load_waifu_catalog
 from app.config.settings import settings
 from app.services.output_paths import build_output_path
 from app.utils.path_sanitize import sanitize_relpath, sanitize_segment
@@ -36,6 +37,36 @@ class ReelService:
     _TRANSITION_SECONDS = 0.5
     _FADE_OUT_SECONDS = 0.5
     _FPS = 30
+
+    def _select_reel_title(self, *, category_key: str) -> str | None:
+        catalog = load_waifu_catalog()
+        titles_config = catalog.raw.get("reel_titles", {})
+        title_templates: list[str] = []
+        if isinstance(titles_config, list):
+            title_templates = [str(item) for item in titles_config if item]
+        elif isinstance(titles_config, dict):
+            for key in (category_key, "default"):
+                value = titles_config.get(key)
+                if isinstance(value, list):
+                    title_templates = [str(item) for item in value if item]
+                    if title_templates:
+                        break
+
+        if not title_templates:
+            return None
+
+        category_label = str(catalog.categories.get(category_key, {}).get("label", category_key)).strip()
+        if not category_label:
+            category_label = category_key
+
+        template = random.choice(title_templates)
+        if "{category}" in template:
+            return template.replace("{category}", category_label)
+        return f"{category_label} {template}".strip()
+
+    @staticmethod
+    def _escape_drawtext(text: str) -> str:
+        return text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "\\'")
 
     def _select_unused_images(
         self,
@@ -154,6 +185,7 @@ class ReelService:
         ext: str,
         image_count: int,
         seconds_per_image: float,
+        title: str | None,
     ) -> tuple[Path, Path | None]:
         ffmpeg_path = shutil.which("ffmpeg")
         if not ffmpeg_path:
@@ -186,14 +218,21 @@ class ReelService:
 
         filter_parts: list[str] = []
         for idx in range(image_count):
-            filter_parts.append(
-                (
-                    f"[{idx}:v]scale={self._OUTPUT_WIDTH}:{self._OUTPUT_HEIGHT}"
-                    f":force_original_aspect_ratio=decrease,"
-                    f"pad={self._OUTPUT_WIDTH}:{self._OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=black,"
-                    f"fps={self._FPS},setsar=1,format=rgba[v{idx}]"
-                )
+            filters = (
+                f"[{idx}:v]scale={self._OUTPUT_WIDTH}:{self._OUTPUT_HEIGHT}"
+                f":force_original_aspect_ratio=decrease,"
+                f"pad={self._OUTPUT_WIDTH}:{self._OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=black,"
+                f"fps={self._FPS},setsar=1"
             )
+            if idx == 0 and title:
+                escaped_title = self._escape_drawtext(title)
+                filters += (
+                    f",drawtext=text='{escaped_title}':fontcolor=white:fontsize=64:"
+                    f"box=1:boxcolor=black@0.45:boxborderw=20:"
+                    f"x=(w-text_w)/2:y=h*0.12"
+                )
+            filters += ",format=rgba"
+            filter_parts.append(f"{filters}[v{idx}]")
 
         current_label = "v0"
         offset = seconds_per_image - self._TRANSITION_SECONDS
@@ -214,6 +253,13 @@ class ReelService:
             f"[{current_label}]fade=t=out:st={fade_out_start}:d={self._FADE_OUT_SECONDS},format=yuv420p[v]"
         )
 
+        audio_label = None
+        if audio_selection:
+            audio_label = "a"
+            filter_parts.append(
+                f"[{image_count}:a]afade=t=out:st={fade_out_start}:d={self._FADE_OUT_SECONDS}[{audio_label}]"
+            )
+
         filter_complex = ";".join(filter_parts)
 
         cmd = [
@@ -232,7 +278,7 @@ class ReelService:
         if audio_selection:
             cmd += [
                 "-map",
-                f"{image_count}:a",
+                f"[{audio_label}]",
                 "-c:a",
                 "aac",
                 "-shortest",
@@ -266,15 +312,18 @@ class ReelService:
         folder = self._create_reel_folder(category=category)
         copied_paths = self._copy_images(images, folder=folder)
         ext = copied_paths[0].suffix if copied_paths else ".png"
+        title = self._select_reel_title(category_key=category)
         video_path, audio_path = self._render_video(
             folder=folder,
             ext=ext,
             image_count=image_count,
             seconds_per_image=seconds_per_image,
+            title=title,
         )
 
         manifest = {
             "category": category,
+            "title": title,
             "created_at": datetime.now().isoformat(timespec="seconds"),
             "image_count": len(images),
             "seconds_per_image": seconds_per_image,
