@@ -20,6 +20,7 @@ from app.services.output_paths import build_output_path
 from app.services.pack_service import PackService
 from app.services.file_open import open_file, open_folder_and_select
 from app.services.checkpoint_service import CheckpointService
+from app.services.reel_service import ReelService
 from app.domain.models import PackCreate
 from app.ui.data_source import (
     fetch_prompts,
@@ -61,6 +62,7 @@ class MainWindow(QMainWindow):
 
         self.kv = KVStore()
         self.pack_service = PackService()
+        self.reel_service = ReelService()
         self.waifu_catalog = load_waifu_catalog()
         self.app_config = load_app_config()
         self.prompt_base_window: PromptBaseWindow | None = None
@@ -296,6 +298,27 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(pack_group)
 
+        reel_group = QGroupBox("Reel Instagram")
+        reel_layout = QGridLayout(reel_group)
+        reel_layout.setHorizontalSpacing(10)
+        reel_layout.setVerticalSpacing(8)
+
+        reel_layout.addWidget(QLabel("Categoría:"), 0, 0)
+        self.reel_category_combo = QComboBox()
+        reel_layout.addWidget(self.reel_category_combo, 0, 1)
+
+        reel_layout.addWidget(QLabel("Cantidad imágenes:"), 0, 2)
+        self.reel_quantity_spin = QSpinBox()
+        self.reel_quantity_spin.setRange(1, 30)
+        self.reel_quantity_spin.setValue(5)
+        reel_layout.addWidget(self.reel_quantity_spin, 0, 3)
+
+        self.reel_generate_btn = QPushButton("Crear Reel")
+        reel_layout.addWidget(self.reel_generate_btn, 0, 4)
+        reel_layout.setColumnStretch(5, 1)
+
+        layout.addWidget(reel_group)
+
         main_content = QHBoxLayout()
         layout.addLayout(main_content, 1)
         self.main_content_layout = main_content
@@ -444,6 +467,7 @@ class MainWindow(QMainWindow):
         self.start_worker_btn.clicked.connect(self.start_worker)
         self.stop_worker_btn.clicked.connect(self.stop_worker)
         self.pack_generate_btn.clicked.connect(self.generate_pack)
+        self.reel_generate_btn.clicked.connect(self.generate_reel)
         self.limit_spin.valueChanged.connect(self.refresh)
         self.pause_between_spin.valueChanged.connect(self._update_worker_delay)
         self.prompt_id_input.textChanged.connect(self.refresh)
@@ -673,6 +697,21 @@ class MainWindow(QMainWindow):
         if self.pack_category_combo.count() == 0:
             self.pack_generate_btn.setEnabled(False)
 
+        self._populate_reel_selectors()
+
+    def _populate_reel_selectors(self) -> None:
+        self.reel_category_combo.clear()
+        for key, data in self.waifu_catalog.categories.items():
+            if not isinstance(data, dict):
+                continue
+            if not data.get("enabled", True):
+                continue
+            label = str(data.get("label", key))
+            kind = str(data.get("kind", "category"))
+            if kind == "character":
+                label = f"{label} [Personaje]"
+            self.reel_category_combo.addItem(label, key)
+
     def _update_nsfw_controls(self) -> None:
         combination_key = self.pack_combination_combo.currentData()
         is_nsfw = combination_key == "nsfw"
@@ -741,6 +780,32 @@ class MainWindow(QMainWindow):
             self,
             "Generar Pack",
             f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} items.",
+        )
+
+    def generate_reel(self) -> None:
+        category = self.reel_category_combo.currentData()
+        quantity = int(self.reel_quantity_spin.value())
+
+        if not category:
+            QMessageBox.warning(self, "Reel Instagram", "Selecciona una categoría.")
+            return
+
+        try:
+            with get_connection() as conn:
+                with conn:
+                    result = self.reel_service.create_reel(
+                        conn,
+                        category=str(category),
+                        image_count=quantity,
+                    )
+        except Exception as exc:
+            QMessageBox.critical(self, "Reel Instagram", str(exc))
+            return
+
+        QMessageBox.information(
+            self,
+            "Reel Instagram",
+            f"Reel creado en {result.folder} con {result.image_count} imágenes.",
         )
 
     # -------- Preview helpers --------

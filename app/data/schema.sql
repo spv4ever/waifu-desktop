@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS prompt_item (
   meta_json       TEXT, -- JSON serializado (seed, width, height, mods, etc.)
   combo_key       TEXT NOT NULL, -- referencia a combo_registry
   status          TEXT NOT NULL DEFAULT 'CREATED', -- CREATED | QUEUED | SENT | DONE | FAILED
+  used_in_reel    INTEGER NOT NULL DEFAULT 0,
   created_at      TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
 
