@@ -43,6 +43,13 @@ class ReelService:
     _CTA_FONT_SIZE = 84
 
     def _wrap_text_two_lines(self, text: str, *, max_chars: int) -> str:
+        if "\n" in text:
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            if lines:
+                if len(lines) == 1:
+                    text = lines[0]
+                else:
+                    return "\n".join(lines[:2])
         clean_text = " ".join(text.split())
         if len(clean_text) <= max_chars:
             return clean_text
@@ -300,7 +307,7 @@ class ReelService:
         )
         cta_text, cta_font = self._format_reel_text(
             "Follow • Reply • Like",
-            max_chars=14,
+            max_chars=24,
             font_size=self._CTA_FONT_SIZE,
             reduce_by=16,
         )
