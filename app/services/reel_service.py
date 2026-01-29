@@ -281,7 +281,8 @@ class ReelService:
         if audio_selection:
             audio_label = "a"
             filter_parts.append(
-                f"[{image_count}:a]afade=t=out:st={fade_out_start}:d={self._FADE_OUT_SECONDS}[{audio_label}]"
+                f"[{image_count}:a]volume=0.5,"
+                f"afade=t=out:st={fade_out_start}:d={self._FADE_OUT_SECONDS}[{audio_label}]"
             )
 
         filter_complex = ";".join(filter_parts)
