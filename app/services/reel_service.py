@@ -40,6 +40,8 @@ class ReelService:
     _TRANSITION_SECONDS = 0.5
     _FADE_OUT_SECONDS = 0.5
     _FPS = 30
+    _ZOOM_MAX = 1.06
+    _ZOOM_STEP = 0.0006
     _TITLE_FONT_SIZE = 64
     _SOCIAL_FONT_SIZE = 60
     _CTA_FONT_SIZE = 84
@@ -427,12 +429,19 @@ class ReelService:
 
         # ====== FILTER GRAPH ======
         filter_parts: list[str] = []
+        frames_per_image = max(int(round(seconds_per_image * self._FPS)), 1)
         for idx in range(image_count):
+            zoom_in = idx % 2 == 0
+            if zoom_in:
+                zoom_expr = f"if(eq(on,0),1.0,min(zoom+{self._ZOOM_STEP},{self._ZOOM_MAX}))"
+            else:
+                zoom_expr = f"if(eq(on,0),{self._ZOOM_MAX},max(zoom-{self._ZOOM_STEP},1.0))"
             filters = (
                 f"[{idx}:v]scale={self._OUTPUT_WIDTH}:{self._OUTPUT_HEIGHT}"
                 f":force_original_aspect_ratio=decrease,"
                 f"pad={self._OUTPUT_WIDTH}:{self._OUTPUT_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=black,"
-                f"fps={self._FPS},setsar=1"
+                f"setsar=1,"
+                f"zoompan=z='{zoom_expr}':d={frames_per_image}:s={self._OUTPUT_WIDTH}x{self._OUTPUT_HEIGHT}:fps={self._FPS}"
             )
             is_last = idx == image_count - 1
             is_penultimate = idx == image_count - 2
