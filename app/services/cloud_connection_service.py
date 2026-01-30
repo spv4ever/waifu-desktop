@@ -26,6 +26,8 @@ def check_mongodb_connection() -> CloudConnectionResult:
         client = MongoClient(
             settings.mongodb_uri,
             serverSelectionTimeoutMS=settings.mongodb_server_selection_timeout_ms,
+            connectTimeoutMS=settings.mongodb_connect_timeout_ms,
+            socketTimeoutMS=settings.mongodb_socket_timeout_ms,
         )
         client.admin.command("ping")
         if settings.mongodb_db:

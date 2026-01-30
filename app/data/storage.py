@@ -3,10 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 import json
+import time
 from typing import Any, Iterable
 
 from pymongo import MongoClient, ReturnDocument
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from app.config.settings import settings
 from app.data.db import get_connection
@@ -43,13 +44,39 @@ def _now_str() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+_mongo_unavailable_until: float = 0.0
+
+
+def _mark_mongo_unavailable(cooldown_seconds: float = 30.0) -> None:
+    global _mongo_unavailable_until
+    _mongo_unavailable_until = time.monotonic() + cooldown_seconds
+
+
+def _mongo_is_available() -> bool:
+    return time.monotonic() >= _mongo_unavailable_until
+
+
 def get_store() -> "BaseStore":
     mode = (settings.data_backend_mode or StorageMode.LOCAL).strip().lower()
     read_pref = (settings.data_backend_read or StorageMode.LOCAL).strip().lower()
     if mode == StorageMode.MONGO:
-        return MongoStore()
+        if not _mongo_is_available():
+            return SQLiteStore()
+        try:
+            return MongoStore()
+        except (RuntimeError, PyMongoError) as exc:
+            _mark_mongo_unavailable()
+            print(f"[storage] MongoDB no disponible, usando SQLite: {exc}")
+            return SQLiteStore()
     if mode == StorageMode.DUAL:
-        return DualStore(read_pref=read_pref)
+        if not _mongo_is_available():
+            return SQLiteStore()
+        try:
+            return DualStore(read_pref=read_pref)
+        except (RuntimeError, PyMongoError) as exc:
+            _mark_mongo_unavailable()
+            print(f"[storage] MongoDB no disponible, usando SQLite: {exc}")
+            return SQLiteStore()
     return SQLiteStore()
 
 
@@ -792,12 +819,24 @@ class MongoStore(BaseStore):
     def __init__(self) -> None:
         if not settings.mongodb_uri:
             raise RuntimeError("MONGODB_URI no está configurado para usar MongoDB")
-        self._client = MongoClient(
-            settings.mongodb_uri,
-            serverSelectionTimeoutMS=settings.mongodb_server_selection_timeout_ms,
-        )
-        self._db = self._client[settings.mongodb_db]
-        self._ensure_indexes()
+        self._client: MongoClient | None = None
+        try:
+            self._client = MongoClient(
+                settings.mongodb_uri,
+                serverSelectionTimeoutMS=settings.mongodb_server_selection_timeout_ms,
+                connectTimeoutMS=settings.mongodb_connect_timeout_ms,
+                socketTimeoutMS=settings.mongodb_socket_timeout_ms,
+            )
+            self._client.admin.command("ping")
+            self._db = self._client[settings.mongodb_db]
+            self._ensure_indexes()
+        except PyMongoError as exc:
+            if self._client is not None:
+                try:
+                    self._client.close()
+                except PyMongoError:
+                    pass
+            raise RuntimeError(f"No se pudo conectar a MongoDB: {exc}") from exc
 
     def _collection(self, name: str):
         return self._db[name]
