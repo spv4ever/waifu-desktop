@@ -604,17 +604,17 @@ class MainWindow(QMainWindow):
 
     def _clear_refresh_worker(self) -> None:
         self._refresh_worker = None
+        if self._refresh_pending:
+            self._refresh_pending = False
+            resize_columns = self._refresh_resize_columns
+            self._refresh_resize_columns = False
+            self._start_refresh(resize_columns=resize_columns)
 
     def _on_refresh_failed(self, message: str) -> None:
         QMessageBox.warning(self, "Error de refresco", message)
 
     def _on_refresh_result(self, payload: RefreshPayload) -> None:
         self._apply_refresh_result(payload)
-        if self._refresh_pending:
-            self._refresh_pending = False
-            resize_columns = self._refresh_resize_columns
-            self._refresh_resize_columns = False
-            self._start_refresh(resize_columns=resize_columns)
 
     def _apply_refresh_result(self, payload: RefreshPayload) -> None:
         data = payload.rows
