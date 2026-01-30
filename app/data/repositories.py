@@ -24,6 +24,14 @@ class PromptBaseRow:
     enabled: bool
 
 
+@dataclass(frozen=True)
+class PromptVariationRow:
+    group_key: str
+    value: str
+    position: int
+    enabled: bool
+
+
 class PackRepository:
     def create(self, conn: sqlite3.Connection, *, category: str, variant: str, requested_n: int, notes: str) -> int:
         cur = conn.execute(
@@ -167,6 +175,51 @@ class PromptVariationRepository:
             (group_key, 1 if include_disabled else 0),
         ).fetchall()
         return [str(r["value"]) for r in rows]
+
+    def list_rows(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        group_key: str,
+        include_disabled: bool = False,
+    ) -> list[PromptVariationRow]:
+        rows = conn.execute(
+            """
+            SELECT group_key, value, position, enabled
+            FROM prompt_variation
+            WHERE group_key = ?
+              AND (? = 1 OR enabled = 1)
+            ORDER BY position, id
+            """,
+            (group_key, 1 if include_disabled else 0),
+        ).fetchall()
+
+        return [
+            PromptVariationRow(
+                group_key=str(row["group_key"]),
+                value=str(row["value"]),
+                position=int(row["position"]),
+                enabled=bool(row["enabled"]),
+            )
+            for row in rows
+        ]
+
+    def list_groups(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        include_disabled: bool = False,
+    ) -> list[str]:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT group_key
+            FROM prompt_variation
+            WHERE (? = 1 OR enabled = 1)
+            ORDER BY group_key
+            """,
+            (1 if include_disabled else 0,),
+        ).fetchall()
+        return [str(row["group_key"]) for row in rows]
 
     def upsert(
         self,
