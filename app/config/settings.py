@@ -33,8 +33,10 @@ class Settings:
     mongodb_uri: str = os.getenv("MONGODB_URI", "")
     mongodb_db: str = os.getenv("MONGODB_DB", "waifu_desktop")
     mongodb_server_selection_timeout_ms: int = int(
-        os.getenv("MONGODB_SERVER_SELECTION_TIMEOUT_MS", "5000")
+        os.getenv("MONGODB_SERVER_SELECTION_TIMEOUT_MS", "1500")
     )
+    mongodb_connect_timeout_ms: int = int(os.getenv("MONGODB_CONNECT_TIMEOUT_MS", "1500"))
+    mongodb_socket_timeout_ms: int = int(os.getenv("MONGODB_SOCKET_TIMEOUT_MS", "1500"))
 
     # Backend de datos: local (sqlite), mongo (atlas/local), dual (ambos)
     data_backend_mode: str = os.getenv("DATA_BACKEND_MODE", "local")
