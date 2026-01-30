@@ -811,10 +811,23 @@ class MongoStore(BaseStore):
         self._collection("queue_job").create_index([("prompt_item_id", 1), ("created_at", -1)])
 
     def _next_sequence(self, name: str) -> int:
-        doc = self._collection("counters").find_one_and_update(
+        counters = self._collection("counters")
+        max_id = 0
+        max_doc = self._collection(name).find_one(sort=[("_id", -1)], projection={"_id": 1})
+        if max_doc and max_doc.get("_id") is not None:
+            max_id = int(max_doc["_id"])
+
+        doc = counters.find_one({"_id": name}, {"seq": 1})
+        if doc is None:
+            counters.insert_one({"_id": name, "seq": max_id})
+        else:
+            current_seq = int(doc.get("seq", 0))
+            if current_seq < max_id:
+                counters.update_one({"_id": name}, {"$set": {"seq": max_id}})
+
+        doc = counters.find_one_and_update(
             {"_id": name},
             {"$inc": {"seq": 1}},
-            upsert=True,
             return_document=ReturnDocument.AFTER,
         )
         return int(doc["seq"])
