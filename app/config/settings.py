@@ -29,5 +29,12 @@ class Settings:
     reel_instagram_handle: str = os.getenv("REEL_INSTAGRAM_HANDLE", "@yourinstagram")
     reel_x_handle: str = os.getenv("REEL_X_HANDLE", "@yourx")
 
+    # MongoDB (desde .env)
+    mongodb_uri: str = os.getenv("MONGODB_URI", "")
+    mongodb_db: str = os.getenv("MONGODB_DB", "waifu_desktop")
+    mongodb_server_selection_timeout_ms: int = int(
+        os.getenv("MONGODB_SERVER_SELECTION_TIMEOUT_MS", "5000")
+    )
+
 
 settings = Settings()

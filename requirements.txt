@@ -1,6 +1,7 @@
 PySide6>=6.6
 requests>=2.31
 PyYAML>=6.0.1
+pymongo>=4.7
 
 # Dev / tests
 pytest>=8.0
@@ -8,4 +9,3 @@ pytest>=8.0
 python-dotenv>=1.0.1
 
 PySide6>=6.6.0
-

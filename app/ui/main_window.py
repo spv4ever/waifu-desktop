@@ -21,6 +21,7 @@ from app.services.pack_service import PackService
 from app.services.file_open import open_file, open_folder_and_select
 from app.services.checkpoint_service import CheckpointService
 from app.services.reel_service import ReelService
+from app.services.cloud_connection_service import check_mongodb_connection
 from app.domain.models import PackCreate
 from app.ui.data_source import (
     fetch_prompts,
@@ -112,6 +113,8 @@ class MainWindow(QMainWindow):
 
         self.open_prompt_base_action = maintenance_menu.addAction("Categorías y personajes")
         self.open_prompt_base_action.triggered.connect(self.open_prompt_base_window)
+        self.check_cloud_action = maintenance_menu.addAction("Revisar conexión cloud")
+        self.check_cloud_action.triggered.connect(self.check_cloud_connection)
 
         header = QHBoxLayout()
         title_stack = QVBoxLayout()
@@ -673,6 +676,13 @@ class MainWindow(QMainWindow):
         window.destroyed.connect(self._clear_prompt_base_window)
         self.prompt_base_window = window
         window.show()
+
+    def check_cloud_connection(self) -> None:
+        result = check_mongodb_connection()
+        if result.ok:
+            QMessageBox.information(self, "Conexión cloud", result.message)
+            return
+        QMessageBox.warning(self, "Conexión cloud", result.message)
 
     def _clear_prompt_base_window(self) -> None:
         self.prompt_base_window = None
