@@ -87,6 +87,18 @@ class PromptVariationWindow(QMainWindow):
         group_layout.addLayout(action_row)
 
         layout.addWidget(group_box)
+
+        info_box = QGroupBox("Cómo se arma el prompt")
+        info_layout = QVBoxLayout(info_box)
+        info_label = QLabel(
+            "Se concatena la combinación (si aplica), el prompt base de la categoría/personaje y el sujeto base. "
+            "Luego se agregan rasgos (rostro/ojos/pelo), outfit (top/bottom/vestido/extra/calzado), pose, fondo "
+            "(se omite en personajes), iluminación, cámara y mood. Finalmente se añaden tags de calidad. "
+            "Los campos vacíos se omiten automáticamente."
+        )
+        info_label.setWordWrap(True)
+        info_layout.addWidget(info_label)
+        layout.addWidget(info_box)
         layout.addStretch(1)
 
         self.group_combo.currentIndexChanged.connect(self._on_group_changed)
