@@ -29,6 +29,7 @@ from app.ui.data_source import (
     fetch_variants_for_category,
 )
 from app.ui.worker_thread import WorkerThread
+from app.ui.refresh_worker import RefreshWorker, RefreshPayload
 from app.ui.clickable_label import ClickableLabel
 from app.ui.image_viewer import ImageViewer
 from app.ui.prompt_base_window import PromptBaseWindow
@@ -73,6 +74,11 @@ class MainWindow(QMainWindow):
         self._refresh_timer.setSingleShot(True)
         self._refresh_timer.timeout.connect(self._run_scheduled_refresh)
         self._refresh_resize_columns = False
+        self._refresh_worker: RefreshWorker | None = None
+        self._refresh_pending = False
+        self._cached_filters: dict[str, list[str]] | None = None
+        self._cached_status_counts: dict[str, int] | None = None
+        self._cached_category_counts: list[tuple[str, int]] | None = None
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -546,36 +552,68 @@ class MainWindow(QMainWindow):
     def _run_scheduled_refresh(self) -> None:
         resize_columns = self._refresh_resize_columns
         self._refresh_resize_columns = False
-        self._refresh_table(resize_columns=resize_columns)
+        self._start_refresh(resize_columns=resize_columns)
 
     def refresh(self) -> None:
-        self._refresh_table(resize_columns=True)
+        self._start_refresh(resize_columns=True)
 
-    def _refresh_table(self, *, resize_columns: bool) -> None:
-        limit = int(self.limit_spin.value())
-        prompt_id = self._selected_prompt_id_filter()
-        category = self._selected_filter_value(self.filter_category_combo)
-        variant = self._selected_filter_value(self.filter_variant_combo)
-        status = self._selected_filter_value(self.filter_status_combo)
-        ratio = self._selected_filter_value(self.filter_ratio_combo)
-        checkpoint_base = self._selected_filter_value(self.filter_checkpoint_base_combo)
-        date_from = self._selected_datetime_value(self.filter_from_datetime)
-        date_to = self._selected_datetime_value(self.filter_to_datetime)
-        sort_order = self._selected_sort_order()
+    def _collect_refresh_params(self) -> dict[str, object]:
+        return {
+            "limit": int(self.limit_spin.value()),
+            "prompt_id": self._selected_prompt_id_filter(),
+            "category": self._selected_filter_value(self.filter_category_combo),
+            "variant": self._selected_filter_value(self.filter_variant_combo),
+            "status": self._selected_filter_value(self.filter_status_combo),
+            "ratio": self._selected_filter_value(self.filter_ratio_combo),
+            "checkpoint_base": self._selected_filter_value(self.filter_checkpoint_base_combo),
+            "date_from": self._selected_datetime_value(self.filter_from_datetime),
+            "date_to": self._selected_datetime_value(self.filter_to_datetime),
+            "sort_order": self._selected_sort_order(),
+        }
 
-        data = fetch_prompts(
-            limit=limit,
-            prompt_id=prompt_id,
-            category=category,
-            variant=variant,
-            status=status,
-            ratio=ratio,
-            checkpoint_base=checkpoint_base,
-            date_from=date_from,
-            date_to=date_to,
-            sort_order=sort_order,
+    def _start_refresh(self, *, resize_columns: bool) -> None:
+        if self._refresh_worker and self._refresh_worker.isRunning():
+            self._refresh_pending = True
+            if resize_columns:
+                self._refresh_resize_columns = True
+            return
+
+        params = self._collect_refresh_params()
+        worker = RefreshWorker(
+            limit=int(params["limit"]),
+            prompt_id=params["prompt_id"],
+            category=params["category"],
+            variant=params["variant"],
+            status=params["status"],
+            ratio=params["ratio"],
+            checkpoint_base=params["checkpoint_base"],
+            date_from=params["date_from"],
+            date_to=params["date_to"],
+            sort_order=str(params["sort_order"]),
+            resize_columns=resize_columns,
         )
+        worker.result.connect(self._on_refresh_result)
+        worker.failed.connect(self._on_refresh_failed)
+        worker.finished.connect(self._clear_refresh_worker)
+        self._refresh_worker = worker
+        worker.start()
 
+    def _clear_refresh_worker(self) -> None:
+        self._refresh_worker = None
+
+    def _on_refresh_failed(self, message: str) -> None:
+        QMessageBox.warning(self, "Error de refresco", message)
+
+    def _on_refresh_result(self, payload: RefreshPayload) -> None:
+        self._apply_refresh_result(payload)
+        if self._refresh_pending:
+            self._refresh_pending = False
+            resize_columns = self._refresh_resize_columns
+            self._refresh_resize_columns = False
+            self._start_refresh(resize_columns=resize_columns)
+
+    def _apply_refresh_result(self, payload: RefreshPayload) -> None:
+        data = payload.rows
         self.table.setRowCount(len(data))
         for i, row in enumerate(data):
             id_item = QTableWidgetItem(str(row.id))
@@ -594,19 +632,20 @@ class MainWindow(QMainWindow):
             self.table.setItem(i, 10, QTableWidgetItem(row.checkpoint_base or "—"))
             self.table.setItem(i, 11, QTableWidgetItem(row.checkpoint_refiner or "—"))
 
-        if resize_columns:
+        if payload.resize_columns:
             self.table.resizeColumnsToContents()
 
         # Recalcular botones + preview tras refrescar
         self.update_actions_state()
 
-        self._refresh_filters()
-        self._refresh_status_counts()
-        self._refresh_category_production_counts()
+        self._cached_filters = payload.filters
+        self._cached_status_counts = payload.status_counts
+        self._cached_category_counts = payload.category_counts
+        self._refresh_filters(filters=payload.filters)
+        self._refresh_status_counts(counts=payload.status_counts)
+        self._refresh_category_production_counts(counts=payload.category_counts)
 
-        paused = self.store.kv_get("queue_paused", "false")
-
-        is_paused = paused == "true"
+        is_paused = payload.is_paused
         self.pause_action.setEnabled(not is_paused)
         self.resume_action.setEnabled(is_paused)
 
@@ -1188,8 +1227,8 @@ class MainWindow(QMainWindow):
         if idx >= 0:
             combo.setCurrentIndex(idx)
 
-    def _refresh_filters(self) -> None:
-        filters = fetch_prompt_filters()
+    def _refresh_filters(self, *, filters: dict[str, list[str]] | None = None) -> None:
+        filters = filters or fetch_prompt_filters()
         self._populate_filter_combo(self.filter_category_combo, "Categoría", filters["categories"])
         self._populate_filter_combo(self.filter_variant_combo, "Versión", filters["variants"])
         self._populate_filter_combo(self.filter_status_combo, "Estado", filters["statuses"])
@@ -1213,8 +1252,8 @@ class MainWindow(QMainWindow):
                 combo.setCurrentIndex(idx)
         combo.blockSignals(False)
 
-    def _refresh_status_counts(self) -> None:
-        counts = fetch_prompt_status_counts()
+    def _refresh_status_counts(self, *, counts: dict[str, int] | None = None) -> None:
+        counts = counts or fetch_prompt_status_counts()
         self.status_total_label.setText(f"Total: {counts.get('TOTAL', 0)}")
         self.status_created_label.setText(f"CREATED: {counts.get('CREATED', 0)}")
         self.status_queued_label.setText(f"QUEUED: {counts.get('QUEUED', 0)}")
@@ -1222,8 +1261,12 @@ class MainWindow(QMainWindow):
         self.status_done_label.setText(f"DONE: {counts.get('DONE', 0)}")
         self.status_failed_label.setText(f"FAILED: {counts.get('FAILED', 0)}")
 
-    def _refresh_category_production_counts(self) -> None:
-        counts = fetch_category_production_counts()
+    def _refresh_category_production_counts(
+        self,
+        *,
+        counts: list[tuple[str, int]] | None = None,
+    ) -> None:
+        counts = counts or self._cached_category_counts or fetch_category_production_counts()
         self.category_production_table.setRowCount(0)
         if not counts:
             self.category_production_table.setRowCount(1)
