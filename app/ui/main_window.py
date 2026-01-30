@@ -310,6 +310,11 @@ class MainWindow(QMainWindow):
         pack_layout.addWidget(self.pack_generate_btn, 1, 6, 1, 2)
         pack_layout.setColumnStretch(8, 1)
 
+        pack_layout.addWidget(QLabel("Característica extra:"), 2, 0)
+        self.pack_manual_feature_input = QLineEdit()
+        self.pack_manual_feature_input.setPlaceholderText("Añade una característica común para todo el pack")
+        pack_layout.addWidget(self.pack_manual_feature_input, 2, 1, 1, 7)
+
         layout.addWidget(pack_group)
 
         reel_group = QGroupBox("Reel Instagram")
@@ -858,6 +863,7 @@ class MainWindow(QMainWindow):
         checkpoint_base = self.pack_checkpoint_base_combo.currentData()
         checkpoint_refiner = self.pack_checkpoint_refiner_combo.currentData()
         combination_key = self.pack_combination_combo.currentData()
+        manual_feature = self.pack_manual_feature_input.text().strip()
         nsfw_tag_count = None
         if combination_key == "nsfw":
             nsfw_tag_count = int(self.pack_nsfw_tag_spin.value())
@@ -870,6 +876,7 @@ class MainWindow(QMainWindow):
             category=str(category),
             variant=str(variant),
             requested_n=quantity,
+            manual_feature=manual_feature,
             checkpoint_base=str(checkpoint_base) if checkpoint_base else None,
             checkpoint_refiner=str(checkpoint_refiner) if checkpoint_refiner else None,
             combination_key=str(combination_key) if combination_key else None,

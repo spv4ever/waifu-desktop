@@ -10,6 +10,7 @@ class PackCreate:
     variant: str
     requested_n: int
     notes: str = ""
+    manual_feature: str = ""
     checkpoint_base: Optional[str] = None
     checkpoint_refiner: Optional[str] = None
     combination_key: Optional[str] = None

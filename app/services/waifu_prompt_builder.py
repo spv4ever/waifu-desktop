@@ -26,6 +26,7 @@ def _sig_from_combo(combo: dict[str, Any]) -> str:
         "category", "variant", "ratio_key", "ratio_tag",
         "combination_key",
         "combination_prompt",
+        "manual_prompt",
         "base_subject",
         "face_features", "eye_style",
         "hair_color", "hair_style", "hair_detail",
@@ -111,6 +112,7 @@ def build_unique_prompts(
     count: int,
     combination_key: str | None = None,
     nsfw_tag_count: int | None = None,
+    manual_prompt: str | None = None,
     rng_seed: int | None = None,
     used_signatures: set[str] | None = None,
 ) -> list[BuiltPrompt]:
@@ -127,6 +129,7 @@ def build_unique_prompts(
 
     allowed_ratios = list(cat.get("allowed_ratios") or ["1:1"])
     base_prompt = str(cat.get("base_prompt", "")).strip()
+    manual_prompt_text = str(manual_prompt or "").strip()
     kind = str(cat.get("kind", "category"))
     is_character = kind == "character"
 
@@ -290,6 +293,7 @@ def build_unique_prompts(
             "variant": variant,
             "combination_key": combination_key,
             "combination_prompt": combination_prompt,
+            "manual_prompt": manual_prompt_text,
             "ratio_key": ratio_key,
             "ratio_tag": ratio_tag,
             "width": ratio_w,
@@ -336,6 +340,7 @@ def build_unique_prompts(
         prompt_parts = [
             combination_prompt,
             base_prompt,
+            manual_prompt_text,
             base_subject,
             face_features,
             eye_style,
