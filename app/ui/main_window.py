@@ -1136,9 +1136,19 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:
         try:
+            if self._refresh_timer.isActive():
+                self._refresh_timer.stop()
+            if self._refresh_worker and self._refresh_worker.isRunning():
+                self._refresh_worker.wait(2000)
+                if self._refresh_worker.isRunning():
+                    self._refresh_worker.terminate()
+                    self._refresh_worker.wait(1000)
             if self.worker_thread and self.worker_thread.isRunning():
                 self.worker_thread.stop()
                 self.worker_thread.wait(2000)
+                if self.worker_thread.isRunning():
+                    self.worker_thread.terminate()
+                    self.worker_thread.wait(1000)
         finally:
             super().closeEvent(event)
 
