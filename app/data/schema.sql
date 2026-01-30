@@ -93,6 +93,21 @@ CREATE TABLE IF NOT EXISTS prompt_base (
 CREATE INDEX IF NOT EXISTS idx_prompt_base_kind_enabled
 ON prompt_base(kind, enabled);
 
+-- 7) Variaciones de prompts (identidad, cámara, mood, etc.)
+CREATE TABLE IF NOT EXISTS prompt_variation (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_key   TEXT NOT NULL,
+  value       TEXT NOT NULL,
+  position    INTEGER NOT NULL DEFAULT 0,
+  enabled     INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(group_key, value)
+);
+
+CREATE INDEX IF NOT EXISTS idx_prompt_variation_group
+ON prompt_variation(group_key, enabled, position);
+
 -- Trigger para updated_at en queue_job
 CREATE TRIGGER IF NOT EXISTS trg_queue_job_updated_at
 AFTER UPDATE ON queue_job
@@ -107,4 +122,12 @@ AFTER UPDATE ON prompt_base
 FOR EACH ROW
 BEGIN
   UPDATE prompt_base SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
+
+-- Trigger para updated_at en prompt_variation
+CREATE TRIGGER IF NOT EXISTS trg_prompt_variation_updated_at
+AFTER UPDATE ON prompt_variation
+FOR EACH ROW
+BEGIN
+  UPDATE prompt_variation SET updated_at = datetime('now') WHERE id = NEW.id;
 END;

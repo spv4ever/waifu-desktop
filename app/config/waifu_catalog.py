@@ -56,6 +56,7 @@ def load_waifu_catalog(path: str | Path = "resources/config/waifu_catalog.yaml")
         raise ValueError("waifu_catalog.yaml inválido: se esperaba un dict raíz")
     store = get_store()
     store.ensure_prompt_base_seeded(data.get("categories", {}))
+    store.ensure_prompt_variations_seeded(data)
     bases = store.list_prompt_bases(include_disabled=False)
 
     categories: dict[str, Any] = {}
@@ -70,4 +71,5 @@ def load_waifu_catalog(path: str | Path = "resources/config/waifu_catalog.yaml")
 
     data = dict(data)
     data["categories"] = categories
+    data.update(store.fetch_prompt_variations_tree())
     return WaifuCatalog(raw=data)

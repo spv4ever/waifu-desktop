@@ -100,3 +100,36 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         END;
         """
     )
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS prompt_variation (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_key   TEXT NOT NULL,
+          value       TEXT NOT NULL,
+          position    INTEGER NOT NULL DEFAULT 0,
+          enabled     INTEGER NOT NULL DEFAULT 1,
+          created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE(group_key, value)
+        );
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_prompt_variation_group
+        ON prompt_variation(group_key, enabled, position);
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_prompt_variation_updated_at
+        AFTER UPDATE ON prompt_variation
+        FOR EACH ROW
+        BEGIN
+          UPDATE prompt_variation SET updated_at = datetime('now') WHERE id = NEW.id;
+        END;
+        """
+    )

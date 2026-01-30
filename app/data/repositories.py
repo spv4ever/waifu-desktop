@@ -148,6 +148,71 @@ class PromptBaseRepository:
         return inserted
 
 
+class PromptVariationRepository:
+    def list(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        group_key: str,
+        include_disabled: bool = False,
+    ) -> list[str]:
+        rows = conn.execute(
+            """
+            SELECT value
+            FROM prompt_variation
+            WHERE group_key = ?
+              AND (? = 1 OR enabled = 1)
+            ORDER BY position, id
+            """,
+            (group_key, 1 if include_disabled else 0),
+        ).fetchall()
+        return [str(r["value"]) for r in rows]
+
+    def upsert(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        group_key: str,
+        value: str,
+        position: int,
+        enabled: bool = True,
+    ) -> None:
+        conn.execute(
+            """
+            INSERT INTO prompt_variation (group_key, value, position, enabled)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(group_key, value) DO UPDATE SET
+                position = excluded.position,
+                enabled = excluded.enabled,
+                updated_at = datetime('now')
+            """,
+            (group_key, value, position, 1 if enabled else 0),
+        )
+
+    def ensure_seeded(self, conn: sqlite3.Connection, groups: dict[str, list[str]]) -> int:
+        row = conn.execute("SELECT COUNT(*) AS n FROM prompt_variation").fetchone()
+        if row and int(row["n"]) > 0:
+            return 0
+
+        inserted = 0
+        for group_key, values in (groups or {}).items():
+            if not values:
+                continue
+            for position, value in enumerate(values):
+                cleaned = str(value).strip()
+                if not cleaned:
+                    continue
+                self.upsert(
+                    conn,
+                    group_key=str(group_key),
+                    value=cleaned,
+                    position=position,
+                    enabled=True,
+                )
+                inserted += 1
+        return inserted
+
+
 class PromptItemRepository:
     def create(
         self,
