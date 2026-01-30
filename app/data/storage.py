@@ -12,6 +12,8 @@ from app.data.repositories import (
     PromptBaseRepository,
     PromptBaseRow,
     PromptItemRepository,
+    SocialCopyRepository,
+    SocialCopyRow,
     PromptVariationRow,
     PromptVariationRepository,
     QueueRepository,
@@ -269,6 +271,25 @@ class BaseStore:
     def mark_prompt_items_used_in_reel(self, prompt_item_ids: list[int]) -> None:
         raise NotImplementedError
 
+    def list_social_copies(self, *, include_disabled: bool = False) -> list[SocialCopyRow]:
+        raise NotImplementedError
+
+    def save_social_copy(
+        self,
+        *,
+        copy_id: int | None,
+        text: str,
+        hashtags: str,
+        enabled: bool,
+    ) -> int:
+        raise NotImplementedError
+
+    def delete_social_copy(self, *, copy_id: int) -> None:
+        raise NotImplementedError
+
+    def ensure_social_copies_seeded(self, copies: list[dict[str, str]]) -> int:
+        raise NotImplementedError
+
 
 class SQLiteStore(BaseStore):
     def __init__(self) -> None:
@@ -278,6 +299,7 @@ class SQLiteStore(BaseStore):
         self._queue = QueueRepository()
         self._prompt_base = PromptBaseRepository()
         self._variations = PromptVariationRepository()
+        self._social_copies = SocialCopyRepository()
         self._kv = KVStore()
 
     def fetch_prompt_filters(self) -> dict[str, list[str]]:
@@ -915,3 +937,33 @@ class SQLiteStore(BaseStore):
                     f"UPDATE prompt_item SET used_in_reel = 1 WHERE id IN ({placeholders})",
                     prompt_item_ids,
                 )
+
+    def list_social_copies(self, *, include_disabled: bool = False) -> list[SocialCopyRow]:
+        with get_connection() as conn:
+            return self._social_copies.list(conn, include_disabled=include_disabled)
+
+    def save_social_copy(
+        self,
+        *,
+        copy_id: int | None,
+        text: str,
+        hashtags: str,
+        enabled: bool,
+    ) -> int:
+        with get_connection() as conn:
+            return self._social_copies.save(
+                conn,
+                copy_id=copy_id,
+                text=text,
+                hashtags=hashtags,
+                enabled=enabled,
+            )
+
+    def delete_social_copy(self, *, copy_id: int) -> None:
+        with get_connection() as conn:
+            self._social_copies.delete(conn, copy_id=copy_id)
+
+    def ensure_social_copies_seeded(self, copies: list[dict[str, str]]) -> int:
+        with get_connection() as conn:
+            with conn:
+                return self._social_copies.ensure_seeded(conn, copies)

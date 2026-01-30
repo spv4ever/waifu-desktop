@@ -28,5 +28,6 @@ class Settings:
     # Reel social handles (desde .env)
     reel_instagram_handle: str = os.getenv("REEL_INSTAGRAM_HANDLE", "@yourinstagram")
     reel_x_handle: str = os.getenv("REEL_X_HANDLE", "@yourx")
+    reel_library_name: str = os.getenv("REEL_LIBRARY_NAME", "Biblioteca Waifu")
 
 settings = Settings()

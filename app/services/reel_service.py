@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from app.config.social_copies import load_social_copies
 from app.config.waifu_catalog import load_waifu_catalog
 from app.config.settings import settings
 from app.data.storage import get_store
@@ -159,6 +160,65 @@ class ReelService:
             return template.replace("{category}", category_label)
         return f"{category_label} {template}".strip()
 
+    def _format_social_template(
+        self,
+        template: str,
+        *,
+        library_name: str,
+        character_name: str,
+        category_label: str,
+    ) -> str:
+        return (
+            template.replace("{library}", library_name)
+            .replace("{character}", character_name)
+            .replace("{category}", category_label)
+            .strip()
+        )
+
+    def _select_social_copy(
+        self,
+        *,
+        category_key: str,
+        variant: str | None,
+    ) -> tuple[str, str] | None:
+        store = get_store()
+        try:
+            templates = load_social_copies()
+            store.ensure_social_copies_seeded(templates)
+        except Exception as exc:
+            print(f"[WARN] No se pudo cargar social_copies.yaml: {exc}")
+
+        rows = store.list_social_copies(include_disabled=False)
+        if not rows:
+            return None
+
+        catalog = load_waifu_catalog()
+        category_data = catalog.categories.get(category_key, {}) if catalog.categories else {}
+        category_label = str(category_data.get("label", category_key)).strip() or category_key
+        kind = str(category_data.get("kind", "category"))
+
+        library_name = (settings.reel_library_name or "Biblioteca Waifu").strip()
+        character_name = category_label if kind == "character" else ""
+        if not character_name and variant and variant != "__ALL__":
+            character_name = str(variant).strip()
+        if not character_name:
+            character_name = category_label
+
+        selected = random.choice(rows)
+        text = self._format_social_template(
+            selected.text,
+            library_name=library_name,
+            character_name=character_name,
+            category_label=category_label,
+        )
+        hashtags = self._format_social_template(
+            selected.hashtags,
+            library_name=library_name,
+            character_name=character_name,
+            category_label=category_label,
+        )
+        return text, hashtags
+
     def _build_social_text(self) -> str:
         x_handle = (settings.reel_x_handle or "").strip()
         if x_handle:
@@ -168,6 +228,10 @@ class ReelService:
     def _write_overlay_file(self, *, folder: Path, filename: str, text: str) -> str:
         safe_text = self._normalize_newlines(text)
         (folder / filename).write_text(safe_text, encoding="utf-8")
+        return filename
+
+    def _write_text_file(self, *, folder: Path, filename: str, text: str) -> str:
+        (folder / filename).write_text(text, encoding="utf-8")
         return filename
 
     def _drawtext_filter_textfile(
@@ -470,6 +534,20 @@ class ReelService:
         copied_paths = self._copy_images(images, folder=folder)
         ext = copied_paths[0].suffix if copied_paths else ".png"
         title = self._select_reel_title(category_key=category)
+        social_copy = self._select_social_copy(category_key=category, variant=variant)
+        social_text = None
+        social_hashtags = None
+        social_copy_file = None
+        if social_copy:
+            social_text, social_hashtags = social_copy
+            social_content = social_text
+            if social_hashtags:
+                social_content = f"{social_content}\n\n{social_hashtags}"
+            social_copy_file = self._write_text_file(
+                folder=folder,
+                filename="social_post.txt",
+                text=social_content,
+            )
         video_path, audio_path = self._render_video(
             folder=folder,
             ext=ext,
@@ -488,6 +566,11 @@ class ReelService:
             "transition_seconds": self._TRANSITION_SECONDS,
             "video": video_path.name,
             "audio": audio_path.name if audio_path else None,
+            "social_post": {
+                "text": social_text,
+                "hashtags": social_hashtags,
+                "file": social_copy_file,
+            },
             "items": [
                 {
                     "prompt_item_id": image.prompt_item_id,
