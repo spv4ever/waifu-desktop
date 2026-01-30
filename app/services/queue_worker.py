@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import json
 import time
-import sqlite3
 from typing import Literal, Any, Callable
 
 import requests
 
-from app.data.repositories import QueueRepository, PromptItemRepository
-from app.data.kv_store import KVStore
+from app.data.storage import get_store
 from app.config.settings import settings
 from app.services.comfy_client import ComfyClient
 from app.services.workflow_service import WorkflowService
@@ -22,9 +20,7 @@ WorkerResult = Literal["PROCESSED", "PAUSED", "EMPTY"]
 
 class QueueWorker:
     def __init__(self, *, log_callback: Callable[[str], None] | None = None) -> None:
-        self.queue = QueueRepository()
-        self.items = PromptItemRepository()
-        self.kv = KVStore()
+        self.store = get_store()
         self.comfy = ComfyClient()
         self.workflow = WorkflowService()
         self.app_cfg = load_app_config()
@@ -42,12 +38,8 @@ class QueueWorker:
         if self._progress_callback:
             self._progress_callback()
 
-    def recover_inflight_jobs(self, conn: sqlite3.Connection) -> tuple[int, int, int]:
-        reset_jobs = self.queue.reset_running_to_pending(conn)
-        reset_items = self.items.reset_sent_to_queued(conn)
-        reset_created = self.items.reset_created_to_queued(conn)
-        requeued_items = self.queue.enqueue_missing_for_queued_items(conn)
-        return reset_jobs, reset_items + reset_created, requeued_items
+    def recover_inflight_jobs(self, conn=None) -> tuple[int, int, int]:
+        return self.store.recover_inflight_jobs()
 
     def _is_finished(self, history: dict[str, Any], prompt_id: str) -> tuple[bool, dict[str, Any] | None]:
         entry = history.get(prompt_id)
@@ -108,31 +100,27 @@ class QueueWorker:
 
         return " · ".join(parts)
 
-    def _requeue_for_retry(
-        self, conn: sqlite3.Connection, *, job_id: int, prompt_item_id: int, reason: str
-    ) -> None:
+    def _requeue_for_retry(self, conn, *, job_id: int, prompt_item_id: int, reason: str) -> None:
         self._log(f"[WORKER] Reencolando job_id={job_id} ({reason})")
-        with conn:
-            self.queue.reset_for_retry(conn, job_id)
-            self.items.bulk_update_status(conn, ids=[prompt_item_id], status="QUEUED")
-            self._emit_progress()
+        self.store.reset_for_retry(job_id)
+        self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="QUEUED")
+        self._emit_progress()
 
-    def process_one(self, conn: sqlite3.Connection, *, delay_seconds: float = 0.2) -> WorkerResult:
-        paused = self.kv.get(conn, "queue_paused", "false")
+    def process_one(self, conn=None, *, delay_seconds: float = 0.2) -> WorkerResult:
+        paused = self.store.kv_get("queue_paused", "false")
         if paused == "true":
             return "PAUSED"
 
-        job = self.queue.fetch_next_pending(conn)
+        job = self.store.fetch_next_pending()
         if not job:
             return "EMPTY"
 
-        job_id = int(job["id"])
-        prompt_item_id = int(job["prompt_item_id"])
+        job_id = int(job.id)
+        prompt_item_id = int(job.prompt_item_id)
 
-        item = self.items.get_by_id(conn, prompt_item_id)
+        item = self.store.get_prompt_item(prompt_item_id)
         if not item:
-            with conn:
-                self.queue.mark_failed(conn, job_id, f"prompt_item_id={prompt_item_id} no existe")
+            self.store.mark_failed(job_id, f"prompt_item_id={prompt_item_id} no existe")
             return "PROCESSED"
 
         meta = json.loads(item["meta_json"]) if item.get("meta_json") else {}
@@ -172,7 +160,7 @@ class QueueWorker:
             steps = int(meta.get("steps") or combo.get("steps") or int(defaults.get("steps", 50)))
 
         # 1) SUBMIT si no tiene remote_id
-        remote_id = job.get("remote_id")
+        remote_id = job.remote_id
         submitted_now = False
         if not remote_id:
             wf = self.workflow.load_template()
@@ -193,8 +181,7 @@ class QueueWorker:
 
             remote_id = self.comfy.submit_prompt(wf)
             submitted_now = True
-            with conn:
-                self.queue.set_remote(conn, job_id, remote_id, "SUBMITTED")
+            self.store.set_remote(job_id, remote_id, "SUBMITTED")
             self._log(f"[WORKER] SUBMITTED job_id={job_id} remote_id={remote_id}")
 
         # 2) POLL hasta terminar (sin saturar, 1 en vuelo)
@@ -204,11 +191,10 @@ class QueueWorker:
         missing_history_started: float | None = None
         max_missing_seconds = float(settings.comfyui_history_wait_seconds)
         while True:
-            paused = self.kv.get(conn, "queue_paused", "false")
+            paused = self.store.kv_get("queue_paused", "false")
             if paused == "true":
                 self._log("[WORKER] Pausado durante polling. Se reanudará más tarde.")
-                with conn:
-                    self.queue.set_remote_status(conn, job_id, "PAUSED_WAITING")
+                self.store.set_remote_status(job_id, "PAUSED_WAITING")
                 return "PROCESSED"
 
             try:
@@ -225,8 +211,7 @@ class QueueWorker:
             if not history or remote_id not in history:
                 if missing_history_started is None:
                     missing_history_started = time.monotonic()
-                    with conn:
-                        self.queue.set_remote_status(conn, job_id, "WAITING_HISTORY")
+                    self.store.set_remote_status(job_id, "WAITING_HISTORY")
                     self._emit_progress()
 
                 elapsed = time.monotonic() - missing_history_started
@@ -248,37 +233,33 @@ class QueueWorker:
                 progress = self._extract_progress(entry)
                 if progress is not None and progress != last_progress:
                     last_progress = progress
-                    with conn:
-                        self.queue.set_progress(conn, job_id, progress)
+                    self.store.set_progress(job_id, progress)
                     self._emit_progress()
 
                 backend_status = self._extract_backend_status(entry)
                 if backend_status and backend_status != last_backend_status:
                     last_backend_status = backend_status
-                    with conn:
-                        self.queue.set_backend_status(conn, job_id, backend_status)
+                    self.store.set_backend_status(job_id, backend_status)
                     self._emit_progress()
 
             if finished and entry:
                 base_img, up_img = extract_base_and_upscale(entry)
 
-                with conn:
-                    self.queue.set_remote_status(conn, job_id, "COMPLETED")
-                    self.queue.set_output_json(conn, job_id, json.dumps(entry, ensure_ascii=False))
-                    self.queue.set_progress(conn, job_id, 100)
-                    self.queue.set_backend_status(conn, job_id, "Completado")
-                    self._emit_progress()
+                self.store.set_remote_status(job_id, "COMPLETED")
+                self.store.set_output_json(job_id, json.dumps(entry, ensure_ascii=False))
+                self.store.set_progress(job_id, 100)
+                self.store.set_backend_status(job_id, "Completado")
+                self._emit_progress()
 
-                    # Guardar outputs en prompt_item
-                    self.items.set_outputs(
-                        conn,
-                        item_id=prompt_item_id,
-                        base_image_json=json.dumps(base_img, ensure_ascii=False) if base_img else None,
-                        upscale_image_json=json.dumps(up_img, ensure_ascii=False) if up_img else None,
-                    )
+                # Guardar outputs en prompt_item
+                self.store.set_prompt_outputs(
+                    item_id=prompt_item_id,
+                    base_image_json=json.dumps(base_img, ensure_ascii=False) if base_img else None,
+                    upscale_image_json=json.dumps(up_img, ensure_ascii=False) if up_img else None,
+                )
 
-                    self.queue.mark_done(conn, job_id)
-                    self.items.bulk_update_status(conn, ids=[prompt_item_id], status="DONE")
+                self.store.mark_done(job_id)
+                self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="DONE")
 
                 self._log(f"[WORKER] COMPLETED job_id={job_id} remote_id={remote_id}")
                 break

@@ -2,21 +2,17 @@ from __future__ import annotations
 
 import time
 
-from app.data.db import get_connection
 from app.services.queue_worker import QueueWorker
 
 
 def main():
     worker = QueueWorker()
 
-    with get_connection() as conn:
-        with conn:
-            worker.recover_inflight_jobs(conn)
+    worker.recover_inflight_jobs()
 
     print("Worker arrancado. CTRL+C para parar.")
     while True:
-        with get_connection() as conn:
-            result = worker.process_one(conn, delay_seconds=0.2)
+        result = worker.process_one(delay_seconds=0.2)
 
         if result == "PAUSED":
             print("[WORKER] Cola en pausa. Durmiendo 1s...")

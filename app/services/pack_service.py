@@ -1,18 +1,12 @@
 from __future__ import annotations
 
 import json
-import sqlite3
 from dataclasses import dataclass
 from typing import List
 
 from app.config.waifu_catalog import load_waifu_catalog
 from app.services.waifu_prompt_builder import build_unique_prompts
-from app.data.repositories import (
-    PackRepository,
-    PromptItemRepository,
-    QueueRepository,
-    ComboRegistryRepository,
-)
+from app.data.storage import get_store
 from app.domain.models import PackCreate
 
 
@@ -25,15 +19,12 @@ class PackCreateResult:
 
 class PackService:
     def __init__(self) -> None:
-        self.pack_repo = PackRepository()
-        self.item_repo = PromptItemRepository()
-        self.queue_repo = QueueRepository()
-        self.combo_registry = ComboRegistryRepository()
+        self.store = get_store()
         self.catalog = load_waifu_catalog()
 
     def create_pack_and_enqueue(
         self,
-        conn: sqlite3.Connection,
+        conn,
         req: PackCreate,
     ) -> PackCreateResult:
         """
@@ -42,8 +33,7 @@ class PackService:
         """
 
         # 1️⃣ Crear pack
-        pack_id = self.pack_repo.create(
-            conn,
+        pack_id = self.store.create_pack(
             category=req.category,
             variant=req.variant,
             requested_n=req.requested_n,
@@ -69,8 +59,7 @@ class PackService:
             signature = built.signature
 
             # Registrar combinación (evita repetidos globales)
-            ok = self.combo_registry.try_register(
-                conn,
+            ok = self.store.try_register_combo(
                 combo_key=signature,
                 category=req.category,
                 variant=req.variant,
@@ -87,8 +76,7 @@ class PackService:
                     "refiner": req.checkpoint_refiner,
                 }
 
-            prompt_item_id = self.item_repo.create(
-                conn,
+            prompt_item_id = self.store.create_prompt_item(
                 pack_id=pack_id,
                 title=built.title,
                 prompt_text=built.prompt_text,
@@ -101,11 +89,7 @@ class PackService:
             created_prompt_item_ids.append(prompt_item_id)
 
             # 4️⃣ Encolar job
-            job_id = self.queue_repo.enqueue(
-                conn,
-                prompt_item_id=prompt_item_id,
-                priority=100,
-            )
+            job_id = self.store.create_queue_job(prompt_item_id=prompt_item_id, priority=100)
 
             created_queue_job_ids.append(job_id)
 

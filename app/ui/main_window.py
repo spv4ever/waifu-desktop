@@ -14,8 +14,7 @@ from PySide6.QtWidgets import (
 
 from app.config.app_config import load_app_config
 from app.config.waifu_catalog import load_waifu_catalog
-from app.data.db import get_connection
-from app.data.kv_store import KVStore
+from app.data.storage import get_store
 from app.services.output_paths import build_output_path
 from app.services.pack_service import PackService
 from app.services.file_open import open_file, open_folder_and_select
@@ -62,7 +61,7 @@ class MainWindow(QMainWindow):
         """)
         self._base_path: Path | None = None
 
-        self.kv = KVStore()
+        self.store = get_store()
         self.pack_service = PackService()
         self.reel_service = ReelService()
         self.waifu_catalog = load_waifu_catalog()
@@ -527,18 +526,15 @@ class MainWindow(QMainWindow):
     # -------- Queue controls --------
 
     def pause_queue(self) -> None:
-        with get_connection() as conn:
-            with conn:
-                self.kv.set(conn, "queue_paused", "true")
+        self.store.kv_set("queue_paused", "true")
 
         self.refresh()
         QMessageBox.information(self, "Cola", "Cola pausada.")
 
     def resume_queue(self) -> None:
-        with get_connection() as conn:
-            with conn:
-                self.kv.set(conn, "queue_paused", "false")
-                self.worker_thread.worker.recover_inflight_jobs(conn)
+        self.store.kv_set("queue_paused", "false")
+        if self.worker_thread:
+            self.worker_thread.worker.recover_inflight_jobs()
         self.refresh()
         QMessageBox.information(self, "Cola", "Cola reanudada.")
 
@@ -611,8 +607,7 @@ class MainWindow(QMainWindow):
         self._refresh_status_counts()
         self._refresh_category_production_counts()
 
-        with get_connection() as conn:
-            paused = self.kv.get(conn, "queue_paused", "false")
+        paused = self.store.kv_get("queue_paused", "false")
 
         is_paused = paused == "true"
         self.pause_action.setEnabled(not is_paused)
@@ -816,9 +811,7 @@ class MainWindow(QMainWindow):
         )
 
         try:
-            with get_connection() as conn:
-                with conn:
-                    result = self.pack_service.create_pack_and_enqueue(conn, req)
+            result = self.pack_service.create_pack_and_enqueue(None, req)
         except Exception as exc:
             QMessageBox.critical(self, "Generar Pack", str(exc))
             return
@@ -843,15 +836,12 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            with get_connection() as conn:
-                with conn:
-                    result = self.reel_service.create_reel(
-                        conn,
-                        category=str(category),
-                        variant=str(variant) if variant else None,
-                        image_count=quantity,
-                        seconds_per_image=seconds_per_image,
-                    )
+            result = self.reel_service.create_reel(
+                category=str(category),
+                variant=str(variant) if variant else None,
+                image_count=quantity,
+                seconds_per_image=seconds_per_image,
+            )
         except Exception as exc:
             QMessageBox.critical(self, "Reel Instagram", str(exc))
             return
@@ -949,14 +939,9 @@ class MainWindow(QMainWindow):
             self._set_preview(which="base", path=None)
             return
 
-        with get_connection() as conn:
-            r = conn.execute(
-                "SELECT prompt_text, base_image_json, upscale_image_json FROM prompt_item WHERE id=?",
-                (pid,),
-            ).fetchone()
-
-        has_base = bool(r and r["base_image_json"])
-        has_up = bool(r and r["upscale_image_json"])
+        r = self.store.get_prompt_item_media(pid)
+        has_base = bool(r and r.get("base_image_json"))
+        has_up = bool(r and r.get("upscale_image_json"))
 
         self.open_base_action.setEnabled(has_base)
         self.open_folder_base_action.setEnabled(has_base)
@@ -964,7 +949,7 @@ class MainWindow(QMainWindow):
         self.open_folder_up_action.setEnabled(has_up)
 
         base_path: Path | None = None
-        if r and r["base_image_json"]:
+        if r and r.get("base_image_json"):
             base = json.loads(r["base_image_json"])
             base_path = build_output_path(base)
 
@@ -996,14 +981,7 @@ class MainWindow(QMainWindow):
         self.prompt_dialog = None
 
     def _fetch_prompt_text(self, prompt_id: int) -> str | None:
-        with get_connection() as conn:
-            row = conn.execute(
-                "SELECT prompt_text FROM prompt_item WHERE id=?",
-                (prompt_id,),
-            ).fetchone()
-        if row:
-            return str(row["prompt_text"])
-        return None
+        return self.store.get_prompt_text(prompt_id)
 
     # -------- Open actions --------
 
@@ -1073,18 +1051,13 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Abrir", "Selecciona una fila primero.")
             return
 
-        with get_connection() as conn:
-            r = conn.execute(
-                "SELECT base_image_json, upscale_image_json FROM prompt_item WHERE id=?",
-                (pid,),
-            ).fetchone()
-
+        r = self.store.get_prompt_item_media(pid)
         if not r:
             QMessageBox.warning(self, "Abrir", f"No existe prompt_item {pid}.")
             return
 
-        base = json.loads(r["base_image_json"]) if r["base_image_json"] else None
-        up = json.loads(r["upscale_image_json"]) if r["upscale_image_json"] else None
+        base = json.loads(r["base_image_json"]) if r.get("base_image_json") else None
+        up = json.loads(r["upscale_image_json"]) if r.get("upscale_image_json") else None
 
         try:
             if mode == "base":
@@ -1289,15 +1262,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Reintentar", "Selecciona un prompt primero.")
             return
 
-        with get_connection() as conn:
-            row = conn.execute(
-                """
-                SELECT id, status, pack_id, title, prompt_text, negative_text, meta_json, combo_key, signature
-                FROM prompt_item
-                WHERE id=?
-                """,
-                (pid,),
-            ).fetchone()
+        row = self.store.get_prompt_item(pid)
 
         if not row:
             QMessageBox.warning(self, "Reintentar", f"No existe prompt_item {pid}.")
@@ -1316,37 +1281,11 @@ class MainWindow(QMainWindow):
         if confirm != QMessageBox.Yes:
             return
 
-        with get_connection() as conn:
-            existing_job = conn.execute(
-                """
-                SELECT id, status
-                FROM queue_job
-                WHERE prompt_item_id=? AND status IN ('PENDING','RUNNING')
-                ORDER BY created_at DESC
-                LIMIT 1
-                """,
-                (pid,),
-            ).fetchone()
+        existing_job = self.store.get_queue_job_for_prompt(pid, statuses=["PENDING", "RUNNING"])
 
         if existing_job:
-            with get_connection() as conn:
-                with conn:
-                    conn.execute(
-                        """
-                        UPDATE queue_job
-                        SET status='PENDING',
-                            remote_id=NULL,
-                            remote_status=NULL,
-                            output_json=NULL,
-                            last_error=NULL
-                        WHERE id=?
-                        """,
-                        (existing_job["id"],),
-                    )
-                    conn.execute(
-                        "UPDATE prompt_item SET status='QUEUED' WHERE id=?",
-                        (pid,),
-                    )
+            self.store.reset_queue_job_for_retry(existing_job["id"])
+            self.store.set_prompt_item_status(pid, "QUEUED")
 
             self.refresh()
             QMessageBox.information(
@@ -1356,19 +1295,8 @@ class MainWindow(QMainWindow):
             )
             return
 
-        with get_connection() as conn:
-            with conn:
-                conn.execute(
-                    "UPDATE prompt_item SET status='QUEUED' WHERE id=?",
-                    (pid,),
-                )
-                conn.execute(
-                    """
-                    INSERT INTO queue_job(prompt_item_id, priority, status)
-                    VALUES (?, 100, 'PENDING')
-                    """,
-                    (pid,),
-                )
+        self.store.set_prompt_item_status(pid, "QUEUED")
+        self.store.create_queue_job(prompt_item_id=pid, priority=100)
 
         self.refresh()
         QMessageBox.information(
@@ -1391,9 +1319,7 @@ class MainWindow(QMainWindow):
         if confirm != QMessageBox.Yes:
             return
 
-        with get_connection() as conn:
-            with conn:
-                conn.execute("DELETE FROM prompt_item WHERE id=?", (pid,))
+        self.store.delete_prompt_item(pid)
 
         self.refresh()
         QMessageBox.information(self, "Eliminar", f"Prompt {pid} eliminado.")

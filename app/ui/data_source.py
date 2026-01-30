@@ -3,9 +3,8 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
-from app.data.db import get_connection
+from app.data.storage import get_store
 
 
 @dataclass(frozen=True)
@@ -71,105 +70,23 @@ def _extract_checkpoints(meta_json: str | None) -> tuple[str | None, str | None]
 
 
 def fetch_prompt_filters() -> dict[str, list[str]]:
-    categories: set[str] = set()
-    variants: set[str] = set()
-    ratios: set[str] = set()
-    statuses: set[str] = set()
-    checkpoint_bases: set[str] = set()
-
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT status, meta_json
-            FROM prompt_item
-            ORDER BY id DESC
-            """
-        ).fetchall()
-
-    for r in rows:
-        statuses.add(str(r["status"]))
-        category, variant = _extract_category_variant(r["meta_json"])
-        ratio = _extract_ratio(r["meta_json"])
-        checkpoint_base, _ = _extract_checkpoints(r["meta_json"])
-        if category and category != "?":
-            categories.add(category)
-        if variant and variant != "?":
-            variants.add(variant)
-        if ratio and ratio != "?":
-            ratios.add(ratio)
-        if checkpoint_base:
-            checkpoint_bases.add(checkpoint_base)
-
-    return {
-        "categories": sorted(categories),
-        "variants": sorted(variants),
-        "ratios": sorted(ratios),
-        "statuses": sorted(statuses),
-        "checkpoint_bases": sorted(checkpoint_bases),
-    }
+    store = get_store()
+    return store.fetch_prompt_filters()
 
 
 def fetch_prompt_status_counts() -> dict[str, int]:
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT status, COUNT(*) AS n
-            FROM prompt_item
-            GROUP BY status
-            ORDER BY status
-            """
-        ).fetchall()
-
-    counts = {str(r["status"]): int(r["n"]) for r in rows}
-    counts["TOTAL"] = sum(counts.values())
-    return counts
+    store = get_store()
+    return store.fetch_prompt_status_counts()
 
 
 def fetch_variants_for_category(category: str | None) -> list[str]:
-    if not category:
-        return []
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT DISTINCT json_extract(meta_json, '$.combo.variant') AS variant
-            FROM prompt_item
-            WHERE status = 'DONE'
-              AND (base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)
-              AND json_extract(meta_json, '$.combo.category') = ?
-            ORDER BY variant
-            """,
-            (category,),
-        ).fetchall()
-
-    variants: list[str] = []
-    for row in rows:
-        value = row["variant"]
-        if value is None:
-            continue
-        variant = str(value).strip()
-        if variant and variant != "?":
-            variants.append(variant)
-    return variants
+    store = get_store()
+    return store.fetch_variants_for_category(category)
 
 
 def fetch_category_production_counts() -> list[tuple[str, int]]:
-    counts: dict[str, int] = {}
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT meta_json
-            FROM prompt_item
-            WHERE status = 'DONE'
-            """
-        ).fetchall()
-
-    for r in rows:
-        category, _ = _extract_category_variant(r["meta_json"])
-        if not category or category == "?":
-            continue
-        counts[category] = counts.get(category, 0) + 1
-
-    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    store = get_store()
+    return store.fetch_category_production_counts()
 
 
 def fetch_prompts(
@@ -188,94 +105,47 @@ def fetch_prompts(
     dt_from = _parse_db_datetime(date_from) if date_from else None
     dt_to = _parse_db_datetime(date_to) if date_to else None
 
-    conditions: list[str] = []
-    params: list[Any] = []
-    datestamp_expr = "COALESCE(updated_at, created_at)"
-
-    if category:
-        conditions.append("json_extract(meta_json, '$.combo.category') = ?")
-        params.append(category)
-    if variant:
-        conditions.append("json_extract(meta_json, '$.combo.variant') = ?")
-        params.append(variant)
-    if status:
-        conditions.append("status = ?")
-        params.append(status)
-    if ratio:
-        conditions.append(
-            "COALESCE(json_extract(meta_json, '$.combo.ratio_tag'),"
-            " json_extract(meta_json, '$.combo.ratio_key'),"
-            " json_extract(meta_json, '$.combo.ratio'),"
-            " json_extract(meta_json, '$.ratio')) = ?"
-        )
-        params.append(ratio)
-    if checkpoint_base:
-        conditions.append("json_extract(meta_json, '$.checkpoints.base') = ?")
-        params.append(checkpoint_base)
-    if prompt_id is not None:
-        conditions.append("id = ?")
-        params.append(int(prompt_id))
-    if dt_from:
-        conditions.append(f"{datestamp_expr} >= ?")
-        params.append(_format_db_datetime(dt_from))
-    if dt_to:
-        conditions.append(f"{datestamp_expr} <= ?")
-        params.append(_format_db_datetime(dt_to))
-
-    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-    order_direction = "ASC" if sort_order.lower() == "asc" else "DESC"
-
-    with get_connection() as conn:
-        rows = conn.execute(
-            f"""
-            SELECT
-                id,
-                title,
-                prompt_text,
-                status,
-                used_in_reel,
-                meta_json,
-                base_image_json,
-                upscale_image_json,
-                (SELECT progress FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_progress,
-                (SELECT backend_status FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_backend_status,
-                (SELECT status FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1) AS job_status,
-                {datestamp_expr} AS datestamp
-            FROM prompt_item
-            {where_clause}
-            ORDER BY datestamp {order_direction}
-            LIMIT ?
-            """,
-            (*params, limit),
-        ).fetchall()
+    store = get_store()
+    rows = store.fetch_prompts(
+        limit=limit,
+        prompt_id=prompt_id,
+        category=category,
+        variant=variant,
+        status=status,
+        ratio=ratio,
+        checkpoint_base=checkpoint_base,
+        date_from=_format_db_datetime(dt_from) if dt_from else None,
+        date_to=_format_db_datetime(dt_to) if dt_to else None,
+        sort_order=sort_order,
+    )
 
     result: list[PromptRow] = []
     for r in rows:
         row_status = str(r["status"])
-        job_progress = r["job_progress"]
-        job_status = r["job_status"]
-        job_backend_status = r["job_backend_status"]
-        category_value, variant_value = _extract_category_variant(r["meta_json"])
-        ratio_value = _extract_ratio(r["meta_json"])
-        row_checkpoint_base, checkpoint_refiner = _extract_checkpoints(r["meta_json"])
-        row_datestamp = str(r["datestamp"]) if r["datestamp"] else ""
+        job_progress = r.get("job_progress")
+        job_status = r.get("job_status")
+        job_backend_status = r.get("job_backend_status")
+        category_value, variant_value = _extract_category_variant(r.get("meta_json"))
+        ratio_value = _extract_ratio(r.get("meta_json"))
+        row_checkpoint_base, checkpoint_refiner = _extract_checkpoints(r.get("meta_json"))
+        row_datestamp = str(r.get("datestamp")) if r.get("datestamp") else ""
         row_dt = _parse_db_datetime(row_datestamp) if row_datestamp else None
         progress_value = _resolve_progress(row_status, job_status, job_progress)
 
         result.append(
             PromptRow(
                 id=int(r["id"]),
-                title=str(r["title"]),
-                prompt_text=str(r["prompt_text"]),
+                title=str(r.get("title")),
+                prompt_text=str(r.get("prompt_text")),
                 status=row_status,
                 category=category_value,
                 variant=variant_value,
                 ratio=ratio_value,
                 checkpoint_base=row_checkpoint_base,
                 checkpoint_refiner=checkpoint_refiner,
-                has_base=bool(r["base_image_json"]),
-                has_upscale=bool(r["upscale_image_json"]),
-                used_in_reel=bool(r["used_in_reel"]),
+                has_base=bool(r.get("base_image_json")),
+                has_upscale=bool(r.get("upscale_image_json")),
+                used_in_reel=bool(r.get("used_in_reel")),
                 progress=progress_value,
                 backend_status=str(job_backend_status) if job_backend_status else None,
                 datestamp=_format_datestamp(row_datestamp),

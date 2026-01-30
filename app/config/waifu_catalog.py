@@ -6,8 +6,7 @@ from typing import Any
 
 import yaml
 
-from app.data.db import get_connection
-from app.data.repositories import PromptBaseRepository
+from app.data.storage import get_store
 
 @dataclass(frozen=True)
 class WaifuCatalog:
@@ -55,10 +54,9 @@ def load_waifu_catalog(path: str | Path = "resources/config/waifu_catalog.yaml")
     data = yaml.safe_load(p.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("waifu_catalog.yaml inválido: se esperaba un dict raíz")
-    repo = PromptBaseRepository()
-    with get_connection() as conn:
-        repo.ensure_seeded(conn, data.get("categories", {}))
-        bases = repo.list(conn, include_disabled=False)
+    store = get_store()
+    store.ensure_prompt_base_seeded(data.get("categories", {}))
+    bases = store.list_prompt_bases(include_disabled=False)
 
     categories: dict[str, Any] = {}
     for base in bases:

@@ -1,39 +1,27 @@
 from __future__ import annotations
 
-from app.data.db import get_connection
+from app.data.storage import get_store
 
 
 def main():
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT status, COUNT(*) as n
-            FROM queue_job
-            GROUP BY status
-            ORDER BY status
-            """
-        ).fetchall()
+    store = get_store()
+    rows = store.fetch_queue_status_counts()
 
-        print("Estado cola (queue_job):")
-        if not rows:
-            print("  (vacía)")
-        for r in rows:
-            print(f" - {r['status']}: {r['n']}")
+    print("Estado cola (queue_job):")
+    if not rows:
+        print("  (vacía)")
+    for status, count in rows.items():
+        print(f" - {status}: {count}")
 
-        rows2 = conn.execute(
-            """
-            SELECT status, COUNT(*) as n
-            FROM prompt_item
-            GROUP BY status
-            ORDER BY status
-            """
-        ).fetchall()
+    rows2 = store.fetch_prompt_status_counts()
 
-        print("\nEstado prompts (prompt_item):")
-        if not rows2:
-            print("  (vacío)")
-        for r in rows2:
-            print(f" - {r['status']}: {r['n']}")
+    print("\nEstado prompts (prompt_item):")
+    if not rows2:
+        print("  (vacío)")
+    for status, count in rows2.items():
+        if status == "TOTAL":
+            continue
+        print(f" - {status}: {count}")
 
 
 if __name__ == "__main__":
