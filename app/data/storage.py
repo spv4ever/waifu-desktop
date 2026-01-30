@@ -12,6 +12,7 @@ from app.data.repositories import (
     PromptBaseRepository,
     PromptBaseRow,
     PromptItemRepository,
+    PromptVariationRow,
     PromptVariationRepository,
     QueueRepository,
 )
@@ -228,6 +229,27 @@ class BaseStore:
         raise NotImplementedError
 
     def list_prompt_variations(self, *, group_key: str, include_disabled: bool = False) -> list[str]:
+        raise NotImplementedError
+
+    def list_prompt_variation_rows(
+        self,
+        *,
+        group_key: str,
+        include_disabled: bool = False,
+    ) -> list[PromptVariationRow]:
+        raise NotImplementedError
+
+    def list_prompt_variation_groups(self, *, include_disabled: bool = False) -> list[str]:
+        raise NotImplementedError
+
+    def upsert_prompt_variation(
+        self,
+        *,
+        group_key: str,
+        value: str,
+        position: int,
+        enabled: bool = True,
+    ) -> None:
         raise NotImplementedError
 
     def ensure_prompt_variations_seeded(self, catalog: dict[str, Any]) -> int:
@@ -789,6 +811,37 @@ class SQLiteStore(BaseStore):
     def list_prompt_variations(self, *, group_key: str, include_disabled: bool = False) -> list[str]:
         with get_connection() as conn:
             return self._variations.list(conn, group_key=group_key, include_disabled=include_disabled)
+
+    def list_prompt_variation_rows(
+        self,
+        *,
+        group_key: str,
+        include_disabled: bool = False,
+    ) -> list[PromptVariationRow]:
+        with get_connection() as conn:
+            return self._variations.list_rows(conn, group_key=group_key, include_disabled=include_disabled)
+
+    def list_prompt_variation_groups(self, *, include_disabled: bool = False) -> list[str]:
+        with get_connection() as conn:
+            return self._variations.list_groups(conn, include_disabled=include_disabled)
+
+    def upsert_prompt_variation(
+        self,
+        *,
+        group_key: str,
+        value: str,
+        position: int,
+        enabled: bool = True,
+    ) -> None:
+        with get_connection() as conn:
+            with conn:
+                self._variations.upsert(
+                    conn,
+                    group_key=group_key,
+                    value=value,
+                    position=position,
+                    enabled=enabled,
+                )
 
     def ensure_prompt_variations_seeded(self, catalog: dict[str, Any]) -> int:
         groups = _extract_variation_groups(catalog)

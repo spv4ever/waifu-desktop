@@ -33,6 +33,7 @@ from app.ui.refresh_worker import RefreshWorker, RefreshPayload
 from app.ui.clickable_label import ClickableLabel
 from app.ui.image_viewer import ImageViewer
 from app.ui.prompt_base_window import PromptBaseWindow
+from app.ui.prompt_variation_window import PromptVariationWindow
 from app.ui.prompt_dialog import PromptDetailDialog
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
@@ -67,6 +68,7 @@ class MainWindow(QMainWindow):
         self.waifu_catalog = load_waifu_catalog()
         self.app_config = load_app_config()
         self.prompt_base_window: PromptBaseWindow | None = None
+        self.prompt_variation_window: PromptVariationWindow | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -117,6 +119,8 @@ class MainWindow(QMainWindow):
 
         self.open_prompt_base_action = maintenance_menu.addAction("Categorías y personajes")
         self.open_prompt_base_action.triggered.connect(self.open_prompt_base_window)
+        self.open_prompt_variation_action = maintenance_menu.addAction("Opciones y variaciones")
+        self.open_prompt_variation_action.triggered.connect(self.open_prompt_variation_window)
 
         header = QHBoxLayout()
         title_stack = QVBoxLayout()
@@ -710,6 +714,21 @@ class MainWindow(QMainWindow):
 
     def _clear_prompt_base_window(self) -> None:
         self.prompt_base_window = None
+
+    def open_prompt_variation_window(self) -> None:
+        if self.prompt_variation_window and self.prompt_variation_window.isVisible():
+            self.prompt_variation_window.activateWindow()
+            self.prompt_variation_window.raise_()
+            return
+        window = PromptVariationWindow()
+        window.setAttribute(Qt.WA_DeleteOnClose, True)
+        window.catalog_updated.connect(self.on_prompt_base_updated)
+        window.destroyed.connect(self._clear_prompt_variation_window)
+        self.prompt_variation_window = window
+        window.show()
+
+    def _clear_prompt_variation_window(self) -> None:
+        self.prompt_variation_window = None
 
     def on_prompt_base_updated(self) -> None:
         self._reload_waifu_catalog()
