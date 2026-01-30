@@ -16,8 +16,8 @@ from PySide6.QtWidgets import (
     QGroupBox,
 )
 
-from app.data.db import get_connection
-from app.data.repositories import PromptBaseRepository, PromptBaseRow
+from app.data.repositories import PromptBaseRow
+from app.data.storage import get_store
 
 
 class PromptBaseWindow(QMainWindow):
@@ -28,7 +28,6 @@ class PromptBaseWindow(QMainWindow):
         self.setWindowTitle("Mantenimiento de categorías y personajes")
         self.resize(780, 520)
 
-        self.prompt_base_repo = PromptBaseRepository()
         self.prompt_base_map: dict[str, PromptBaseRow] = {}
 
         root = QWidget()
@@ -106,8 +105,8 @@ class PromptBaseWindow(QMainWindow):
         self.prompt_base_combo.blockSignals(True)
         self.prompt_base_combo.clear()
         self.prompt_base_combo.addItem("Nuevo...", None)
-        with get_connection() as conn:
-            rows = self.prompt_base_repo.list(conn, include_disabled=True)
+        store = get_store()
+        rows = store.list_prompt_bases(include_disabled=True)
         self.prompt_base_map = {row.key: row for row in rows}
         for row in rows:
             kind_label = "Personaje" if row.kind == "character" else "Categoría"
@@ -162,17 +161,15 @@ class PromptBaseWindow(QMainWindow):
             return
 
         allowed_ratios = [r.strip() for r in ratios_raw.split(",") if r.strip()]
-        with get_connection() as conn:
-            with conn:
-                self.prompt_base_repo.upsert(
-                    conn,
-                    key=key,
-                    label=label,
-                    base_prompt=base_prompt,
-                    kind=kind,
-                    allowed_ratios=allowed_ratios,
-                    enabled=enabled,
-                )
+        store = get_store()
+        store.upsert_prompt_base(
+            key=key,
+            label=label,
+            base_prompt=base_prompt,
+            kind=kind,
+            allowed_ratios=allowed_ratios,
+            enabled=enabled,
+        )
 
         self._refresh_prompt_base_list()
         idx = self.prompt_base_combo.findData(key)

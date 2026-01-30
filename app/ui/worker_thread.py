@@ -3,7 +3,6 @@ from __future__ import annotations
 import time
 from PySide6.QtCore import QThread, Signal
 
-from app.data.db import get_connection
 from app.services.queue_worker import QueueWorker
 
 
@@ -35,12 +34,9 @@ class WorkerThread(QThread):
 
     def run(self) -> None:
         self.status.emit("RUNNING")
-        with get_connection() as conn:
-            with conn:
-                self.worker.recover_inflight_jobs(conn)
+        self.worker.recover_inflight_jobs()
         while not self._stop:
-            with get_connection() as conn:
-                result = self.worker.process_one(conn, delay_seconds=self.delay_seconds)
+            result = self.worker.process_one(delay_seconds=self.delay_seconds)
 
             if result == "PAUSED":
                 self.status.emit("PAUSED")

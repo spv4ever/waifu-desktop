@@ -36,5 +36,9 @@ class Settings:
         os.getenv("MONGODB_SERVER_SELECTION_TIMEOUT_MS", "5000")
     )
 
+    # Backend de datos: local (sqlite), mongo (atlas/local), dual (ambos)
+    data_backend_mode: str = os.getenv("DATA_BACKEND_MODE", "local")
+    data_backend_read: str = os.getenv("DATA_BACKEND_READ", "local")
+
 
 settings = Settings()

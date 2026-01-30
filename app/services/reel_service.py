@@ -11,6 +11,7 @@ from typing import Any
 
 from app.config.waifu_catalog import load_waifu_catalog
 from app.config.settings import settings
+from app.data.storage import get_store
 from app.services.output_paths import build_output_path
 from app.utils.path_sanitize import sanitize_relpath, sanitize_segment
 
@@ -189,41 +190,22 @@ class ReelService:
 
     def _select_unused_images(
         self,
-        conn,
         *,
         category: str,
         variant: str | None,
         image_count: int,
     ) -> list[_ReelImage]:
-        conditions = [
-            "status = 'DONE'",
-            "used_in_reel = 0",
-            "(base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)",
-            "json_extract(meta_json, '$.combo.category') = ?",
-        ]
-        params: list[str] = [category]
-        if variant:
-            conditions.append("json_extract(meta_json, '$.combo.variant') = ?")
-            params.append(variant)
-
-        rows = conn.execute(
-            f"""
-            SELECT id, base_image_json, upscale_image_json
-            FROM prompt_item
-            WHERE {' AND '.join(conditions)}
-            ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
-            """,
-            params,
-        ).fetchall()
+        store = get_store()
+        rows = store.select_unused_reel_images(category=category, variant=variant)
         if rows:
             random.shuffle(rows)
 
         selected: list[_ReelImage] = []
         for row in rows:
             image_json = None
-            if row["upscale_image_json"]:
+            if row.get("upscale_image_json"):
                 image_json = json.loads(row["upscale_image_json"])
-            elif row["base_image_json"]:
+            elif row.get("base_image_json"):
                 image_json = json.loads(row["base_image_json"])
             if not image_json:
                 continue
@@ -460,7 +442,6 @@ class ReelService:
 
     def create_reel(
         self,
-        conn,
         *,
         category: str,
         variant: str | None,
@@ -475,7 +456,6 @@ class ReelService:
             raise ValueError("Los segundos por imagen deben ser mayores a la duración de la transición.")
 
         images = self._select_unused_images(
-            conn,
             category=category,
             variant=variant,
             image_count=image_count,
@@ -520,11 +500,8 @@ class ReelService:
         (folder / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 
         ids = [image.prompt_item_id for image in images]
-        placeholders = ",".join(["?"] * len(ids))
-        conn.execute(
-            f"UPDATE prompt_item SET used_in_reel = 1 WHERE id IN ({placeholders})",
-            ids,
-        )
+        store = get_store()
+        store.mark_prompt_items_used_in_reel(ids)
 
         return ReelCreateResult(
             category=category,

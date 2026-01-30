@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from app.data.db import get_connection
+from app.data.storage import get_store
 from app.services.output_paths import build_output_path
 from app.services.file_open import open_file, open_folder_and_select
 
@@ -21,22 +21,15 @@ def main():
     pid = int(sys.argv[1])
     mode = sys.argv[2].lower()
 
-    with get_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT id, base_image_json, upscale_image_json
-            FROM prompt_item
-            WHERE id=?
-            """,
-            (pid,),
-        ).fetchone()
+    store = get_store()
+    row = store.get_prompt_item_media(pid)
 
     if not row:
         print("No existe prompt_item:", pid)
         return
 
-    base = json.loads(row["base_image_json"]) if row["base_image_json"] else None
-    up = json.loads(row["upscale_image_json"]) if row["upscale_image_json"] else None
+    base = json.loads(row["base_image_json"]) if row.get("base_image_json") else None
+    up = json.loads(row["upscale_image_json"]) if row.get("upscale_image_json") else None
 
     def resolve(data: dict | None) -> Path:
         if not data:
