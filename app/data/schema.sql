@@ -131,3 +131,24 @@ FOR EACH ROW
 BEGIN
   UPDATE prompt_variation SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
+
+-- 8) Copys para redes sociales
+CREATE TABLE IF NOT EXISTS social_post_copy (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  text        TEXT NOT NULL,
+  hashtags    TEXT,
+  enabled     INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_social_post_copy_enabled
+ON social_post_copy(enabled);
+
+-- Trigger para updated_at en social_post_copy
+CREATE TRIGGER IF NOT EXISTS trg_social_post_copy_updated_at
+AFTER UPDATE ON social_post_copy
+FOR EACH ROW
+BEGIN
+  UPDATE social_post_copy SET updated_at = datetime('now') WHERE id = NEW.id;
+END;

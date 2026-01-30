@@ -32,6 +32,14 @@ class PromptVariationRow:
     enabled: bool
 
 
+@dataclass(frozen=True)
+class SocialCopyRow:
+    id: int
+    text: str
+    hashtags: str
+    enabled: bool
+
+
 class PackRepository:
     def create(self, conn: sqlite3.Connection, *, category: str, variant: str, requested_n: int, notes: str) -> int:
         cur = conn.execute(
@@ -263,6 +271,89 @@ class PromptVariationRepository:
                     enabled=True,
                 )
                 inserted += 1
+        return inserted
+
+
+class SocialCopyRepository:
+    def list(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        include_disabled: bool = False,
+    ) -> list[SocialCopyRow]:
+        rows = conn.execute(
+            """
+            SELECT id, text, hashtags, enabled
+            FROM social_post_copy
+            WHERE (? = 1) OR enabled = 1
+            ORDER BY id
+            """,
+            (1 if include_disabled else 0,),
+        ).fetchall()
+
+        return [
+            SocialCopyRow(
+                id=int(row["id"]),
+                text=str(row["text"]),
+                hashtags=str(row["hashtags"] or ""),
+                enabled=bool(row["enabled"]),
+            )
+            for row in rows
+        ]
+
+    def save(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        copy_id: int | None,
+        text: str,
+        hashtags: str,
+        enabled: bool,
+    ) -> int:
+        if copy_id is None:
+            cur = conn.execute(
+                """
+                INSERT INTO social_post_copy (text, hashtags, enabled)
+                VALUES (?, ?, ?)
+                """,
+                (text, hashtags, 1 if enabled else 0),
+            )
+            return int(cur.lastrowid)
+
+        conn.execute(
+            """
+            UPDATE social_post_copy
+            SET text = ?, hashtags = ?, enabled = ?, updated_at = datetime('now')
+            WHERE id = ?
+            """,
+            (text, hashtags, 1 if enabled else 0, copy_id),
+        )
+        return int(copy_id)
+
+    def delete(self, conn: sqlite3.Connection, *, copy_id: int) -> None:
+        conn.execute("DELETE FROM social_post_copy WHERE id = ?", (copy_id,))
+
+    def ensure_seeded(self, conn: sqlite3.Connection, copies: list[dict[str, str]]) -> int:
+        row = conn.execute("SELECT COUNT(*) AS n FROM social_post_copy").fetchone()
+        if row and int(row["n"]) > 0:
+            return 0
+
+        inserted = 0
+        for copy in copies or []:
+            if not isinstance(copy, dict):
+                continue
+            text = str(copy.get("text", "")).strip()
+            hashtags = str(copy.get("hashtags", "")).strip()
+            if not text:
+                continue
+            conn.execute(
+                """
+                INSERT INTO social_post_copy (text, hashtags, enabled)
+                VALUES (?, ?, 1)
+                """,
+                (text, hashtags),
+            )
+            inserted += 1
         return inserted
 
 

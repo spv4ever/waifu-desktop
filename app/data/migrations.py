@@ -133,3 +133,34 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         END;
         """
     )
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS social_post_copy (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          text        TEXT NOT NULL,
+          hashtags    TEXT,
+          enabled     INTEGER NOT NULL DEFAULT 1,
+          created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_social_post_copy_enabled
+        ON social_post_copy(enabled);
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_social_post_copy_updated_at
+        AFTER UPDATE ON social_post_copy
+        FOR EACH ROW
+        BEGIN
+          UPDATE social_post_copy SET updated_at = datetime('now') WHERE id = NEW.id;
+        END;
+        """
+    )
