@@ -26,9 +26,16 @@ class QueueWorker:
         self.app_cfg = load_app_config()
         self._log_callback = log_callback
         self._progress_callback: Callable[[], None] | None = None
+        self._stop_requested = False
 
     def set_progress_callback(self, callback: Callable[[], None] | None) -> None:
         self._progress_callback = callback
+
+    def request_stop(self) -> None:
+        self._stop_requested = True
+
+    def _should_stop(self) -> bool:
+        return self._stop_requested
 
     def _log(self, message: str) -> None:
         if self._log_callback:
@@ -107,6 +114,10 @@ class QueueWorker:
         self._emit_progress()
 
     def process_one(self, conn=None, *, delay_seconds: float = 0.2) -> WorkerResult:
+        if self._should_stop():
+            self._log("[WORKER] Stop solicitado. No se procesarán más jobs.")
+            return "EMPTY"
+
         paused = self.store.kv_get("queue_paused", "false")
         if paused == "true":
             return "PAUSED"
@@ -191,6 +202,9 @@ class QueueWorker:
         missing_history_started: float | None = None
         max_missing_seconds = float(settings.comfyui_history_wait_seconds)
         while True:
+            if self._should_stop():
+                self._log("[WORKER] Stop solicitado durante polling.")
+                return "PROCESSED"
             paused = self.store.kv_get("queue_paused", "false")
             if paused == "true":
                 self._log("[WORKER] Pausado durante polling. Se reanudará más tarde.")
