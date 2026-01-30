@@ -28,6 +28,8 @@ class WorkerThread(QThread):
 
     def stop(self) -> None:
         self._stop = True
+        self.worker.request_stop()
+        self.requestInterruption()
 
     def set_delay_seconds(self, delay_seconds: float) -> None:
         self.delay_seconds = delay_seconds
