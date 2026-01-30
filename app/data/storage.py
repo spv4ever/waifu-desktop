@@ -12,6 +12,7 @@ from app.data.repositories import (
     PromptBaseRepository,
     PromptBaseRow,
     PromptItemRepository,
+    PromptVariationRepository,
     QueueRepository,
 )
 
@@ -34,6 +35,52 @@ def get_store() -> "BaseStore":
 
 def _now_str() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _normalize_variation_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _extract_variation_groups(catalog: dict[str, Any]) -> dict[str, list[str]]:
+    groups: dict[str, list[str]] = {}
+
+    identity = catalog.get("identity", {}) if isinstance(catalog, dict) else {}
+    if isinstance(identity, dict):
+        groups["identity.face_features"] = _normalize_variation_list(identity.get("face_features"))
+        groups["identity.eye_styles"] = _normalize_variation_list(identity.get("eye_styles"))
+        hair = identity.get("hair", {})
+        if isinstance(hair, dict):
+            groups["identity.hair.colors"] = _normalize_variation_list(hair.get("colors"))
+            groups["identity.hair.styles"] = _normalize_variation_list(hair.get("styles"))
+            groups["identity.hair.details"] = _normalize_variation_list(hair.get("details"))
+
+    camera = catalog.get("camera", {}) if isinstance(catalog, dict) else {}
+    if isinstance(camera, dict):
+        groups["camera.focal_lengths"] = _normalize_variation_list(camera.get("focal_lengths"))
+        groups["camera.framing"] = _normalize_variation_list(camera.get("framing"))
+        groups["camera.angle"] = _normalize_variation_list(camera.get("angle"))
+
+    groups["mood"] = _normalize_variation_list(catalog.get("mood")) if isinstance(catalog, dict) else []
+
+    for section in ("combinations", "wardrobe", "footwear", "pose", "background", "lighting"):
+        data = catalog.get(section, {}) if isinstance(catalog, dict) else {}
+        if not isinstance(data, dict):
+            continue
+        for key, value in data.items():
+            groups[f"{section}.{key}"] = _normalize_variation_list(value)
+
+    return {key: value for key, value in groups.items() if value}
+
+
+def _insert_group_tree(tree: dict[str, Any], parts: list[str], values: list[str]) -> None:
+    current = tree
+    for part in parts[:-1]:
+        if part not in current or not isinstance(current.get(part), dict):
+            current[part] = {}
+        current = current[part]
+    current[parts[-1]] = list(values)
 
 
 class BaseStore:
@@ -180,6 +227,15 @@ class BaseStore:
     def ensure_prompt_base_seeded(self, categories: dict[str, Any]) -> int:
         raise NotImplementedError
 
+    def list_prompt_variations(self, *, group_key: str, include_disabled: bool = False) -> list[str]:
+        raise NotImplementedError
+
+    def ensure_prompt_variations_seeded(self, catalog: dict[str, Any]) -> int:
+        raise NotImplementedError
+
+    def fetch_prompt_variations_tree(self) -> dict[str, Any]:
+        raise NotImplementedError
+
     def select_unused_reel_images(
         self,
         *,
@@ -199,6 +255,7 @@ class SQLiteStore(BaseStore):
         self._items = PromptItemRepository()
         self._queue = QueueRepository()
         self._prompt_base = PromptBaseRepository()
+        self._variations = PromptVariationRepository()
         self._kv = KVStore()
 
     def fetch_prompt_filters(self) -> dict[str, list[str]]:
@@ -729,6 +786,42 @@ class SQLiteStore(BaseStore):
             with conn:
                 return self._prompt_base.ensure_seeded(conn, categories)
 
+    def list_prompt_variations(self, *, group_key: str, include_disabled: bool = False) -> list[str]:
+        with get_connection() as conn:
+            return self._variations.list(conn, group_key=group_key, include_disabled=include_disabled)
+
+    def ensure_prompt_variations_seeded(self, catalog: dict[str, Any]) -> int:
+        groups = _extract_variation_groups(catalog)
+        if not groups:
+            return 0
+        with get_connection() as conn:
+            with conn:
+                return self._variations.ensure_seeded(conn, groups)
+
+    def fetch_prompt_variations_tree(self) -> dict[str, Any]:
+        with get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT group_key, value
+                FROM prompt_variation
+                WHERE enabled = 1
+                ORDER BY group_key, position, id
+                """
+            ).fetchall()
+
+        grouped: dict[str, list[str]] = {}
+        for row in rows:
+            group_key = str(row["group_key"])
+            grouped.setdefault(group_key, []).append(str(row["value"]))
+
+        tree: dict[str, Any] = {}
+        for group_key, values in grouped.items():
+            parts = [p for p in group_key.split(".") if p]
+            if not parts:
+                continue
+            _insert_group_tree(tree, parts, values)
+        return tree
+
     def select_unused_reel_images(
         self,
         *,
@@ -769,4 +862,3 @@ class SQLiteStore(BaseStore):
                     f"UPDATE prompt_item SET used_in_reel = 1 WHERE id IN ({placeholders})",
                     prompt_item_ids,
                 )
-
