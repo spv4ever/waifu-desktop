@@ -211,7 +211,16 @@ class QueueWorker:
                 mapping_key=mapping_key,
             )
 
-            remote_id = self.comfy.submit_prompt(wf)
+            try:
+                remote_id = self.comfy.submit_prompt(wf)
+            except (requests.RequestException, RuntimeError) as exc:
+                self._requeue_for_retry(
+                    conn,
+                    job_id=job_id,
+                    prompt_item_id=prompt_item_id,
+                    reason=f"error enviando prompt ({exc})",
+                )
+                return "PROCESSED"
             submitted_now = True
             self.store.set_remote(job_id, remote_id, "SUBMITTED")
             self._log(f"[WORKER] SUBMITTED job_id={job_id} remote_id={remote_id}")
