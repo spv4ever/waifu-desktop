@@ -24,6 +24,7 @@ class DollimagesPackCreate:
     manual_text: str = ""
     checkpoint_base: Optional[str] = None
     reference_image: Optional[str] = None
+    group_name: Optional[str] = None
 
 
 @dataclass(frozen=True)

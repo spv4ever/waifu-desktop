@@ -43,6 +43,7 @@ class SocialCopyRow:
 @dataclass(frozen=True)
 class DollimagePromptRow:
     id: int
+    group_name: str
     title: str
     prompt_text: str
     typology: str
@@ -375,7 +376,7 @@ class DollimagePromptRepository:
     ) -> list[DollimagePromptRow]:
         rows = conn.execute(
             """
-            SELECT id, title, prompt_text, typology, enabled
+            SELECT id, group_name, title, prompt_text, typology, enabled
             FROM dollimage_prompt
             WHERE (? = 1) OR enabled = 1
             ORDER BY typology, id
@@ -386,6 +387,7 @@ class DollimagePromptRepository:
         return [
             DollimagePromptRow(
                 id=int(row["id"]),
+                group_name=str(row["group_name"] or ""),
                 title=str(row["title"]),
                 prompt_text=str(row["prompt_text"]),
                 typology=str(row["typology"]),
@@ -399,6 +401,7 @@ class DollimagePromptRepository:
         conn: sqlite3.Connection,
         *,
         prompt_id: int | None,
+        group_name: str,
         title: str,
         prompt_text: str,
         typology: str,
@@ -408,19 +411,19 @@ class DollimagePromptRepository:
             conn.execute(
                 """
                 UPDATE dollimage_prompt
-                SET title = ?, prompt_text = ?, typology = ?, enabled = ?, updated_at = datetime('now')
+                SET group_name = ?, title = ?, prompt_text = ?, typology = ?, enabled = ?, updated_at = datetime('now')
                 WHERE id = ?
                 """,
-                (title, prompt_text, typology, 1 if enabled else 0, prompt_id),
+                (group_name, title, prompt_text, typology, 1 if enabled else 0, prompt_id),
             )
             return int(prompt_id)
 
         cur = conn.execute(
             """
-            INSERT INTO dollimage_prompt (title, prompt_text, typology, enabled)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO dollimage_prompt (group_name, title, prompt_text, typology, enabled)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            (title, prompt_text, typology, 1 if enabled else 0),
+            (group_name, title, prompt_text, typology, 1 if enabled else 0),
         )
         return int(cur.lastrowid)
 

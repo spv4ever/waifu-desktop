@@ -28,6 +28,7 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         "updated_at",
         "TEXT",
     )
+    _add_column_if_missing(conn, "dollimage_prompt", "group_name", "TEXT NOT NULL DEFAULT ''")
 
     conn.execute(
         """
@@ -125,6 +126,13 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
 
     conn.execute(
         """
+        CREATE INDEX IF NOT EXISTS idx_dollimage_prompt_group
+        ON dollimage_prompt(group_name, typology, enabled);
+        """
+    )
+
+    conn.execute(
+        """
         CREATE TRIGGER IF NOT EXISTS trg_prompt_variation_updated_at
         AFTER UPDATE ON prompt_variation
         FOR EACH ROW
@@ -169,6 +177,7 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         """
         CREATE TABLE IF NOT EXISTS dollimage_prompt (
           id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_name  TEXT NOT NULL DEFAULT '',
           title       TEXT NOT NULL,
           prompt_text TEXT NOT NULL,
           typology    TEXT NOT NULL,
@@ -183,6 +192,13 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         """
         CREATE INDEX IF NOT EXISTS idx_dollimage_prompt_typology
         ON dollimage_prompt(typology, enabled);
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_dollimage_prompt_group
+        ON dollimage_prompt(group_name, typology, enabled);
         """
     )
 

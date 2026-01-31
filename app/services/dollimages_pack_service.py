@@ -79,8 +79,13 @@ class DollimagesPackService:
             row
             for row in self.store.list_dollimage_prompts(include_disabled=False)
             if row.typology == req.typology
+            and (req.group_name is None or row.group_name == req.group_name)
         ]
         if not prompts:
+            if req.group_name:
+                raise ValueError(
+                    f"No hay prompts para la tipología seleccionada en el grupo '{req.group_name}'."
+                )
             raise ValueError("No hay prompts para la tipología seleccionada.")
 
         reference_name = self._prepare_reference_image(req.reference_image)
@@ -100,15 +105,27 @@ class DollimagesPackService:
 
         for prompt in prompts:
             for repetition in range(req.repetitions):
-                seed = rng.randint(0, 2**31 - 1)
-                signature = _hash_signature(
-                    prompt.id,
-                    req.typology,
-                    repetition,
-                    seed,
-                    reference_name,
-                    req.manual_text,
-                )
+                signature = None
+                seed = None
+                for _ in range(10):
+                    seed = rng.randint(0, 2**31 - 1)
+                    candidate = _hash_signature(
+                        prompt.id,
+                        req.typology,
+                        repetition,
+                        seed,
+                        reference_name,
+                        req.manual_text,
+                    )
+                    if self.store.try_register_combo(
+                        combo_key=candidate,
+                        category="dollimages",
+                        variant=req.typology,
+                    ):
+                        signature = candidate
+                        break
+                if signature is None or seed is None:
+                    raise RuntimeError("No se pudo registrar una combinación única para Dollimages.")
 
                 meta = {
                     "combo": {
@@ -126,6 +143,7 @@ class DollimagesPackService:
                     "reference_image": reference_name,
                     "dollimages_prompt_id": prompt.id,
                     "dollimages_typology": req.typology,
+                    "dollimages_group": req.group_name or "",
                 }
 
                 if req.checkpoint_base:

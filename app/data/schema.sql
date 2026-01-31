@@ -156,6 +156,7 @@ END;
 -- 9) Prompts para Dollimages
 CREATE TABLE IF NOT EXISTS dollimage_prompt (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_name  TEXT NOT NULL DEFAULT '',
   title       TEXT NOT NULL,
   prompt_text TEXT NOT NULL,
   typology    TEXT NOT NULL,
@@ -166,6 +167,9 @@ CREATE TABLE IF NOT EXISTS dollimage_prompt (
 
 CREATE INDEX IF NOT EXISTS idx_dollimage_prompt_typology
 ON dollimage_prompt(typology, enabled);
+
+CREATE INDEX IF NOT EXISTS idx_dollimage_prompt_group
+ON dollimage_prompt(group_name, typology, enabled);
 
 CREATE TRIGGER IF NOT EXISTS trg_dollimage_prompt_updated_at
 AFTER UPDATE ON dollimage_prompt
