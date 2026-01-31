@@ -141,7 +141,7 @@ class MainWindow(QMainWindow):
         quick_actions = QHBoxLayout()
         quick_actions.setSpacing(10)
         self.open_filters_btn = QPushButton("Filtros inteligentes")
-        self.open_pack_btn = QPushButton("Generar pack")
+        self.open_pack_btn = QPushButton("Generar Pack Waifu")
         self.open_reel_btn = QPushButton("Reel Instagram")
         quick_actions.addWidget(self.open_filters_btn)
         quick_actions.addWidget(self.open_pack_btn)
@@ -325,7 +325,7 @@ class MainWindow(QMainWindow):
         self.pack_checkpoint_refiner_combo.setMinimumWidth(220)
         pack_layout.addWidget(self.pack_checkpoint_refiner_combo, 1, 5)
 
-        self.pack_generate_btn = QPushButton("Generar Pack")
+        self.pack_generate_btn = QPushButton("Generar Pack Waifu")
         pack_layout.addWidget(self.pack_generate_btn, 1, 6, 1, 2)
         pack_layout.setColumnStretch(8, 1)
 
