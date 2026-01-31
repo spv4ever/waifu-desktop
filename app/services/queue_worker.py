@@ -10,6 +10,7 @@ import requests
 from app.data.storage import get_store
 from app.config.settings import settings
 from app.services.comfy_client import ComfyClient
+from app.services.image_validation import validate_image_file
 from app.services.workflow_service import WorkflowService
 from app.config.app_config import load_app_config
 from app.utils.path_sanitize import sanitize_segment, sanitize_relpath
@@ -157,6 +158,13 @@ class QueueWorker:
             )
             folder = sanitize_relpath(f"dollimages/{typology}")
             reference_image = meta.get("reference_image")
+            if reference_image:
+                input_path = Path(settings.comfyui_input_dir) / reference_image
+                try:
+                    validate_image_file(input_path)
+                except ValueError as exc:
+                    self.store.mark_failed(job_id, str(exc))
+                    return "PROCESSED"
             reference_stem = sanitize_segment(Path(reference_image).stem) if reference_image else ""
             title_segment = sanitize_segment(item.get("title") or "")
             if reference_stem:

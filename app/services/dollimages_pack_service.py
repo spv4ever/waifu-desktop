@@ -10,6 +10,7 @@ from app.config.app_config import load_app_config
 from app.config.settings import settings
 from app.data.storage import get_store
 from app.domain.models import DollimagesPackCreate
+from app.services.image_validation import validate_image_file
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,7 @@ class DollimagesPackService:
         src = Path(reference_path)
         if not src.exists():
             raise FileNotFoundError(f"Imagen de referencia no encontrada: {reference_path}")
+        validate_image_file(src)
         input_dir = Path(settings.comfyui_input_dir)
         input_dir.mkdir(parents=True, exist_ok=True)
         target = input_dir / src.name
