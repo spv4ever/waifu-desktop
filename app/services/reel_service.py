@@ -292,9 +292,28 @@ class ReelService:
         image_count: int,
     ) -> list[_ReelImage]:
         store = get_store()
-        rows = store.select_unused_reel_images(category=category, variant=variant)
-        if rows:
-            random.shuffle(rows)
+        priority_rows = store.select_unused_reel_images(
+            category=category,
+            variant=variant,
+            priority_only=True,
+        )
+        fallback_rows: list[dict[str, Any]] = []
+        if len(priority_rows) < image_count:
+            fallback_rows = store.select_unused_reel_images(
+                category=category,
+                variant=variant,
+                priority_only=False,
+            )
+            if priority_rows:
+                priority_ids = {int(row["id"]) for row in priority_rows}
+                fallback_rows = [row for row in fallback_rows if int(row["id"]) not in priority_ids]
+
+        if priority_rows:
+            random.shuffle(priority_rows)
+        if fallback_rows:
+            random.shuffle(fallback_rows)
+
+        rows = [*priority_rows, *fallback_rows]
 
         selected: list[_ReelImage] = []
         for row in rows:
@@ -330,12 +349,28 @@ class ReelService:
         image_count: int,
     ) -> list[_ReelImage]:
         store = get_store()
-        rows = store.select_unused_dollimages_reel_images(
+        priority_rows = store.select_unused_dollimages_reel_images(
             typology=typology,
             group_name=group_name,
+            priority_only=True,
         )
-        if rows:
-            random.shuffle(rows)
+        fallback_rows: list[dict[str, Any]] = []
+        if len(priority_rows) < image_count:
+            fallback_rows = store.select_unused_dollimages_reel_images(
+                typology=typology,
+                group_name=group_name,
+                priority_only=False,
+            )
+            if priority_rows:
+                priority_ids = {int(row["id"]) for row in priority_rows}
+                fallback_rows = [row for row in fallback_rows if int(row["id"]) not in priority_ids]
+
+        if priority_rows:
+            random.shuffle(priority_rows)
+        if fallback_rows:
+            random.shuffle(fallback_rows)
+
+        rows = [*priority_rows, *fallback_rows]
 
         selected: list[_ReelImage] = []
         for row in rows:
