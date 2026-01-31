@@ -221,6 +221,36 @@ class ReelService:
         )
         return text, hashtags
 
+    def _select_social_copy_for_label(self, *, label: str) -> tuple[str, str] | None:
+        store = get_store()
+        try:
+            templates = load_social_copies()
+            store.ensure_social_copies_seeded(templates)
+        except Exception as exc:
+            print(f"[WARN] No se pudo cargar social_copies.yaml: {exc}")
+
+        rows = store.list_social_copies(include_disabled=False)
+        if not rows:
+            return None
+
+        library_name = (settings.reel_library_name or "Biblioteca Waifu").strip()
+        character_name = label or "Dollimages"
+
+        selected = random.choice(rows)
+        text = self._format_social_template(
+            selected.text,
+            library_name=library_name,
+            character_name=character_name,
+            category_label=label or "Dollimages",
+        )
+        hashtags = self._format_social_template(
+            selected.hashtags,
+            library_name=library_name,
+            character_name=character_name,
+            category_label=label or "Dollimages",
+        )
+        return text, hashtags
+
     def _build_social_text(self) -> str:
         x_handle = (settings.reel_x_handle or "").strip()
         if x_handle:
@@ -292,6 +322,47 @@ class ReelService:
 
         return selected
 
+    def _select_unused_dollimages_images(
+        self,
+        *,
+        typology: str | None,
+        group_name: str | None,
+        image_count: int,
+    ) -> list[_ReelImage]:
+        store = get_store()
+        rows = store.select_unused_dollimages_reel_images(
+            typology=typology,
+            group_name=group_name,
+        )
+        if rows:
+            random.shuffle(rows)
+
+        selected: list[_ReelImage] = []
+        for row in rows:
+            image_json = None
+            if row.get("upscale_image_json"):
+                image_json = json.loads(row["upscale_image_json"])
+            elif row.get("base_image_json"):
+                image_json = json.loads(row["base_image_json"])
+            if not image_json:
+                continue
+
+            source_path = build_output_path(image_json)
+            if not source_path.exists():
+                continue
+
+            selected.append(
+                _ReelImage(
+                    prompt_item_id=int(row["id"]),
+                    source_path=source_path,
+                    image_json=image_json,
+                )
+            )
+            if len(selected) >= image_count:
+                break
+
+        return selected
+
     def _create_reel_folder(self, *, category: str, variant: str | None) -> Path:
         category_safe = sanitize_segment(category)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -300,6 +371,23 @@ class ReelService:
             rel_folder = sanitize_relpath(f"anime/Waifu/{category_safe}/{variant_safe}/reels/reel_{timestamp}")
         else:
             rel_folder = sanitize_relpath(f"anime/Waifu/{category_safe}/reels/reel_{timestamp}")
+        folder = Path(settings.comfyui_output_dir) / rel_folder
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    def _create_dollimages_reel_folder(
+        self,
+        *,
+        typology: str | None,
+        group_name: str | None,
+    ) -> Path:
+        typology_safe = sanitize_segment(typology or "todas")
+        group_label = "todos" if group_name is None else ("sin_grupo" if group_name == "" else group_name)
+        group_safe = sanitize_segment(group_label)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        rel_folder = sanitize_relpath(
+            f"dollimages/{typology_safe}/{group_safe}/reels/reel_{timestamp}"
+        )
         folder = Path(settings.comfyui_output_dir) / rel_folder
         folder.mkdir(parents=True, exist_ok=True)
         return folder
@@ -598,6 +686,108 @@ class ReelService:
         return ReelCreateResult(
             category=category,
             variant=variant,
+            image_count=len(images),
+            folder=folder,
+            video_path=video_path,
+            prompt_item_ids=ids,
+        )
+
+    def create_dollimages_reel(
+        self,
+        *,
+        typology: str | None,
+        group_name: str | None,
+        image_count: int,
+        seconds_per_image: float,
+    ) -> ReelCreateResult:
+        if image_count <= 0:
+            raise ValueError("La cantidad de imágenes debe ser mayor a cero.")
+        if seconds_per_image <= 0:
+            raise ValueError("Los segundos por imagen deben ser mayores a cero.")
+        if seconds_per_image <= self._TRANSITION_SECONDS:
+            raise ValueError("Los segundos por imagen deben ser mayores a la duración de la transición.")
+
+        images = self._select_unused_dollimages_images(
+            typology=typology,
+            group_name=group_name,
+            image_count=image_count,
+        )
+        if len(images) < image_count:
+            raise RuntimeError(
+                f"No hay suficientes imágenes disponibles para el reel. "
+                f"Disponibles: {len(images)}, solicitadas: {image_count}."
+            )
+
+        folder = self._create_dollimages_reel_folder(typology=typology, group_name=group_name)
+        copied_paths = self._copy_images(images, folder=folder)
+        ext = copied_paths[0].suffix if copied_paths else ".png"
+
+        title = None
+        label = (group_name or "").strip()
+        if label:
+            title = label
+        elif typology:
+            title = f"Dollimages {typology.upper()}"
+        else:
+            title = "Dollimages"
+
+        social_copy = self._select_social_copy_for_label(label=title)
+        social_text = None
+        social_hashtags = None
+        social_copy_file = None
+        if social_copy:
+            social_text, social_hashtags = social_copy
+            social_content = social_text
+            if social_hashtags:
+                social_content = f"{social_content}\n\n{social_hashtags}"
+            social_copy_file = self._write_text_file(
+                folder=folder,
+                filename="social_post.txt",
+                text=social_content,
+            )
+
+        video_path, audio_path = self._render_video(
+            folder=folder,
+            ext=ext,
+            image_count=image_count,
+            seconds_per_image=seconds_per_image,
+            title=title,
+        )
+
+        manifest = {
+            "category": "dollimages",
+            "typology": typology,
+            "group": group_name,
+            "title": title,
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+            "image_count": len(images),
+            "seconds_per_image": seconds_per_image,
+            "transition_seconds": self._TRANSITION_SECONDS,
+            "video": video_path.name,
+            "audio": audio_path.name if audio_path else None,
+            "social_post": {
+                "text": social_text,
+                "hashtags": social_hashtags,
+                "file": social_copy_file,
+            },
+            "items": [
+                {
+                    "prompt_item_id": image.prompt_item_id,
+                    "source": str(image.source_path),
+                    "frame": str(copied_path.name),
+                }
+                for image, copied_path in zip(images, copied_paths)
+            ],
+        }
+        (folder / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        ids = [image.prompt_item_id for image in images]
+        store = get_store()
+        store.mark_prompt_items_used_in_reel(ids)
+
+        return ReelCreateResult(
+            category="dollimages",
+            variant=typology,
             image_count=len(images),
             folder=folder,
             video_path=video_path,

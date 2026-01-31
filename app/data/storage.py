@@ -537,6 +537,39 @@ class SQLiteStore(BaseStore):
 
         return [dict(row) for row in rows]
 
+    def select_unused_dollimages_reel_images(
+        self,
+        *,
+        typology: str | None,
+        group_name: str | None,
+    ) -> list[dict[str, Any]]:
+        conditions = [
+            "status = 'DONE'",
+            "used_in_reel = 0",
+            "(base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)",
+            "json_extract(meta_json, '$.combo.category') = 'dollimages'",
+        ]
+        params: list[str] = []
+        if typology:
+            conditions.append("json_extract(meta_json, '$.combo.variant') = ?")
+            params.append(typology)
+        if group_name is not None:
+            conditions.append("json_extract(meta_json, '$.dollimages_group') = ?")
+            params.append(group_name)
+
+        with get_connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, base_image_json, upscale_image_json
+                FROM prompt_item
+                WHERE {' AND '.join(conditions)}
+                ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+                """,
+                params,
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
     def get_prompt_item_media(self, prompt_id: int) -> dict[str, Any] | None:
         with get_connection() as conn:
             row = conn.execute(

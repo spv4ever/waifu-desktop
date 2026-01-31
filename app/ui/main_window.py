@@ -150,10 +150,12 @@ class MainWindow(QMainWindow):
         self.open_pack_btn = QPushButton("Generar Pack Waifu")
         self.open_dollimages_pack_btn = QPushButton("Crear Pack Dollimages")
         self.open_reel_btn = QPushButton("Reel Instagram")
+        self.open_dollimages_reel_btn = QPushButton("Reel Dollimages")
         quick_actions.addWidget(self.open_filters_btn)
         quick_actions.addWidget(self.open_pack_btn)
         quick_actions.addWidget(self.open_dollimages_pack_btn)
         quick_actions.addWidget(self.open_reel_btn)
+        quick_actions.addWidget(self.open_dollimages_reel_btn)
         quick_actions.addStretch(1)
         layout.addLayout(quick_actions)
 
@@ -432,6 +434,47 @@ class MainWindow(QMainWindow):
 
         reel_dialog_layout.addWidget(reel_group)
 
+        self.dollimages_reel_dialog = QDialog(self)
+        self.dollimages_reel_dialog.setWindowTitle("Reel Dollimages")
+        self.dollimages_reel_dialog.setModal(False)
+        doll_reel_layout = QVBoxLayout(self.dollimages_reel_dialog)
+        doll_reel_group = QGroupBox("Reel Dollimages")
+        doll_reel_grid = QGridLayout(doll_reel_group)
+        doll_reel_grid.setHorizontalSpacing(10)
+        doll_reel_grid.setVerticalSpacing(8)
+
+        doll_reel_grid.addWidget(QLabel("Grupo:"), 0, 0)
+        self.dollimages_reel_group_combo = QComboBox()
+        self.dollimages_reel_group_combo.setMinimumWidth(160)
+        doll_reel_grid.addWidget(self.dollimages_reel_group_combo, 0, 1)
+
+        doll_reel_grid.addWidget(QLabel("Tipología:"), 0, 2)
+        self.dollimages_reel_typology_combo = QComboBox()
+        self.dollimages_reel_typology_combo.addItem("Todas", None)
+        self.dollimages_reel_typology_combo.addItem("Normal", "normal")
+        self.dollimages_reel_typology_combo.addItem("SFW", "sfw")
+        self.dollimages_reel_typology_combo.addItem("NSFW", "nsfw")
+        doll_reel_grid.addWidget(self.dollimages_reel_typology_combo, 0, 3)
+
+        doll_reel_grid.addWidget(QLabel("Cantidad imágenes:"), 0, 4)
+        self.dollimages_reel_quantity_spin = QSpinBox()
+        self.dollimages_reel_quantity_spin.setRange(1, 30)
+        self.dollimages_reel_quantity_spin.setValue(5)
+        doll_reel_grid.addWidget(self.dollimages_reel_quantity_spin, 0, 5)
+
+        doll_reel_grid.addWidget(QLabel("Segundos por imagen:"), 0, 6)
+        self.dollimages_reel_seconds_spin = QDoubleSpinBox()
+        self.dollimages_reel_seconds_spin.setRange(1.0, 10.0)
+        self.dollimages_reel_seconds_spin.setSingleStep(0.5)
+        self.dollimages_reel_seconds_spin.setValue(2.0)
+        doll_reel_grid.addWidget(self.dollimages_reel_seconds_spin, 0, 7)
+
+        self.dollimages_reel_generate_btn = QPushButton("Crear Reel")
+        doll_reel_grid.addWidget(self.dollimages_reel_generate_btn, 0, 8)
+        doll_reel_grid.setColumnStretch(9, 1)
+
+        doll_reel_layout.addWidget(doll_reel_group)
+
         main_content = QHBoxLayout()
         layout.addLayout(main_content, 1)
         self.main_content_layout = main_content
@@ -583,10 +626,12 @@ class MainWindow(QMainWindow):
         self.pack_generate_btn.clicked.connect(self.generate_pack)
         self.dollimages_generate_btn.clicked.connect(self.generate_dollimages_pack)
         self.reel_generate_btn.clicked.connect(self.generate_reel)
+        self.dollimages_reel_generate_btn.clicked.connect(self.generate_dollimages_reel)
         self.open_filters_btn.clicked.connect(self.filters_dialog.show)
         self.open_pack_btn.clicked.connect(self.pack_dialog.show)
         self.open_dollimages_pack_btn.clicked.connect(self.dollimages_dialog.show)
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
+        self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
         self.dollimages_reference_btn.clicked.connect(self.select_dollimages_reference_image)
         self.limit_spin.valueChanged.connect(self.refresh)
         self.pause_between_spin.valueChanged.connect(self._update_worker_delay)
@@ -896,20 +941,26 @@ class MainWindow(QMainWindow):
         self._populate_reel_selectors()
 
     def _populate_dollimages_groups(self) -> None:
-        current = self.dollimages_group_combo.currentData()
+        current_pack = self.dollimages_group_combo.currentData()
+        current_reel = self.dollimages_reel_group_combo.currentData()
         rows = self.store.list_dollimage_prompts(include_disabled=False)
         groups = sorted({row.group_name.strip() for row in rows if row.group_name.strip()})
-        self.dollimages_group_combo.blockSignals(True)
-        self.dollimages_group_combo.clear()
-        self.dollimages_group_combo.addItem("Todos", None)
-        self.dollimages_group_combo.addItem("Sin grupo", "")
-        for group in groups:
-            self.dollimages_group_combo.addItem(group, group)
-        if current is not None:
-            idx = self.dollimages_group_combo.findData(current)
-            if idx >= 0:
-                self.dollimages_group_combo.setCurrentIndex(idx)
-        self.dollimages_group_combo.blockSignals(False)
+        combos = (
+            (self.dollimages_group_combo, current_pack),
+            (self.dollimages_reel_group_combo, current_reel),
+        )
+        for combo, current in combos:
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem("Todos", None)
+            combo.addItem("Sin grupo", "")
+            for group in groups:
+                combo.addItem(group, group)
+            if current is not None:
+                idx = combo.findData(current)
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
+            combo.blockSignals(False)
 
     def _populate_reel_selectors(self) -> None:
         self.reel_category_combo.clear()
@@ -1094,6 +1145,28 @@ class MainWindow(QMainWindow):
             open_folder_and_select(result.folder)
         except Exception as exc:
             QMessageBox.critical(self, "Reel Instagram", f"No se pudo abrir la carpeta: {exc}")
+
+    def generate_dollimages_reel(self) -> None:
+        group_name = self.dollimages_reel_group_combo.currentData()
+        typology = self.dollimages_reel_typology_combo.currentData()
+        quantity = int(self.dollimages_reel_quantity_spin.value())
+        seconds_per_image = float(self.dollimages_reel_seconds_spin.value())
+
+        try:
+            result = self.reel_service.create_dollimages_reel(
+                typology=str(typology) if typology else None,
+                group_name=str(group_name) if group_name is not None else None,
+                image_count=quantity,
+                seconds_per_image=seconds_per_image,
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Reel Dollimages", str(exc))
+            return
+
+        try:
+            open_folder_and_select(result.folder)
+        except Exception as exc:
+            QMessageBox.critical(self, "Reel Dollimages", f"No se pudo abrir la carpeta: {exc}")
 
     # -------- Preview helpers --------
 
