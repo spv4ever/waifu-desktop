@@ -40,6 +40,15 @@ class SocialCopyRow:
     enabled: bool
 
 
+@dataclass(frozen=True)
+class DollimagePromptRow:
+    id: int
+    title: str
+    prompt_text: str
+    typology: str
+    enabled: bool
+
+
 class PackRepository:
     def create(self, conn: sqlite3.Connection, *, category: str, variant: str, requested_n: int, notes: str) -> int:
         cur = conn.execute(
@@ -355,6 +364,68 @@ class SocialCopyRepository:
             )
             inserted += 1
         return inserted
+
+
+class DollimagePromptRepository:
+    def list(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        include_disabled: bool = False,
+    ) -> list[DollimagePromptRow]:
+        rows = conn.execute(
+            """
+            SELECT id, title, prompt_text, typology, enabled
+            FROM dollimage_prompt
+            WHERE (? = 1) OR enabled = 1
+            ORDER BY typology, id
+            """,
+            (1 if include_disabled else 0,),
+        ).fetchall()
+
+        return [
+            DollimagePromptRow(
+                id=int(row["id"]),
+                title=str(row["title"]),
+                prompt_text=str(row["prompt_text"]),
+                typology=str(row["typology"]),
+                enabled=bool(row["enabled"]),
+            )
+            for row in rows
+        ]
+
+    def save(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        prompt_id: int | None,
+        title: str,
+        prompt_text: str,
+        typology: str,
+        enabled: bool,
+    ) -> int:
+        if prompt_id:
+            conn.execute(
+                """
+                UPDATE dollimage_prompt
+                SET title = ?, prompt_text = ?, typology = ?, enabled = ?, updated_at = datetime('now')
+                WHERE id = ?
+                """,
+                (title, prompt_text, typology, 1 if enabled else 0, prompt_id),
+            )
+            return int(prompt_id)
+
+        cur = conn.execute(
+            """
+            INSERT INTO dollimage_prompt (title, prompt_text, typology, enabled)
+            VALUES (?, ?, ?, ?)
+            """,
+            (title, prompt_text, typology, 1 if enabled else 0),
+        )
+        return int(cur.lastrowid)
+
+    def delete(self, conn: sqlite3.Connection, *, prompt_id: int) -> None:
+        conn.execute("DELETE FROM dollimage_prompt WHERE id = ?", (prompt_id,))
 
 
 class PromptItemRepository:

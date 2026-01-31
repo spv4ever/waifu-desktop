@@ -139,27 +139,46 @@ class QueueWorker:
         checkpoints = meta.get("checkpoints", {}) if isinstance(meta.get("checkpoints"), dict) else {}
         checkpoint_base = checkpoints.get("base")
         checkpoint_refiner = checkpoints.get("refiner")
+        workflow_key = str(meta.get("workflow") or "waifu")
 
-        # -------------------------
-        # PATH / NAMING (Jerarquía correcta)
-        # anime/Waifu/<category>/<variant>/<ratio>_<id>[_4k]
-        # -------------------------
-        category = sanitize_segment(combo.get("category", "cat"))
-        variant = sanitize_segment(combo.get("variant", "v01"))
-        ratio = sanitize_segment(combo.get("ratio_tag") or combo.get("ratio") or "1x1")
+        reference_image = None
+        mapping_key = "comfyui_workflow"
 
-        folder = sanitize_relpath(f"anime/Waifu/{category}/{variant}")
+        if workflow_key == "dollimages":
+            typology = sanitize_segment(
+                meta.get("dollimages_typology") or combo.get("variant") or "normal"
+            )
+            folder = sanitize_relpath(f"dollimages/{typology}")
+            title_segment = sanitize_segment(item.get("title") or "")
+            base_name = f"{prompt_item_id}" if not title_segment else f"{prompt_item_id}_{title_segment}"
+            base_prefix = sanitize_relpath(f"{folder}/{base_name}")
+            upscale_prefix = base_prefix
+            width = int(meta.get("width") or 832)
+            height = int(meta.get("height") or 1216)
+            seed = meta.get("seed")
+            reference_image = meta.get("reference_image")
+            mapping_key = "comfyui_workflow_dollimages"
+        else:
+            # -------------------------
+            # PATH / NAMING (Jerarquía correcta)
+            # anime/Waifu/<category>/<variant>/<ratio>_<id>[_4k]
+            # -------------------------
+            category = sanitize_segment(combo.get("category", "cat"))
+            variant = sanitize_segment(combo.get("variant", "v01"))
+            ratio = sanitize_segment(combo.get("ratio_tag") or combo.get("ratio") or "1x1")
 
-        base_name = sanitize_segment(f"{ratio}_{prompt_item_id}")
-        base_prefix = sanitize_relpath(f"{folder}/{base_name}")
-        upscale_prefix = sanitize_relpath(f"{folder}/{base_name}_4k")
+            folder = sanitize_relpath(f"anime/Waifu/{category}/{variant}")
 
-        # Tamaños (ratio -> width/height ya vienen en meta/combo)
-        width = int(meta.get("width") or combo.get("width") or 1024)
-        height = int(meta.get("height") or combo.get("height") or 1024)
+            base_name = sanitize_segment(f"{ratio}_{prompt_item_id}")
+            base_prefix = sanitize_relpath(f"{folder}/{base_name}")
+            upscale_prefix = sanitize_relpath(f"{folder}/{base_name}_4k")
 
-        # Seed opcional
-        seed = meta.get("seed")
+            # Tamaños (ratio -> width/height ya vienen en meta/combo)
+            width = int(meta.get("width") or combo.get("width") or 1024)
+            height = int(meta.get("height") or combo.get("height") or 1024)
+
+            # Seed opcional
+            seed = meta.get("seed")
 
         # Opción 1: steps bloqueados (NO tocar steps en workflow)
         defaults = self.app_cfg.raw.get("defaults", {})
@@ -174,7 +193,7 @@ class QueueWorker:
         remote_id = job.remote_id
         submitted_now = False
         if not remote_id:
-            wf = self.workflow.load_template()
+            wf = self.workflow.load_template(workflow_key=workflow_key)
 
             wf = self.workflow.apply_overrides(
                 wf,
@@ -188,6 +207,8 @@ class QueueWorker:
                 filename_prefix_upscale=upscale_prefix,
                 checkpoint_base=checkpoint_base,
                 checkpoint_refiner=checkpoint_refiner,
+                load_image=reference_image,
+                mapping_key=mapping_key,
             )
 
             remote_id = self.comfy.submit_prompt(wf)

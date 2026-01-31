@@ -164,3 +164,35 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         END;
         """
     )
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS dollimage_prompt (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          title       TEXT NOT NULL,
+          prompt_text TEXT NOT NULL,
+          typology    TEXT NOT NULL,
+          enabled     INTEGER NOT NULL DEFAULT 1,
+          created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_dollimage_prompt_typology
+        ON dollimage_prompt(typology, enabled);
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_dollimage_prompt_updated_at
+        AFTER UPDATE ON dollimage_prompt
+        FOR EACH ROW
+        BEGIN
+          UPDATE dollimage_prompt SET updated_at = datetime('now') WHERE id = NEW.id;
+        END;
+        """
+    )
