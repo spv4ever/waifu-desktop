@@ -27,12 +27,21 @@ def main():
 
     base = json.loads(row["base_image_json"]) if row.get("base_image_json") else None
     up = json.loads(row["upscale_image_json"]) if row.get("upscale_image_json") else None
+    meta_json = row.get("meta_json")
+
+    workflow_key = "waifu"
+    if meta_json:
+        try:
+            meta = json.loads(meta_json)
+        except ValueError:
+            meta = {}
+        workflow_key = str(meta.get("workflow") or "waifu")
 
     def show(label: str, data: dict | None):
         if not data:
             print(f"\n{label}: (no data)")
             return
-        p: Path = build_output_path(data)
+        p: Path = build_output_path(data, workflow_key=workflow_key)
         print(f"\n{label}:")
         print("  subfolder:", data.get("subfolder"))
         print("  filename :", data.get("filename"))
