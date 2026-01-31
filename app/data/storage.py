@@ -299,6 +299,7 @@ class BaseStore:
         self,
         *,
         prompt_id: int | None,
+        group_name: str,
         title: str,
         prompt_text: str,
         typology: str,
@@ -996,6 +997,7 @@ class SQLiteStore(BaseStore):
         self,
         *,
         prompt_id: int | None,
+        group_name: str,
         title: str,
         prompt_text: str,
         typology: str,
@@ -1006,6 +1008,7 @@ class SQLiteStore(BaseStore):
                 return self._dollimage_prompts.save(
                     conn,
                     prompt_id=prompt_id,
+                    group_name=group_name,
                     title=title,
                     prompt_text=prompt_text,
                     typology=typology,

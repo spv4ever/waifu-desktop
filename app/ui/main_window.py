@@ -379,6 +379,11 @@ class MainWindow(QMainWindow):
         self.dollimages_iterations_spin.setValue(1)
         doll_layout.addWidget(self.dollimages_iterations_spin, 1, 3)
 
+        doll_layout.addWidget(QLabel("Grupo:"), 1, 4)
+        self.dollimages_group_combo = QComboBox()
+        self.dollimages_group_combo.setMinimumWidth(180)
+        doll_layout.addWidget(self.dollimages_group_combo, 1, 5)
+
         doll_layout.addWidget(QLabel("Texto manual:"), 2, 0)
         self.dollimages_manual_input = QLineEdit()
         self.dollimages_manual_input.setPlaceholderText("Añade un texto común para todo el pack")
@@ -604,6 +609,7 @@ class MainWindow(QMainWindow):
         self.pack_combination_combo.currentIndexChanged.connect(self._update_nsfw_controls)
         self._populate_pack_selectors()
         self._populate_checkpoint_selectors()
+        self._populate_dollimages_groups()
         self._update_nsfw_controls()
 
         self._update_right_column_visibility()
@@ -843,6 +849,7 @@ class MainWindow(QMainWindow):
             return
         window = DollimagesPromptWindow()
         window.setAttribute(Qt.WA_DeleteOnClose, True)
+        window.catalog_updated.connect(self._populate_dollimages_groups)
         window.destroyed.connect(self._clear_dollimages_prompt_window)
         self.dollimages_prompt_window = window
         window.show()
@@ -887,6 +894,22 @@ class MainWindow(QMainWindow):
             self.pack_generate_btn.setEnabled(False)
 
         self._populate_reel_selectors()
+
+    def _populate_dollimages_groups(self) -> None:
+        current = self.dollimages_group_combo.currentData()
+        rows = self.store.list_dollimage_prompts(include_disabled=False)
+        groups = sorted({row.group_name.strip() for row in rows if row.group_name.strip()})
+        self.dollimages_group_combo.blockSignals(True)
+        self.dollimages_group_combo.clear()
+        self.dollimages_group_combo.addItem("Todos", None)
+        self.dollimages_group_combo.addItem("Sin grupo", "")
+        for group in groups:
+            self.dollimages_group_combo.addItem(group, group)
+        if current is not None:
+            idx = self.dollimages_group_combo.findData(current)
+            if idx >= 0:
+                self.dollimages_group_combo.setCurrentIndex(idx)
+        self.dollimages_group_combo.blockSignals(False)
 
     def _populate_reel_selectors(self) -> None:
         self.reel_category_combo.clear()
@@ -1010,6 +1033,7 @@ class MainWindow(QMainWindow):
         checkpoint_base = self.dollimages_checkpoint_combo.currentData()
         manual_text = self.dollimages_manual_input.text().strip()
         reference_image = self.dollimages_reference_input.text().strip()
+        group_name = self.dollimages_group_combo.currentData()
 
         if not typology:
             QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona una tipología.")
@@ -1027,6 +1051,7 @@ class MainWindow(QMainWindow):
             manual_text=manual_text,
             checkpoint_base=str(checkpoint_base),
             reference_image=reference_image,
+            group_name=str(group_name) if group_name is not None else None,
         )
 
         try:

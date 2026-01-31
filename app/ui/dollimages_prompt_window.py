@@ -53,6 +53,10 @@ class DollimagesPromptWindow(QMainWindow):
         prompt_layout.addLayout(select_row)
 
         title_row = QHBoxLayout()
+        title_row.addWidget(QLabel("Grupo:"))
+        self.prompt_group_input = QLineEdit()
+        self.prompt_group_input.setPlaceholderText("Ej: enfermeras")
+        title_row.addWidget(self.prompt_group_input)
         title_row.addWidget(QLabel("Título:"))
         self.prompt_title_input = QLineEdit()
         self.prompt_title_input.setPlaceholderText("Título visible del prompt")
@@ -103,7 +107,8 @@ class DollimagesPromptWindow(QMainWindow):
         self.prompt_combo.clear()
         self.prompt_combo.addItem("Nuevo...", None)
         for row in rows:
-            label = f"{row.title} [{row.typology}]"
+            group_label = row.group_name or "Sin grupo"
+            label = f"{group_label} - {row.title} [{row.typology}]"
             if not row.enabled:
                 label = f"{label} (deshabilitado)"
             self.prompt_combo.addItem(label, row.id)
@@ -117,6 +122,7 @@ class DollimagesPromptWindow(QMainWindow):
         self.prompt_combo.setCurrentIndex(0)
         self.prompt_id_label.setText("—")
         self.prompt_title_input.clear()
+        self.prompt_group_input.clear()
         self.prompt_text_input.clear()
         self.prompt_typology_combo.setCurrentIndex(0)
         self.prompt_enabled_checkbox.setChecked(True)
@@ -131,6 +137,7 @@ class DollimagesPromptWindow(QMainWindow):
             return
         self.prompt_id_label.setText(str(row.id))
         self.prompt_title_input.setText(row.title)
+        self.prompt_group_input.setText(row.group_name)
         self.prompt_text_input.setPlainText(row.prompt_text)
         idx = self.prompt_typology_combo.findData(row.typology)
         if idx >= 0:
@@ -139,6 +146,7 @@ class DollimagesPromptWindow(QMainWindow):
 
     def save_prompt(self) -> None:
         prompt_id = self.prompt_combo.currentData()
+        group_name = self.prompt_group_input.text().strip()
         title = self.prompt_title_input.text().strip()
         prompt_text = self.prompt_text_input.toPlainText().strip()
         typology = str(self.prompt_typology_combo.currentData() or "normal")
@@ -153,6 +161,7 @@ class DollimagesPromptWindow(QMainWindow):
 
         saved_id = self.store.save_dollimage_prompt(
             prompt_id=int(prompt_id) if prompt_id else None,
+            group_name=group_name,
             title=title,
             prompt_text=prompt_text,
             typology=typology,
