@@ -18,8 +18,12 @@ class ComfyClient:
         """
         url = f"{self.base_url}/prompt"
         r = requests.post(url, json={"prompt": workflow}, timeout=self.timeout)
-        r.raise_for_status()
-        data = r.json()
+        if not r.ok:
+            raise RuntimeError(f"ComfyUI /prompt error {r.status_code}: {r.text}")
+        try:
+            data = r.json()
+        except ValueError as exc:
+            raise RuntimeError(f"ComfyUI devolvió respuesta no JSON: {r.text}") from exc
         prompt_id = data.get("prompt_id")
         if not prompt_id:
             raise RuntimeError(f"ComfyUI no devolvió prompt_id. Respuesta: {data}")
