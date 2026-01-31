@@ -21,6 +21,8 @@ class PromptRow:
     has_base: bool
     has_upscale: bool
     used_in_reel: bool
+    reel_priority: bool
+    reel_discarded: bool
     progress: int | None
     backend_status: str | None
     datestamp: str
@@ -146,6 +148,8 @@ def fetch_prompts(
                 has_base=bool(r.get("base_image_json")),
                 has_upscale=bool(r.get("upscale_image_json")),
                 used_in_reel=bool(r.get("used_in_reel")),
+                reel_priority=bool(r.get("reel_priority")),
+                reel_discarded=bool(r.get("reel_discarded")),
                 progress=progress_value,
                 backend_status=str(job_backend_status) if job_backend_status else None,
                 datestamp=_format_datestamp(row_datestamp),

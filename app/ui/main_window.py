@@ -97,6 +97,7 @@ class MainWindow(QMainWindow):
         menu = self.menuBar()
         file_menu = menu.addMenu("Archivo")
         queue_menu = menu.addMenu("Cola")
+        reel_menu = menu.addMenu("Reel")
         view_menu = menu.addMenu("Vista")
         maintenance_menu = menu.addMenu("Mantenimiento")
         self.open_base_action = file_menu.addAction("Abrir Base")
@@ -113,6 +114,11 @@ class MainWindow(QMainWindow):
         self.refresh_action.setShortcut("F5")
         self.pause_action.setShortcut("Ctrl+Shift+P")
         self.resume_action.setShortcut("Ctrl+Shift+R")
+
+        self.mark_reel_priority_action = reel_menu.addAction("Marcar prioridad reel")
+        self.mark_reel_discard_action = reel_menu.addAction("Descartar en reels")
+        reel_menu.addSeparator()
+        self.clear_reel_flags_action = reel_menu.addAction("Limpiar marcas de reel")
 
         self.toggle_preview_action = view_menu.addAction("Mostrar preview")
         self.toggle_preview_action.setCheckable(True)
@@ -490,13 +496,15 @@ class MainWindow(QMainWindow):
         self.right_column_widget = right_column_widget
 
         # Table
-        self.table = QTableWidget(0, 12)
+        self.table = QTableWidget(0, 14)
         self.table.setHorizontalHeaderLabels([
             "ID",
             "Categoría",
             "Base",
             "Upscale",
             "Reel",
+            "Prioridad Reel",
+            "Descartada Reel",
             "Versión",
             "Estado",
             "Fecha",
@@ -604,6 +612,9 @@ class MainWindow(QMainWindow):
         self.refresh_action.triggered.connect(self.refresh)
         self.pause_action.triggered.connect(self.pause_queue)
         self.resume_action.triggered.connect(self.resume_queue)
+        self.mark_reel_priority_action.triggered.connect(self.mark_selected_reel_priority)
+        self.mark_reel_discard_action.triggered.connect(self.mark_selected_reel_discarded)
+        self.clear_reel_flags_action.triggered.connect(self.clear_selected_reel_flags)
 
         self.open_base_action.triggered.connect(lambda: self.open_selected("base"))
         self.open_up_action.triggered.connect(lambda: self.open_selected("upscale"))
@@ -619,6 +630,9 @@ class MainWindow(QMainWindow):
         self.open_up_action.setEnabled(False)
         self.open_folder_base_action.setEnabled(False)
         self.open_folder_up_action.setEnabled(False)
+        self.mark_reel_priority_action.setEnabled(False)
+        self.mark_reel_discard_action.setEnabled(False)
+        self.clear_reel_flags_action.setEnabled(False)
         self.worker_thread: WorkerThread | None = None
 
         self.start_worker_btn.clicked.connect(self.start_worker)
@@ -771,13 +785,15 @@ class MainWindow(QMainWindow):
             self.table.setItem(i, 2, QTableWidgetItem("✅" if row.has_base else "—"))
             self.table.setItem(i, 3, QTableWidgetItem("✅" if row.has_upscale else "—"))
             self.table.setItem(i, 4, QTableWidgetItem("✅" if row.used_in_reel else "—"))
-            self.table.setItem(i, 5, QTableWidgetItem(row.variant))
-            self.table.setItem(i, 6, QTableWidgetItem(row.status))
-            self.table.setItem(i, 7, QTableWidgetItem(row.datestamp))
-            self.table.setItem(i, 8, QTableWidgetItem(row.title))
-            self.table.setItem(i, 9, QTableWidgetItem(row.ratio))
-            self.table.setItem(i, 10, QTableWidgetItem(row.checkpoint_base or "—"))
-            self.table.setItem(i, 11, QTableWidgetItem(row.checkpoint_refiner or "—"))
+            self.table.setItem(i, 5, QTableWidgetItem("⭐" if row.reel_priority else "—"))
+            self.table.setItem(i, 6, QTableWidgetItem("⛔" if row.reel_discarded else "—"))
+            self.table.setItem(i, 7, QTableWidgetItem(row.variant))
+            self.table.setItem(i, 8, QTableWidgetItem(row.status))
+            self.table.setItem(i, 9, QTableWidgetItem(row.datestamp))
+            self.table.setItem(i, 10, QTableWidgetItem(row.title))
+            self.table.setItem(i, 11, QTableWidgetItem(row.ratio))
+            self.table.setItem(i, 12, QTableWidgetItem(row.checkpoint_base or "—"))
+            self.table.setItem(i, 13, QTableWidgetItem(row.checkpoint_refiner or "—"))
 
         if payload.resize_columns:
             self.table.resizeColumnsToContents()
@@ -1253,6 +1269,9 @@ class MainWindow(QMainWindow):
             self.open_up_action.setEnabled(False)
             self.open_folder_base_action.setEnabled(False)
             self.open_folder_up_action.setEnabled(False)
+            self.mark_reel_priority_action.setEnabled(False)
+            self.mark_reel_discard_action.setEnabled(False)
+            self.clear_reel_flags_action.setEnabled(False)
             self._set_preview(which="base", path=None)
             return
 
@@ -1264,6 +1283,9 @@ class MainWindow(QMainWindow):
         self.open_folder_base_action.setEnabled(has_base)
         self.open_up_action.setEnabled(has_up)
         self.open_folder_up_action.setEnabled(has_up)
+        self.mark_reel_priority_action.setEnabled(True)
+        self.mark_reel_discard_action.setEnabled(True)
+        self.clear_reel_flags_action.setEnabled(True)
 
         base_path: Path | None = None
         if r and r.get("base_image_json"):
@@ -1272,6 +1294,27 @@ class MainWindow(QMainWindow):
             base_path = build_output_path(base, workflow_key=workflow_key)
 
         self._set_preview(which="base", path=base_path)
+
+    def mark_selected_reel_priority(self) -> None:
+        pid = self._selected_prompt_id()
+        if pid is None:
+            return
+        self.store.set_prompt_item_reel_flags(prompt_id=pid, priority=True, discarded=False)
+        self._schedule_refresh(resize_columns=False)
+
+    def mark_selected_reel_discarded(self) -> None:
+        pid = self._selected_prompt_id()
+        if pid is None:
+            return
+        self.store.set_prompt_item_reel_flags(prompt_id=pid, priority=False, discarded=True)
+        self._schedule_refresh(resize_columns=False)
+
+    def clear_selected_reel_flags(self) -> None:
+        pid = self._selected_prompt_id()
+        if pid is None:
+            return
+        self.store.set_prompt_item_reel_flags(prompt_id=pid, priority=False, discarded=False)
+        self._schedule_refresh(resize_columns=False)
 
     def open_prompt_dialog_from_item(self, item: QTableWidgetItem) -> None:
         if self.prompt_dialog and self.prompt_dialog.isVisible():

@@ -267,10 +267,29 @@ class BaseStore:
         *,
         category: str,
         variant: str | None,
+        priority_only: bool = False,
+    ) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    def select_unused_dollimages_reel_images(
+        self,
+        *,
+        typology: str | None,
+        group_name: str | None,
+        priority_only: bool = False,
     ) -> list[dict[str, Any]]:
         raise NotImplementedError
 
     def mark_prompt_items_used_in_reel(self, prompt_item_ids: list[int]) -> None:
+        raise NotImplementedError
+
+    def set_prompt_item_reel_flags(
+        self,
+        *,
+        prompt_id: int,
+        priority: bool | None = None,
+        discarded: bool | None = None,
+    ) -> None:
         raise NotImplementedError
 
     def list_social_copies(self, *, include_disabled: bool = False) -> list[SocialCopyRow]:
@@ -517,6 +536,8 @@ class SQLiteStore(BaseStore):
                     prompt_text,
                     status,
                     used_in_reel,
+                    reel_priority,
+                    reel_discarded,
                     meta_json,
                     base_image_json,
                     upscale_image_json,
@@ -542,9 +563,11 @@ class SQLiteStore(BaseStore):
         *,
         typology: str | None,
         group_name: str | None,
+        priority_only: bool = False,
     ) -> list[dict[str, Any]]:
         conditions = [
             "used_in_reel = 0",
+            "reel_discarded = 0",
             "(base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)",
             "("
             "json_extract(meta_json, '$.combo.category') = 'dollimages'"
@@ -553,6 +576,8 @@ class SQLiteStore(BaseStore):
             ")",
         ]
         params: list[str] = []
+        if priority_only:
+            conditions.append("reel_priority = 1")
         if typology:
             conditions.append(
                 "("
@@ -968,14 +993,18 @@ class SQLiteStore(BaseStore):
         *,
         category: str,
         variant: str | None,
+        priority_only: bool = False,
     ) -> list[dict[str, Any]]:
         conditions = [
             "status = 'DONE'",
             "used_in_reel = 0",
+            "reel_discarded = 0",
             "(base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)",
             "json_extract(meta_json, '$.combo.category') = ?",
         ]
         params: list[str] = [category]
+        if priority_only:
+            conditions.append("reel_priority = 1")
         if variant:
             conditions.append("json_extract(meta_json, '$.combo.variant') = ?")
             params.append(variant)
@@ -1002,6 +1031,31 @@ class SQLiteStore(BaseStore):
                 conn.execute(
                     f"UPDATE prompt_item SET used_in_reel = 1 WHERE id IN ({placeholders})",
                     prompt_item_ids,
+                )
+
+    def set_prompt_item_reel_flags(
+        self,
+        *,
+        prompt_id: int,
+        priority: bool | None = None,
+        discarded: bool | None = None,
+    ) -> None:
+        updates: list[str] = []
+        params: list[object] = []
+        if priority is not None:
+            updates.append("reel_priority = ?")
+            params.append(1 if priority else 0)
+        if discarded is not None:
+            updates.append("reel_discarded = ?")
+            params.append(1 if discarded else 0)
+        if not updates:
+            return
+        params.append(int(prompt_id))
+        with get_connection() as conn:
+            with conn:
+                conn.execute(
+                    f"UPDATE prompt_item SET {', '.join(updates)} WHERE id = ?",
+                    params,
                 )
 
     def list_social_copies(self, *, include_disabled: bool = False) -> list[SocialCopyRow]:
