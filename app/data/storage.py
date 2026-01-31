@@ -540,7 +540,11 @@ class SQLiteStore(BaseStore):
     def get_prompt_item_media(self, prompt_id: int) -> dict[str, Any] | None:
         with get_connection() as conn:
             row = conn.execute(
-                "SELECT title, prompt_text, base_image_json, upscale_image_json FROM prompt_item WHERE id=?",
+                """
+                SELECT title, prompt_text, base_image_json, upscale_image_json, meta_json
+                FROM prompt_item
+                WHERE id=?
+                """,
                 (prompt_id,),
             ).fetchone()
         return dict(row) if row else None

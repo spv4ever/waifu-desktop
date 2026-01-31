@@ -30,11 +30,20 @@ def main():
 
     base = json.loads(row["base_image_json"]) if row.get("base_image_json") else None
     up = json.loads(row["upscale_image_json"]) if row.get("upscale_image_json") else None
+    meta_json = row.get("meta_json")
+
+    workflow_key = "waifu"
+    if meta_json:
+        try:
+            meta = json.loads(meta_json)
+        except ValueError:
+            meta = {}
+        workflow_key = str(meta.get("workflow") or "waifu")
 
     def resolve(data: dict | None) -> Path:
         if not data:
             raise RuntimeError("No hay output guardado para este modo.")
-        return build_output_path(data)
+        return build_output_path(data, workflow_key=workflow_key)
 
     if mode == "base":
         open_file(resolve(base))

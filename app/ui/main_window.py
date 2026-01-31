@@ -1195,7 +1195,8 @@ class MainWindow(QMainWindow):
         base_path: Path | None = None
         if r and r.get("base_image_json"):
             base = json.loads(r["base_image_json"])
-            base_path = build_output_path(base)
+            workflow_key = self._workflow_key_from_row(r)
+            base_path = build_output_path(base, workflow_key=workflow_key)
 
         self._set_preview(which="base", path=base_path)
 
@@ -1302,27 +1303,28 @@ class MainWindow(QMainWindow):
 
         base = json.loads(r["base_image_json"]) if r.get("base_image_json") else None
         up = json.loads(r["upscale_image_json"]) if r.get("upscale_image_json") else None
+        workflow_key = self._workflow_key_from_row(r)
 
         try:
             if mode == "base":
                 if not base:
                     raise RuntimeError("Este item no tiene base_image_json.")
-                open_file(build_output_path(base))
+                open_file(build_output_path(base, workflow_key=workflow_key))
 
             elif mode == "upscale":
                 if not up:
                     raise RuntimeError("Este item no tiene upscale_image_json.")
-                open_file(build_output_path(up))
+                open_file(build_output_path(up, workflow_key=workflow_key))
 
             elif mode == "folder_base":
                 if not base:
                     raise RuntimeError("Este item no tiene base_image_json.")
-                open_folder_and_select(build_output_path(base))
+                open_folder_and_select(build_output_path(base, workflow_key=workflow_key))
 
             elif mode == "folder_upscale":
                 if not up:
                     raise RuntimeError("Este item no tiene upscale_image_json.")
-                open_folder_and_select(build_output_path(up))
+                open_folder_and_select(build_output_path(up, workflow_key=workflow_key))
 
             else:
                 raise RuntimeError("Modo desconocido.")
@@ -1374,6 +1376,16 @@ class MainWindow(QMainWindow):
             return
 
         QApplication.clipboard().setText(prompt)
+
+    def _workflow_key_from_row(self, row: dict[str, Any]) -> str:
+        meta_json = row.get("meta_json")
+        if not meta_json:
+            return "waifu"
+        try:
+            meta = json.loads(meta_json)
+        except ValueError:
+            return "waifu"
+        return str(meta.get("workflow") or "waifu")
 
     def _selected_filter_value(self, combo: QComboBox) -> str | None:
         value = combo.currentData()
