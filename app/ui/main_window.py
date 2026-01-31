@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from functools import partial
 
 from PySide6.QtCore import Qt, QDateTime, QDate, QTime, QTimer
 from PySide6.QtGui import QPixmap
@@ -9,7 +10,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog
+    QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QMenu
 )
 
 from app.config.app_config import load_app_config
@@ -518,6 +519,8 @@ class MainWindow(QMainWindow):
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         self.table.setShowGrid(False)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self._show_table_context_menu)
 
         # 1) Quita las marcas de foco en Windows 11
         self.table.setStyle(NoFocusRectStyle(self.table.style()))
@@ -1294,6 +1297,96 @@ class MainWindow(QMainWindow):
             base_path = build_output_path(base, workflow_key=workflow_key)
 
         self._set_preview(which="base", path=base_path)
+
+    def _show_table_context_menu(self, position) -> None:
+        item = self.table.itemAt(position)
+        if not item:
+            return
+        row = item.row()
+        self.table.selectRow(row)
+        self._sync_current_cell_to_selection()
+        self.update_actions_state()
+
+        pid = self._prompt_id_for_row(row)
+        if pid is None:
+            return
+
+        menu = QMenu(self)
+        menu.addAction(self.mark_reel_priority_action)
+        menu.addAction(self.mark_reel_discard_action)
+        menu.addAction(self.clear_reel_flags_action)
+        menu.addSeparator()
+
+        variant_menu = self._build_variant_context_menu(prompt_id=pid)
+        if variant_menu:
+            menu.addMenu(variant_menu)
+
+        menu.exec(self.table.viewport().mapToGlobal(position))
+
+    def _build_variant_context_menu(self, *, prompt_id: int) -> QMenu | None:
+        row = self.store.get_prompt_item(prompt_id)
+        if not row:
+            return None
+        workflow_key = self._workflow_key_from_row(row)
+        current_variant = self._extract_variant_from_meta(row.get("meta_json"), workflow_key)
+
+        if workflow_key == "dollimages":
+            label = "Cambiar tipología"
+            options = [
+                ("Normal", "normal"),
+                ("SFW", "sfw"),
+                ("NSFW", "nsfw"),
+            ]
+        else:
+            label = "Cambiar versión"
+            options = [(key, key) for key in self.app_config.variants.keys()]
+
+        if not options:
+            return None
+
+        menu = QMenu(label, self)
+        for text, value in options:
+            action = menu.addAction(text)
+            action.setCheckable(True)
+            action.setChecked(value == current_variant)
+            action.triggered.connect(
+                partial(self._set_prompt_item_variant, prompt_id, value, workflow_key)
+            )
+        return menu
+
+    def _extract_variant_from_meta(self, meta_json: str | None, workflow_key: str) -> str | None:
+        if not meta_json:
+            return None
+        try:
+            meta = json.loads(meta_json)
+        except ValueError:
+            return None
+        if not isinstance(meta, dict):
+            return None
+        if workflow_key == "dollimages":
+            typology = meta.get("dollimages_typology")
+            if typology:
+                return str(typology)
+        combo = meta.get("combo", {})
+        if isinstance(combo, dict):
+            variant = combo.get("variant")
+            if variant:
+                return str(variant)
+        return None
+
+    def _set_prompt_item_variant(self, prompt_id: int, variant: str, workflow_key: str) -> None:
+        row = self.store.get_prompt_item(prompt_id)
+        current_variant = (
+            self._extract_variant_from_meta(row.get("meta_json"), workflow_key) if row else None
+        )
+        if current_variant == variant:
+            return
+        self.store.set_prompt_item_variant(
+            prompt_id=prompt_id,
+            variant=variant,
+            workflow_key=workflow_key,
+        )
+        self._schedule_refresh(resize_columns=False)
 
     def mark_selected_reel_priority(self) -> None:
         pid = self._selected_prompt_id()

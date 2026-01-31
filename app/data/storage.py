@@ -292,6 +292,15 @@ class BaseStore:
     ) -> None:
         raise NotImplementedError
 
+    def set_prompt_item_variant(
+        self,
+        *,
+        prompt_id: int,
+        variant: str,
+        workflow_key: str,
+    ) -> None:
+        raise NotImplementedError
+
     def list_social_copies(self, *, include_disabled: bool = False) -> list[SocialCopyRow]:
         raise NotImplementedError
 
@@ -1056,6 +1065,47 @@ class SQLiteStore(BaseStore):
                 conn.execute(
                     f"UPDATE prompt_item SET {', '.join(updates)} WHERE id = ?",
                     params,
+                )
+
+    def set_prompt_item_variant(
+        self,
+        *,
+        prompt_id: int,
+        variant: str,
+        workflow_key: str,
+    ) -> None:
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT meta_json FROM prompt_item WHERE id = ?",
+                (prompt_id,),
+            ).fetchone()
+        if not row:
+            return
+        meta_json = row["meta_json"]
+        meta: dict[str, Any]
+        if meta_json:
+            try:
+                parsed = json.loads(meta_json)
+                meta = parsed if isinstance(parsed, dict) else {}
+            except json.JSONDecodeError:
+                meta = {}
+        else:
+            meta = {}
+
+        combo = meta.get("combo")
+        if not isinstance(combo, dict):
+            combo = {}
+        combo["variant"] = variant
+        meta["combo"] = combo
+        if workflow_key == "dollimages":
+            meta["dollimages_typology"] = variant
+
+        updated_meta = json.dumps(meta, ensure_ascii=False)
+        with get_connection() as conn:
+            with conn:
+                conn.execute(
+                    "UPDATE prompt_item SET meta_json = ? WHERE id = ?",
+                    (updated_meta, prompt_id),
                 )
 
     def list_social_copies(self, *, include_disabled: bool = False) -> list[SocialCopyRow]:
