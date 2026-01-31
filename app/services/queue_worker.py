@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+from pathlib import Path
 from typing import Literal, Any, Callable
 
 import requests
@@ -155,14 +156,18 @@ class QueueWorker:
                 meta.get("dollimages_typology") or combo.get("variant") or "normal"
             )
             folder = sanitize_relpath(f"dollimages/{typology}")
+            reference_image = meta.get("reference_image")
+            reference_stem = sanitize_segment(Path(reference_image).stem) if reference_image else ""
             title_segment = sanitize_segment(item.get("title") or "")
-            base_name = f"{prompt_item_id}" if not title_segment else f"{prompt_item_id}_{title_segment}"
+            if reference_stem:
+                base_name = f"{reference_stem}_{prompt_item_id}"
+            else:
+                base_name = f"{prompt_item_id}" if not title_segment else f"{prompt_item_id}_{title_segment}"
             base_prefix = sanitize_relpath(f"{folder}/{base_name}")
             upscale_prefix = base_prefix
             width = int(meta.get("width") or 832)
             height = int(meta.get("height") or 1216)
             seed = meta.get("seed")
-            reference_image = meta.get("reference_image")
             mapping_key = "comfyui_workflow_dollimages"
         else:
             # -------------------------
