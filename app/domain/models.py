@@ -18,6 +18,15 @@ class PackCreate:
 
 
 @dataclass(frozen=True)
+class DollimagesPackCreate:
+    typology: str
+    repetitions: int
+    manual_text: str = ""
+    checkpoint_base: Optional[str] = None
+    reference_image: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class PromptDraft:
     # Lo que generamos antes de persistir
     title: str

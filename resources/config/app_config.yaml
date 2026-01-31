@@ -13,6 +13,10 @@ defaults:
     - "uniform"
     - "costume"
 
+dollimages_defaults:
+  width: 832
+  height: 1216
+
 ratios:
   "1:1": [1024, 1024]
   "2:3": [832, 1248]
@@ -79,3 +83,44 @@ comfyui_workflow:
   checkpoint_refiner:
     node_id: "12"
     input: "ckpt_name"
+
+comfyui_workflow_dollimages:
+  prompt_pos:
+    node_id: ["6", "15"]
+    input: "text"
+
+  prompt_neg:
+    node_id: ["7", "16"]
+    input: "text"
+
+  seed:
+    node_id: "10"
+    input: "noise_seed"
+
+  steps:
+    node_id: ["10", "11"]
+    input: "steps"
+
+  width:
+    node_id: "5"
+    input: "width"
+
+  height:
+    node_id: "5"
+    input: "height"
+
+  output_base:
+    node_id: "19"
+    input: "filename_prefix"
+
+  checkpoint_base:
+    node_id: "4"
+    input: "ckpt_name"
+
+  checkpoint_refiner:
+    node_id: "12"
+    input: "ckpt_name"
+
+  load_image:
+    node_id: "55"
+    input: "image"

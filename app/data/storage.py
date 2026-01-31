@@ -8,6 +8,8 @@ from app.data.db import get_connection
 from app.data.kv_store import KVStore
 from app.data.repositories import (
     ComboRegistryRepository,
+    DollimagePromptRepository,
+    DollimagePromptRow,
     PackRepository,
     PromptBaseRepository,
     PromptBaseRow,
@@ -290,6 +292,23 @@ class BaseStore:
     def ensure_social_copies_seeded(self, copies: list[dict[str, str]]) -> int:
         raise NotImplementedError
 
+    def list_dollimage_prompts(self, *, include_disabled: bool = False) -> list[DollimagePromptRow]:
+        raise NotImplementedError
+
+    def save_dollimage_prompt(
+        self,
+        *,
+        prompt_id: int | None,
+        title: str,
+        prompt_text: str,
+        typology: str,
+        enabled: bool,
+    ) -> int:
+        raise NotImplementedError
+
+    def delete_dollimage_prompt(self, *, prompt_id: int) -> None:
+        raise NotImplementedError
+
 
 class SQLiteStore(BaseStore):
     def __init__(self) -> None:
@@ -300,6 +319,7 @@ class SQLiteStore(BaseStore):
         self._prompt_base = PromptBaseRepository()
         self._variations = PromptVariationRepository()
         self._social_copies = SocialCopyRepository()
+        self._dollimage_prompts = DollimagePromptRepository()
         self._kv = KVStore()
 
     def fetch_prompt_filters(self) -> dict[str, list[str]]:
@@ -967,3 +987,32 @@ class SQLiteStore(BaseStore):
         with get_connection() as conn:
             with conn:
                 return self._social_copies.ensure_seeded(conn, copies)
+
+    def list_dollimage_prompts(self, *, include_disabled: bool = False) -> list[DollimagePromptRow]:
+        with get_connection() as conn:
+            return self._dollimage_prompts.list(conn, include_disabled=include_disabled)
+
+    def save_dollimage_prompt(
+        self,
+        *,
+        prompt_id: int | None,
+        title: str,
+        prompt_text: str,
+        typology: str,
+        enabled: bool,
+    ) -> int:
+        with get_connection() as conn:
+            with conn:
+                return self._dollimage_prompts.save(
+                    conn,
+                    prompt_id=prompt_id,
+                    title=title,
+                    prompt_text=prompt_text,
+                    typology=typology,
+                    enabled=enabled,
+                )
+
+    def delete_dollimage_prompt(self, *, prompt_id: int) -> None:
+        with get_connection() as conn:
+            with conn:
+                self._dollimage_prompts.delete(conn, prompt_id=prompt_id)

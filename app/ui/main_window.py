@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit, QCheckBox, QDialog, QDoubleSpinBox
+    QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog
 )
 
 from app.config.app_config import load_app_config
@@ -17,10 +17,11 @@ from app.config.waifu_catalog import load_waifu_catalog
 from app.data.storage import get_store
 from app.services.output_paths import build_output_path
 from app.services.pack_service import PackService
+from app.services.dollimages_pack_service import DollimagesPackService
 from app.services.file_open import open_file, open_folder_and_select
 from app.services.checkpoint_service import CheckpointService
 from app.services.reel_service import ReelService
-from app.domain.models import PackCreate
+from app.domain.models import PackCreate, DollimagesPackCreate
 from app.ui.data_source import (
     fetch_prompts,
     fetch_prompt_filters,
@@ -36,6 +37,7 @@ from app.ui.prompt_base_window import PromptBaseWindow
 from app.ui.prompt_variation_window import PromptVariationWindow
 from app.ui.social_copy_window import SocialCopyWindow
 from app.ui.prompt_dialog import PromptDetailDialog
+from app.ui.dollimages_prompt_window import DollimagesPromptWindow
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
 
@@ -65,12 +67,14 @@ class MainWindow(QMainWindow):
 
         self.store = get_store()
         self.pack_service = PackService()
+        self.dollimages_pack_service = DollimagesPackService()
         self.reel_service = ReelService()
         self.waifu_catalog = load_waifu_catalog()
         self.app_config = load_app_config()
         self.prompt_base_window: PromptBaseWindow | None = None
         self.prompt_variation_window: PromptVariationWindow | None = None
         self.social_copy_window: SocialCopyWindow | None = None
+        self.dollimages_prompt_window: DollimagesPromptWindow | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -125,6 +129,8 @@ class MainWindow(QMainWindow):
         self.open_prompt_variation_action.triggered.connect(self.open_prompt_variation_window)
         self.open_social_copy_action = maintenance_menu.addAction("Copys redes sociales")
         self.open_social_copy_action.triggered.connect(self.open_social_copy_window)
+        self.open_dollimages_prompt_action = maintenance_menu.addAction("Prompts Dollimages")
+        self.open_dollimages_prompt_action.triggered.connect(self.open_dollimages_prompt_window)
 
         header = QHBoxLayout()
         title_stack = QVBoxLayout()
@@ -142,9 +148,11 @@ class MainWindow(QMainWindow):
         quick_actions.setSpacing(10)
         self.open_filters_btn = QPushButton("Filtros inteligentes")
         self.open_pack_btn = QPushButton("Generar Pack Waifu")
+        self.open_dollimages_pack_btn = QPushButton("Crear Pack Dollimages")
         self.open_reel_btn = QPushButton("Reel Instagram")
         quick_actions.addWidget(self.open_filters_btn)
         quick_actions.addWidget(self.open_pack_btn)
+        quick_actions.addWidget(self.open_dollimages_pack_btn)
         quick_actions.addWidget(self.open_reel_btn)
         quick_actions.addStretch(1)
         layout.addLayout(quick_actions)
@@ -336,6 +344,52 @@ class MainWindow(QMainWindow):
 
         pack_dialog_layout.addWidget(pack_group)
 
+        # Dollimages pack generator
+        self.dollimages_dialog = QDialog(self)
+        self.dollimages_dialog.setWindowTitle("Crear Pack Dollimages")
+        self.dollimages_dialog.setModal(False)
+        doll_dialog_layout = QVBoxLayout(self.dollimages_dialog)
+        doll_group = QGroupBox("Crear Pack Dollimages")
+        doll_layout = QGridLayout(doll_group)
+        doll_layout.setHorizontalSpacing(10)
+        doll_layout.setVerticalSpacing(8)
+
+        doll_layout.addWidget(QLabel("Tipología:"), 0, 0)
+        self.dollimages_typology_combo = QComboBox()
+        self.dollimages_typology_combo.addItem("Normal", "normal")
+        self.dollimages_typology_combo.addItem("SFW", "sfw")
+        self.dollimages_typology_combo.addItem("NSFW", "nsfw")
+        doll_layout.addWidget(self.dollimages_typology_combo, 0, 1)
+
+        doll_layout.addWidget(QLabel("Imagen referencia:"), 0, 2)
+        self.dollimages_reference_input = QLineEdit()
+        self.dollimages_reference_input.setPlaceholderText("Selecciona una imagen para faceswap")
+        doll_layout.addWidget(self.dollimages_reference_input, 0, 3, 1, 3)
+        self.dollimages_reference_btn = QPushButton("Buscar")
+        doll_layout.addWidget(self.dollimages_reference_btn, 0, 6)
+
+        doll_layout.addWidget(QLabel("Checkpoint Base:"), 1, 0)
+        self.dollimages_checkpoint_combo = QComboBox()
+        self.dollimages_checkpoint_combo.setMinimumWidth(220)
+        doll_layout.addWidget(self.dollimages_checkpoint_combo, 1, 1)
+
+        doll_layout.addWidget(QLabel("Iteraciones por prompt:"), 1, 2)
+        self.dollimages_iterations_spin = QSpinBox()
+        self.dollimages_iterations_spin.setRange(1, 500)
+        self.dollimages_iterations_spin.setValue(1)
+        doll_layout.addWidget(self.dollimages_iterations_spin, 1, 3)
+
+        doll_layout.addWidget(QLabel("Texto manual:"), 2, 0)
+        self.dollimages_manual_input = QLineEdit()
+        self.dollimages_manual_input.setPlaceholderText("Añade un texto común para todo el pack")
+        doll_layout.addWidget(self.dollimages_manual_input, 2, 1, 1, 5)
+
+        self.dollimages_generate_btn = QPushButton("Crear Pack Dollimages")
+        doll_layout.addWidget(self.dollimages_generate_btn, 2, 6)
+        doll_layout.setColumnStretch(7, 1)
+
+        doll_dialog_layout.addWidget(doll_group)
+
         self.reel_dialog = QDialog(self)
         self.reel_dialog.setWindowTitle("Reel Instagram")
         self.reel_dialog.setModal(False)
@@ -522,10 +576,13 @@ class MainWindow(QMainWindow):
         self.start_worker_btn.clicked.connect(self.start_worker)
         self.stop_worker_btn.clicked.connect(self.stop_worker)
         self.pack_generate_btn.clicked.connect(self.generate_pack)
+        self.dollimages_generate_btn.clicked.connect(self.generate_dollimages_pack)
         self.reel_generate_btn.clicked.connect(self.generate_reel)
         self.open_filters_btn.clicked.connect(self.filters_dialog.show)
         self.open_pack_btn.clicked.connect(self.pack_dialog.show)
+        self.open_dollimages_pack_btn.clicked.connect(self.dollimages_dialog.show)
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
+        self.dollimages_reference_btn.clicked.connect(self.select_dollimages_reference_image)
         self.limit_spin.valueChanged.connect(self.refresh)
         self.pause_between_spin.valueChanged.connect(self._update_worker_delay)
         self.prompt_id_input.textChanged.connect(self.refresh)
@@ -779,6 +836,20 @@ class MainWindow(QMainWindow):
     def _clear_social_copy_window(self) -> None:
         self.social_copy_window = None
 
+    def open_dollimages_prompt_window(self) -> None:
+        if self.dollimages_prompt_window and self.dollimages_prompt_window.isVisible():
+            self.dollimages_prompt_window.activateWindow()
+            self.dollimages_prompt_window.raise_()
+            return
+        window = DollimagesPromptWindow()
+        window.setAttribute(Qt.WA_DeleteOnClose, True)
+        window.destroyed.connect(self._clear_dollimages_prompt_window)
+        self.dollimages_prompt_window = window
+        window.show()
+
+    def _clear_dollimages_prompt_window(self) -> None:
+        self.dollimages_prompt_window = None
+
     def on_prompt_base_updated(self) -> None:
         self._reload_waifu_catalog()
         self._populate_pack_selectors()
@@ -881,6 +952,7 @@ class MainWindow(QMainWindow):
 
         fill_combo(self.pack_checkpoint_base_combo, default_base)
         fill_combo(self.pack_checkpoint_refiner_combo, default_refiner)
+        fill_combo(self.dollimages_checkpoint_combo, default_base)
 
     def generate_pack(self) -> None:
         category = self.pack_category_combo.currentData()
@@ -919,6 +991,54 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "Generar Pack",
+            f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} items.",
+        )
+
+    def select_dollimages_reference_image(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Seleccionar imagen de referencia",
+            "",
+            "Images (*.png *.jpg *.jpeg *.webp *.bmp)",
+        )
+        if file_path:
+            self.dollimages_reference_input.setText(file_path)
+
+    def generate_dollimages_pack(self) -> None:
+        typology = self.dollimages_typology_combo.currentData()
+        repetitions = int(self.dollimages_iterations_spin.value())
+        checkpoint_base = self.dollimages_checkpoint_combo.currentData()
+        manual_text = self.dollimages_manual_input.text().strip()
+        reference_image = self.dollimages_reference_input.text().strip()
+
+        if not typology:
+            QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona una tipología.")
+            return
+        if not reference_image:
+            QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona una imagen de referencia.")
+            return
+        if not checkpoint_base:
+            QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona un checkpoint base.")
+            return
+
+        req = DollimagesPackCreate(
+            typology=str(typology),
+            repetitions=repetitions,
+            manual_text=manual_text,
+            checkpoint_base=str(checkpoint_base),
+            reference_image=reference_image,
+        )
+
+        try:
+            result = self.dollimages_pack_service.create_pack_and_enqueue(None, req)
+        except Exception as exc:
+            QMessageBox.critical(self, "Crear Pack Dollimages", str(exc))
+            return
+
+        self.refresh()
+        QMessageBox.information(
+            self,
+            "Crear Pack Dollimages",
             f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} items.",
         )
 
