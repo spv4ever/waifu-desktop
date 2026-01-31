@@ -22,6 +22,11 @@ class QueueWorker:
     def __init__(self, *, log_callback: Callable[[str], None] | None = None) -> None:
         self.store = get_store()
         self.comfy = ComfyClient()
+        self.dollimages_comfy = (
+            ComfyClient(base_url=settings.comfyui_dollimages_base_url)
+            if settings.comfyui_dollimages_base_url
+            else None
+        )
         self.workflow = WorkflowService()
         self.app_cfg = load_app_config()
         self._log_callback = log_callback
@@ -140,6 +145,7 @@ class QueueWorker:
         checkpoint_base = checkpoints.get("base")
         checkpoint_refiner = checkpoints.get("refiner")
         workflow_key = str(meta.get("workflow") or "waifu")
+        comfy_client = self.dollimages_comfy if workflow_key == "dollimages" and self.dollimages_comfy else self.comfy
 
         reference_image = None
         mapping_key = "comfyui_workflow"
@@ -212,7 +218,7 @@ class QueueWorker:
             )
 
             try:
-                remote_id = self.comfy.submit_prompt(wf)
+                remote_id = comfy_client.submit_prompt(wf)
             except (requests.RequestException, RuntimeError) as exc:
                 self._requeue_for_retry(
                     conn,
@@ -242,7 +248,7 @@ class QueueWorker:
                 return "PROCESSED"
 
             try:
-                history = self.comfy.get_history(remote_id)
+                history = comfy_client.get_history(remote_id)
             except requests.RequestException as exc:
                 self._requeue_for_retry(
                     conn,
