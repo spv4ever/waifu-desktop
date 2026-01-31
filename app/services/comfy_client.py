@@ -7,8 +7,9 @@ from app.config.settings import settings
 
 
 class ComfyClient:
-    def __init__(self) -> None:
-        self.base_url = settings.comfyui_base_url.rstrip("/")
+    def __init__(self, *, base_url: str | None = None) -> None:
+        resolved_base_url = base_url or settings.comfyui_base_url
+        self.base_url = resolved_base_url.rstrip("/")
         self.timeout = settings.comfyui_request_timeout
 
     def submit_prompt(self, workflow: dict[str, Any]) -> str:
