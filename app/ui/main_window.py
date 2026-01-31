@@ -138,6 +138,17 @@ class MainWindow(QMainWindow):
         header.addStretch(1)
         layout.addLayout(header)
 
+        quick_actions = QHBoxLayout()
+        quick_actions.setSpacing(10)
+        self.open_filters_btn = QPushButton("Filtros inteligentes")
+        self.open_pack_btn = QPushButton("Generar pack")
+        self.open_reel_btn = QPushButton("Reel Instagram")
+        quick_actions.addWidget(self.open_filters_btn)
+        quick_actions.addWidget(self.open_pack_btn)
+        quick_actions.addWidget(self.open_reel_btn)
+        quick_actions.addStretch(1)
+        layout.addLayout(quick_actions)
+
         summary_group = QGroupBox("Resumen rápido")
         summary_layout = QHBoxLayout(summary_group)
         self.status_total_label = QLabel("Total: 0")
@@ -191,6 +202,10 @@ class MainWindow(QMainWindow):
         operation_layout.setColumnStretch(4, 1)
         layout.addWidget(operation_group)
 
+        self.filters_dialog = QDialog(self)
+        self.filters_dialog.setWindowTitle("Filtros inteligentes")
+        self.filters_dialog.setModal(False)
+        filters_dialog_layout = QVBoxLayout(self.filters_dialog)
         filters_group = QGroupBox("Filtros inteligentes")
         filters_layout = QGridLayout(filters_group)
         filters_layout.setHorizontalSpacing(10)
@@ -263,9 +278,13 @@ class MainWindow(QMainWindow):
         filters_layout.addWidget(self.filter_checkpoint_base_combo, 2, 3, 1, 3)
         filters_layout.addWidget(self.reset_filters_btn, 2, 6, 1, 2)
         filters_layout.setColumnStretch(8, 1)
-        layout.addWidget(filters_group)
+        filters_dialog_layout.addWidget(filters_group)
 
         # Pack generator
+        self.pack_dialog = QDialog(self)
+        self.pack_dialog.setWindowTitle("Generar Pack")
+        self.pack_dialog.setModal(False)
+        pack_dialog_layout = QVBoxLayout(self.pack_dialog)
         pack_group = QGroupBox("Generar Pack")
         pack_layout = QGridLayout(pack_group)
         pack_layout.setHorizontalSpacing(10)
@@ -315,8 +334,12 @@ class MainWindow(QMainWindow):
         self.pack_manual_feature_input.setPlaceholderText("Añade una característica común para todo el pack")
         pack_layout.addWidget(self.pack_manual_feature_input, 2, 1, 1, 7)
 
-        layout.addWidget(pack_group)
+        pack_dialog_layout.addWidget(pack_group)
 
+        self.reel_dialog = QDialog(self)
+        self.reel_dialog.setWindowTitle("Reel Instagram")
+        self.reel_dialog.setModal(False)
+        reel_dialog_layout = QVBoxLayout(self.reel_dialog)
         reel_group = QGroupBox("Reel Instagram")
         reel_layout = QGridLayout(reel_group)
         reel_layout.setHorizontalSpacing(10)
@@ -348,7 +371,7 @@ class MainWindow(QMainWindow):
         reel_layout.addWidget(self.reel_generate_btn, 0, 8)
         reel_layout.setColumnStretch(9, 1)
 
-        layout.addWidget(reel_group)
+        reel_dialog_layout.addWidget(reel_group)
 
         main_content = QHBoxLayout()
         layout.addLayout(main_content, 1)
@@ -500,6 +523,9 @@ class MainWindow(QMainWindow):
         self.stop_worker_btn.clicked.connect(self.stop_worker)
         self.pack_generate_btn.clicked.connect(self.generate_pack)
         self.reel_generate_btn.clicked.connect(self.generate_reel)
+        self.open_filters_btn.clicked.connect(self.filters_dialog.show)
+        self.open_pack_btn.clicked.connect(self.pack_dialog.show)
+        self.open_reel_btn.clicked.connect(self.reel_dialog.show)
         self.limit_spin.valueChanged.connect(self.refresh)
         self.pause_between_spin.valueChanged.connect(self._update_worker_delay)
         self.prompt_id_input.textChanged.connect(self.refresh)
