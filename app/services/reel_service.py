@@ -347,7 +347,7 @@ class ReelService:
             if not image_json:
                 continue
 
-            source_path = build_output_path(image_json)
+            source_path = build_output_path(image_json, workflow_key="dollimages")
             if not source_path.exists():
                 continue
 
