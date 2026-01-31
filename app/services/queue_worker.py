@@ -120,6 +120,43 @@ class QueueWorker:
         self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="QUEUED")
         self._emit_progress()
 
+    def _parse_comfy_error(self, error: Exception) -> tuple[str | None, dict[str, Any] | None]:
+        message = str(error)
+        prefix = "ComfyUI /prompt error"
+        if prefix not in message:
+            return None, None
+        _, _, remainder = message.partition(": ")
+        remainder = remainder.strip()
+        if not remainder:
+            return message, None
+        try:
+            payload = json.loads(remainder)
+        except json.JSONDecodeError:
+            return message, None
+        error_block = payload.get("error")
+        if isinstance(error_block, dict):
+            error_type = error_block.get("type")
+            if isinstance(error_type, str):
+                return error_type, payload
+        return message, payload
+
+    def _should_mark_failed(self, error: Exception) -> tuple[bool, str]:
+        error_type, payload = self._parse_comfy_error(error)
+        message = str(error)
+        if error_type == "prompt_outputs_failed_validation":
+            details = ""
+            if isinstance(payload, dict):
+                node_errors = payload.get("node_errors")
+                if isinstance(node_errors, dict):
+                    details = json.dumps(node_errors, ensure_ascii=False)
+            reason = "ComfyUI rechazó el prompt por validación"
+            if details:
+                reason = f"{reason}: {details}"
+            return True, reason
+        if "Invalid image file" in message or "Formato de imagen no válido" in message:
+            return True, message
+        return False, message
+
     def process_one(self, conn=None, *, delay_seconds: float = 0.2) -> WorkerResult:
         if self._should_stop():
             self._log("[WORKER] Stop solicitado. No se procesarán más jobs.")
@@ -233,6 +270,12 @@ class QueueWorker:
             try:
                 remote_id = comfy_client.submit_prompt(wf)
             except (requests.RequestException, RuntimeError) as exc:
+                mark_failed, reason = self._should_mark_failed(exc)
+                if mark_failed:
+                    self.store.mark_failed(job_id, reason)
+                    self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="FAILED")
+                    self._emit_progress()
+                    return "PROCESSED"
                 self._requeue_for_retry(
                     conn,
                     job_id=job_id,
