@@ -544,15 +544,23 @@ class SQLiteStore(BaseStore):
         group_name: str | None,
     ) -> list[dict[str, Any]]:
         conditions = [
-            "status = 'DONE'",
             "used_in_reel = 0",
             "(base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)",
-            "json_extract(meta_json, '$.combo.category') = 'dollimages'",
+            "("
+            "json_extract(meta_json, '$.combo.category') = 'dollimages'"
+            " OR json_extract(meta_json, '$.workflow') = 'dollimages'"
+            " OR json_extract(meta_json, '$.category') = 'dollimages'"
+            ")",
         ]
         params: list[str] = []
         if typology:
-            conditions.append("json_extract(meta_json, '$.combo.variant') = ?")
-            params.append(typology)
+            conditions.append(
+                "("
+                "json_extract(meta_json, '$.combo.variant') = ?"
+                " OR json_extract(meta_json, '$.dollimages_typology') = ?"
+                ")"
+            )
+            params.extend([typology, typology])
         if group_name is not None:
             conditions.append("json_extract(meta_json, '$.dollimages_group') = ?")
             params.append(group_name)
