@@ -28,6 +28,8 @@ from app.ui.data_source import (
     fetch_prompt_filters,
     fetch_prompt_status_counts,
     fetch_category_production_counts,
+    fetch_dollimages_reel_available_count,
+    fetch_dollimages_reel_group_counts,
     fetch_variants_for_category,
 )
 from app.ui.worker_thread import WorkerThread
@@ -468,6 +470,9 @@ class MainWindow(QMainWindow):
         self.dollimages_reel_quantity_spin.setRange(1, 30)
         self.dollimages_reel_quantity_spin.setValue(5)
         doll_reel_grid.addWidget(self.dollimages_reel_quantity_spin, 0, 5)
+        doll_reel_grid.addWidget(QLabel("Disponibles:"), 1, 4)
+        self.dollimages_reel_available_label = QLabel("—")
+        doll_reel_grid.addWidget(self.dollimages_reel_available_label, 1, 5)
 
         doll_reel_grid.addWidget(QLabel("Segundos por imagen:"), 0, 6)
         self.dollimages_reel_seconds_spin = QDoubleSpinBox()
@@ -663,6 +668,12 @@ class MainWindow(QMainWindow):
         self.filter_date_order_combo.currentIndexChanged.connect(self.refresh)
         self.filter_last_days_spin.valueChanged.connect(self._on_last_days_changed)
         self.reel_category_combo.currentIndexChanged.connect(self._populate_reel_variants)
+        self.dollimages_reel_group_combo.currentIndexChanged.connect(
+            self._update_dollimages_reel_availability
+        )
+        self.dollimages_reel_typology_combo.currentIndexChanged.connect(
+            self._update_dollimages_reel_availability
+        )
         self.reset_filters_btn.clicked.connect(self.reset_filters)
         self.toggle_preview_action.toggled.connect(self._toggle_base_preview)
         self.preview_toggle_check.toggled.connect(self._toggle_base_preview)
@@ -672,6 +683,7 @@ class MainWindow(QMainWindow):
         self._populate_pack_selectors()
         self._populate_checkpoint_selectors()
         self._populate_dollimages_groups()
+        self._update_dollimages_reel_availability()
         self._update_nsfw_controls()
 
         self._update_right_column_visibility()
@@ -963,23 +975,39 @@ class MainWindow(QMainWindow):
         current_pack = self.dollimages_group_combo.currentData()
         current_reel = self.dollimages_reel_group_combo.currentData()
         rows = self.store.list_dollimage_prompts(include_disabled=False)
-        groups = sorted({row.group_name.strip() for row in rows if row.group_name.strip()})
-        combos = (
-            (self.dollimages_group_combo, current_pack),
-            (self.dollimages_reel_group_combo, current_reel),
-        )
-        for combo, current in combos:
-            combo.blockSignals(True)
-            combo.clear()
-            combo.addItem("Todos", None)
-            combo.addItem("Sin grupo", "")
-            for group in groups:
-                combo.addItem(group, group)
-            if current is not None:
-                idx = combo.findData(current)
-                if idx >= 0:
-                    combo.setCurrentIndex(idx)
-            combo.blockSignals(False)
+        prompt_groups = sorted({row.group_name.strip() for row in rows if row.group_name.strip()})
+        reel_counts = fetch_dollimages_reel_group_counts(typology=None)
+        reel_groups = sorted({group for group in reel_counts.keys() if group})
+        all_reel_groups = sorted(set(prompt_groups) | set(reel_groups))
+
+        self.dollimages_group_combo.blockSignals(True)
+        self.dollimages_group_combo.clear()
+        self.dollimages_group_combo.addItem("Todos", None)
+        self.dollimages_group_combo.addItem("Sin grupo", "")
+        for group in prompt_groups:
+            self.dollimages_group_combo.addItem(group, group)
+        if current_pack is not None:
+            idx = self.dollimages_group_combo.findData(current_pack)
+            if idx >= 0:
+                self.dollimages_group_combo.setCurrentIndex(idx)
+        self.dollimages_group_combo.blockSignals(False)
+
+        total_available = fetch_dollimages_reel_available_count(typology=None, group_name=None)
+        self.dollimages_reel_group_combo.blockSignals(True)
+        self.dollimages_reel_group_combo.clear()
+        self.dollimages_reel_group_combo.addItem(f"Todos ({total_available})", None)
+        empty_count = reel_counts.get("", 0)
+        self.dollimages_reel_group_combo.addItem(f"Sin grupo ({empty_count})", "")
+        for group in all_reel_groups:
+            count = reel_counts.get(group, 0)
+            label = f"{group} ({count})" if count else group
+            self.dollimages_reel_group_combo.addItem(label, group)
+        if current_reel is not None:
+            idx = self.dollimages_reel_group_combo.findData(current_reel)
+            if idx >= 0:
+                self.dollimages_reel_group_combo.setCurrentIndex(idx)
+        self.dollimages_reel_group_combo.blockSignals(False)
+        self._update_dollimages_reel_availability()
 
     def _populate_reel_selectors(self) -> None:
         self.reel_category_combo.clear()
@@ -1015,6 +1043,15 @@ class MainWindow(QMainWindow):
 
         self.reel_variant_combo.setEnabled(len(variants) > 1)
         self.reel_variant_combo.blockSignals(False)
+
+    def _update_dollimages_reel_availability(self) -> None:
+        group_name = self.dollimages_reel_group_combo.currentData()
+        typology = self.dollimages_reel_typology_combo.currentData()
+        available = fetch_dollimages_reel_available_count(
+            typology=typology,
+            group_name=group_name,
+        )
+        self.dollimages_reel_available_label.setText(str(available))
 
     def _update_nsfw_controls(self) -> None:
         combination_key = self.pack_combination_combo.currentData()
