@@ -184,6 +184,14 @@ def build_unique_prompts(
         iterate_camera = True
         iterate_mood = True
 
+    include_identity = iterate_identity or not has_iteration_groups
+    include_outfit = iterate_outfit or not has_iteration_groups
+    include_pose = iterate_pose or not has_iteration_groups
+    include_background = iterate_background or not has_iteration_groups
+    include_lighting = iterate_lighting or not has_iteration_groups
+    include_camera = iterate_camera or not has_iteration_groups
+    include_mood = iterate_mood or not has_iteration_groups
+
     combinations = catalog.combinations or {}
     combination_prompt = ""
     combo_cfg: list[str] | dict[str, Any] | None = None
@@ -265,7 +273,7 @@ def build_unique_prompts(
 
         # Outfit logic
         top = bottom = dress = ""
-        if iterate_outfit:
+        if include_outfit and iterate_outfit:
             use_dress = rng.random() < 0.35
             if use_dress and dresses:
                 dress = rng.choice(dresses)
@@ -273,31 +281,39 @@ def build_unique_prompts(
                 top = _pick_from_list(rng, tops, "")
                 bottom = _pick_from_list(rng, bottoms, "")
             extra = _pick_from_list(rng, extras, "") if extras and rng.random() < 0.45 else ""
-        else:
+        elif include_outfit:
             if dresses:
                 dress = _pick_fixed_from_list(dresses, "")
             else:
                 top = _pick_fixed_from_list(tops, "")
                 bottom = _pick_fixed_from_list(bottoms, "")
             extra = _pick_fixed_from_list(extras, "") if extras else ""
+        else:
+            top = bottom = dress = extra = ""
 
         # Pose / background / lighting
-        if iterate_pose:
+        if include_pose and iterate_pose:
             pose = _pick_from_grouped_dict(rng, pose_grouped, "standing")
-        else:
+        elif include_pose:
             pose = _pick_fixed_from_grouped_dict(pose_grouped, "standing")
+        else:
+            pose = ""
 
-        if iterate_background:
+        if include_background and iterate_background:
             bg = _pick_from_grouped_dict(rng, bg_grouped, "simple background")
-        elif is_character:
+        elif include_background and is_character:
             bg = ""
-        else:
+        elif include_background:
             bg = _pick_fixed_from_grouped_dict(bg_grouped, "simple background")
-
-        if iterate_lighting:
-            light = _pick_from_grouped_dict(rng, light_grouped, "soft natural lighting")
         else:
+            bg = ""
+
+        if include_lighting and iterate_lighting:
+            light = _pick_from_grouped_dict(rng, light_grouped, "soft natural lighting")
+        elif include_lighting:
             light = _pick_fixed_from_grouped_dict(light_grouped, "soft natural lighting")
+        else:
+            light = ""
 
         if small_batch:
             # Evita repetir dentro del batch: reintenta esa pieza 1 vez
@@ -318,30 +334,38 @@ def build_unique_prompts(
         else:
             footwear_pool = footwear.get("casual", [])
 
-        if iterate_outfit:
+        if include_outfit and iterate_outfit:
             footwear_pick = _pick_from_list(rng, footwear_pool, "sneakers")
-        else:
+        elif include_outfit:
             footwear_pick = _pick_fixed_from_list(footwear_pool, "sneakers")
+        else:
+            footwear_pick = ""
 
         # Identity (anti sameface)
-        if iterate_identity:
+        if include_identity and iterate_identity:
             face_features = _pick_from_list(rng, face_features_list, "distinct facial features")
             eye_style = _pick_from_list(rng, eye_styles_list, "expressive eyes")
             hair_color = _pick_from_list(rng, hair_colors, "chestnut brown")
             hair_style = _pick_from_list(rng, hair_styles, "long wavy hair")
             hair_detail = _pick_from_list(rng, hair_details, "loose strands framing the face")
-        elif is_character:
+        elif include_identity and is_character:
             face_features = ""
             eye_style = ""
             hair_color = ""
             hair_style = ""
             hair_detail = ""
-        else:
+        elif include_identity:
             face_features = _pick_fixed_from_list(face_features_list, "distinct facial features")
             eye_style = _pick_fixed_from_list(eye_styles_list, "expressive eyes")
             hair_color = _pick_fixed_from_list(hair_colors, "chestnut brown")
             hair_style = _pick_fixed_from_list(hair_styles, "long wavy hair")
             hair_detail = _pick_fixed_from_list(hair_details, "loose strands framing the face")
+        else:
+            face_features = ""
+            eye_style = ""
+            hair_color = ""
+            hair_style = ""
+            hair_detail = ""
 
         hair_key = f"{hair_color}|{hair_style}|{hair_detail}"
 
@@ -360,24 +384,33 @@ def build_unique_prompts(
             hair_desc = ""
 
         # Camera
-        if iterate_camera:
+        if include_camera and iterate_camera:
             camera_focal = _pick_from_list(rng, focal_lengths, "50mm look")
             camera_framing = _pick_from_list(rng, framings, "three-quarter shot")
             camera_angle = _pick_from_list(rng, angles, "eye-level angle")
-        else:
+        elif include_camera:
             camera_focal = _pick_fixed_from_list(focal_lengths, "50mm look")
             camera_framing = _pick_fixed_from_list(framings, "three-quarter shot")
             camera_angle = _pick_fixed_from_list(angles, "eye-level angle")
+        else:
+            camera_focal = ""
+            camera_framing = ""
+            camera_angle = ""
         camera_desc = f"{camera_framing}, {camera_angle}, {camera_focal}".strip().strip(",")
 
         # Mood
-        if iterate_mood:
+        if include_mood and iterate_mood:
             mood = _pick_from_list(rng, mood_list, "calm mood")
-        else:
+        elif include_mood:
             mood = _pick_fixed_from_list(mood_list, "calm mood")
+        else:
+            mood = ""
 
         outfit_parts = [p for p in [top, bottom, dress, extra, footwear_pick] if p]
-        outfit_text = ", ".join(outfit_parts) if outfit_parts else "casual outfit"
+        if include_outfit:
+            outfit_text = ", ".join(outfit_parts) if outfit_parts else "casual outfit"
+        else:
+            outfit_text = ""
 
         combo: dict[str, Any] = {
             "category": category_key,
