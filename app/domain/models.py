@@ -28,6 +28,18 @@ class DollimagesPackCreate:
 
 
 @dataclass(frozen=True)
+class ManualPromptCreate:
+    category: str
+    variant: str
+    ratio: str
+    title: str
+    prompt_text: str
+    quantity: int
+    checkpoint_base: Optional[str] = None
+    notes: str = ""
+
+
+@dataclass(frozen=True)
 class PromptDraft:
     # Lo que generamos antes de persistir
     title: str

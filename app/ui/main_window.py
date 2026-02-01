@@ -22,7 +22,8 @@ from app.services.dollimages_pack_service import DollimagesPackService
 from app.services.file_open import open_file, open_folder_and_select
 from app.services.checkpoint_service import CheckpointService
 from app.services.reel_service import ReelService
-from app.domain.models import PackCreate, DollimagesPackCreate
+from app.services.manual_prompt_service import ManualPromptService
+from app.domain.models import PackCreate, DollimagesPackCreate, ManualPromptCreate
 from app.ui.data_source import (
     fetch_prompts,
     fetch_prompt_filters,
@@ -72,6 +73,7 @@ class MainWindow(QMainWindow):
         self.pack_service = PackService()
         self.dollimages_pack_service = DollimagesPackService()
         self.reel_service = ReelService()
+        self.manual_prompt_service = ManualPromptService()
         self.waifu_catalog = load_waifu_catalog()
         self.app_config = load_app_config()
         self.prompt_base_window: PromptBaseWindow | None = None
@@ -157,11 +159,13 @@ class MainWindow(QMainWindow):
         quick_actions.setSpacing(10)
         self.open_filters_btn = QPushButton("Filtros inteligentes")
         self.open_pack_btn = QPushButton("Generar Pack Waifu")
+        self.open_manual_prompt_btn = QPushButton("Prompt Manual Waifu")
         self.open_dollimages_pack_btn = QPushButton("Crear Pack Dollimages")
         self.open_reel_btn = QPushButton("Reel Instagram")
         self.open_dollimages_reel_btn = QPushButton("Reel Dollimages")
         quick_actions.addWidget(self.open_filters_btn)
         quick_actions.addWidget(self.open_pack_btn)
+        quick_actions.addWidget(self.open_manual_prompt_btn)
         quick_actions.addWidget(self.open_dollimages_pack_btn)
         quick_actions.addWidget(self.open_reel_btn)
         quick_actions.addWidget(self.open_dollimages_reel_btn)
@@ -354,6 +358,60 @@ class MainWindow(QMainWindow):
         pack_layout.addWidget(self.pack_manual_feature_input, 2, 1, 1, 7)
 
         pack_dialog_layout.addWidget(pack_group)
+
+        # Manual prompt generator
+        self.manual_prompt_dialog = QDialog(self)
+        self.manual_prompt_dialog.setWindowTitle("Prompt manual")
+        self.manual_prompt_dialog.setModal(False)
+        manual_dialog_layout = QVBoxLayout(self.manual_prompt_dialog)
+        manual_group = QGroupBox("Prompt manual (Waifu)")
+        manual_layout = QGridLayout(manual_group)
+        manual_layout.setHorizontalSpacing(10)
+        manual_layout.setVerticalSpacing(8)
+
+        manual_layout.addWidget(QLabel("Categoría:"), 0, 0)
+        self.manual_prompt_category_combo = QComboBox()
+        manual_layout.addWidget(self.manual_prompt_category_combo, 0, 1)
+
+        manual_layout.addWidget(QLabel("Variante:"), 0, 2)
+        self.manual_prompt_variant_combo = QComboBox()
+        manual_layout.addWidget(self.manual_prompt_variant_combo, 0, 3)
+
+        manual_layout.addWidget(QLabel("Ratio:"), 0, 4)
+        self.manual_prompt_ratio_combo = QComboBox()
+        manual_layout.addWidget(self.manual_prompt_ratio_combo, 0, 5)
+
+        manual_layout.addWidget(QLabel("Cantidad:"), 0, 6)
+        self.manual_prompt_quantity_spin = QSpinBox()
+        self.manual_prompt_quantity_spin.setRange(1, 200)
+        self.manual_prompt_quantity_spin.setValue(1)
+        manual_layout.addWidget(self.manual_prompt_quantity_spin, 0, 7)
+
+        manual_layout.addWidget(QLabel("Checkpoint Base:"), 1, 0)
+        self.manual_prompt_checkpoint_combo = QComboBox()
+        self.manual_prompt_checkpoint_combo.setMinimumWidth(220)
+        manual_layout.addWidget(self.manual_prompt_checkpoint_combo, 1, 1, 1, 3)
+
+        manual_layout.addWidget(QLabel("Refiner:"), 1, 4)
+        self.manual_prompt_refiner_label = QLabel("—")
+        manual_layout.addWidget(self.manual_prompt_refiner_label, 1, 5, 1, 3)
+
+        manual_layout.addWidget(QLabel("Título:"), 2, 0)
+        self.manual_prompt_title_input = QLineEdit()
+        self.manual_prompt_title_input.setPlaceholderText("Título manual")
+        manual_layout.addWidget(self.manual_prompt_title_input, 2, 1, 1, 7)
+
+        manual_layout.addWidget(QLabel("Prompt manual:"), 3, 0)
+        self.manual_prompt_text_input = QPlainTextEdit()
+        self.manual_prompt_text_input.setPlaceholderText("Escribe el prompt tal cual lo quieres enviar.")
+        self.manual_prompt_text_input.setMinimumHeight(140)
+        manual_layout.addWidget(self.manual_prompt_text_input, 3, 1, 1, 7)
+
+        self.manual_prompt_generate_btn = QPushButton("Enviar a cola")
+        manual_layout.addWidget(self.manual_prompt_generate_btn, 4, 6, 1, 2)
+        manual_layout.setColumnStretch(8, 1)
+
+        manual_dialog_layout.addWidget(manual_group)
 
         # Dollimages pack generator
         self.dollimages_dialog = QDialog(self)
@@ -646,11 +704,13 @@ class MainWindow(QMainWindow):
         self.start_worker_btn.clicked.connect(self.start_worker)
         self.stop_worker_btn.clicked.connect(self.stop_worker)
         self.pack_generate_btn.clicked.connect(self.generate_pack)
+        self.manual_prompt_generate_btn.clicked.connect(self.generate_manual_prompt)
         self.dollimages_generate_btn.clicked.connect(self.generate_dollimages_pack)
         self.reel_generate_btn.clicked.connect(self.generate_reel)
         self.dollimages_reel_generate_btn.clicked.connect(self.generate_dollimages_reel)
         self.open_filters_btn.clicked.connect(self.filters_dialog.show)
         self.open_pack_btn.clicked.connect(self.pack_dialog.show)
+        self.open_manual_prompt_btn.clicked.connect(self.manual_prompt_dialog.show)
         self.open_dollimages_pack_btn.clicked.connect(self.dollimages_dialog.show)
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
         self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
@@ -668,6 +728,10 @@ class MainWindow(QMainWindow):
         self.filter_date_order_combo.currentIndexChanged.connect(self.refresh)
         self.filter_last_days_spin.valueChanged.connect(self._on_last_days_changed)
         self.reel_category_combo.currentIndexChanged.connect(self._populate_reel_variants)
+        self.manual_prompt_category_combo.currentIndexChanged.connect(self._update_manual_prompt_ratios)
+        self.manual_prompt_checkpoint_combo.currentIndexChanged.connect(
+            self._sync_manual_prompt_refiner_label
+        )
         self.dollimages_reel_group_combo.currentIndexChanged.connect(
             self._update_dollimages_reel_availability
         )
@@ -682,6 +746,7 @@ class MainWindow(QMainWindow):
         self.pack_combination_combo.currentIndexChanged.connect(self._update_nsfw_controls)
         self._populate_pack_selectors()
         self._populate_checkpoint_selectors()
+        self._populate_manual_prompt_selectors()
         self._populate_dollimages_groups()
         self._update_dollimages_reel_availability()
         self._update_nsfw_controls()
@@ -936,6 +1001,7 @@ class MainWindow(QMainWindow):
     def on_prompt_base_updated(self) -> None:
         self._reload_waifu_catalog()
         self._populate_pack_selectors()
+        self._populate_manual_prompt_selectors()
 
     def _populate_pack_selectors(self) -> None:
         self.pack_category_combo.clear()
@@ -970,6 +1036,69 @@ class MainWindow(QMainWindow):
             self.pack_generate_btn.setEnabled(False)
 
         self._populate_reel_selectors()
+
+    def _populate_manual_prompt_selectors(self) -> None:
+        current_category = self.manual_prompt_category_combo.currentData()
+        current_variant = self.manual_prompt_variant_combo.currentData()
+        current_ratio = self.manual_prompt_ratio_combo.currentData()
+
+        self.manual_prompt_category_combo.blockSignals(True)
+        self.manual_prompt_category_combo.clear()
+        for key, data in self.waifu_catalog.categories.items():
+            if not isinstance(data, dict):
+                continue
+            if not data.get("enabled", True):
+                continue
+            label = str(data.get("label", key))
+            kind = str(data.get("kind", "category"))
+            if kind == "character":
+                label = f"{label} [Personaje]"
+            self.manual_prompt_category_combo.addItem(label, key)
+        if current_category:
+            idx = self.manual_prompt_category_combo.findData(current_category)
+            if idx >= 0:
+                self.manual_prompt_category_combo.setCurrentIndex(idx)
+        self.manual_prompt_category_combo.blockSignals(False)
+
+        self.manual_prompt_variant_combo.clear()
+        for key in self.app_config.variants.keys():
+            self.manual_prompt_variant_combo.addItem(key, key)
+        if current_variant:
+            idx = self.manual_prompt_variant_combo.findData(current_variant)
+            if idx >= 0:
+                self.manual_prompt_variant_combo.setCurrentIndex(idx)
+
+        self._update_manual_prompt_ratios()
+        if current_ratio:
+            idx = self.manual_prompt_ratio_combo.findData(current_ratio)
+            if idx >= 0:
+                self.manual_prompt_ratio_combo.setCurrentIndex(idx)
+        self._sync_manual_prompt_refiner_label()
+
+    def _update_manual_prompt_ratios(self) -> None:
+        category_key = self.manual_prompt_category_combo.currentData()
+        ratios: list[str] = []
+        if category_key:
+            cat = self.waifu_catalog.categories.get(str(category_key), {})
+            if isinstance(cat, dict):
+                ratios = list(cat.get("allowed_ratios") or [])
+        if not ratios:
+            ratios = list(self.app_config.ratios.keys()) or ["1:1"]
+
+        current_ratio = self.manual_prompt_ratio_combo.currentData()
+        self.manual_prompt_ratio_combo.blockSignals(True)
+        self.manual_prompt_ratio_combo.clear()
+        for ratio in ratios:
+            self.manual_prompt_ratio_combo.addItem(ratio, ratio)
+        if current_ratio:
+            idx = self.manual_prompt_ratio_combo.findData(current_ratio)
+            if idx >= 0:
+                self.manual_prompt_ratio_combo.setCurrentIndex(idx)
+        self.manual_prompt_ratio_combo.blockSignals(False)
+
+    def _sync_manual_prompt_refiner_label(self) -> None:
+        current = self.manual_prompt_checkpoint_combo.currentData()
+        self.manual_prompt_refiner_label.setText(str(current) if current else "—")
 
     def _populate_dollimages_groups(self) -> None:
         current_pack = self.dollimages_group_combo.currentData()
@@ -1083,6 +1212,8 @@ class MainWindow(QMainWindow):
         fill_combo(self.pack_checkpoint_base_combo, default_base)
         fill_combo(self.pack_checkpoint_refiner_combo, default_refiner)
         fill_combo(self.dollimages_checkpoint_combo, default_base)
+        fill_combo(self.manual_prompt_checkpoint_combo, default_base)
+        self._sync_manual_prompt_refiner_label()
 
     def generate_pack(self) -> None:
         category = self.pack_category_combo.currentData()
@@ -1121,6 +1252,57 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "Generar Pack",
+            f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} items.",
+        )
+
+    def generate_manual_prompt(self) -> None:
+        category = self.manual_prompt_category_combo.currentData()
+        variant = self.manual_prompt_variant_combo.currentData()
+        ratio = self.manual_prompt_ratio_combo.currentData()
+        quantity = int(self.manual_prompt_quantity_spin.value())
+        checkpoint_base = self.manual_prompt_checkpoint_combo.currentData()
+        title_raw = self.manual_prompt_title_input.text()
+        prompt_raw = self.manual_prompt_text_input.toPlainText()
+
+        if not category:
+            QMessageBox.warning(self, "Prompt manual", "Selecciona una categoría.")
+            return
+        if not variant:
+            QMessageBox.warning(self, "Prompt manual", "Selecciona una variante.")
+            return
+        if not ratio:
+            QMessageBox.warning(self, "Prompt manual", "Selecciona un ratio.")
+            return
+        if not checkpoint_base:
+            QMessageBox.warning(self, "Prompt manual", "Selecciona un checkpoint base.")
+            return
+        if not title_raw.strip():
+            QMessageBox.warning(self, "Prompt manual", "El título es obligatorio.")
+            return
+        if not prompt_raw.strip():
+            QMessageBox.warning(self, "Prompt manual", "El prompt no puede estar vacío.")
+            return
+
+        req = ManualPromptCreate(
+            category=str(category),
+            variant=str(variant),
+            ratio=str(ratio),
+            title=title_raw,
+            prompt_text=prompt_raw,
+            quantity=quantity,
+            checkpoint_base=str(checkpoint_base),
+        )
+
+        try:
+            result = self.manual_prompt_service.create_manual_prompts_and_enqueue(req)
+        except Exception as exc:
+            QMessageBox.critical(self, "Prompt manual", str(exc))
+            return
+
+        self.refresh()
+        QMessageBox.information(
+            self,
+            "Prompt manual",
             f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} items.",
         )
 
