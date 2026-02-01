@@ -30,6 +30,7 @@ class PromptVariationWindow(QMainWindow):
 
         self.store = get_store()
         self._value_map: dict[str, PromptVariationRow] = {}
+        self._group_map: dict[str, str] = {}
         self._selected_value_original: str | None = None
 
         root = QWidget()
@@ -38,6 +39,14 @@ class PromptVariationWindow(QMainWindow):
 
         group_box = QGroupBox("Grupos y valores")
         group_layout = QVBoxLayout(group_box)
+
+        scope_row = QHBoxLayout()
+        scope_row.addWidget(QLabel("Ámbito:"))
+        self.scope_combo = QComboBox()
+        self.scope_combo.setMinimumWidth(220)
+        scope_row.addWidget(self.scope_combo)
+        scope_row.addStretch(1)
+        group_layout.addLayout(scope_row)
 
         group_row = QHBoxLayout()
         group_row.addWidget(QLabel("Grupo:"))
@@ -94,30 +103,63 @@ class PromptVariationWindow(QMainWindow):
             "Se concatena la combinación (si aplica), el prompt base de la categoría/personaje y el sujeto base. "
             "Luego se agregan rasgos (rostro/ojos/pelo), outfit (top/bottom/vestido/extra/calzado), pose, fondo "
             "(se omite en personajes), iluminación, cámara y mood. Finalmente se añaden tags de calidad. "
-            "Los campos vacíos se omiten automáticamente."
+            "Los campos vacíos se omiten automáticamente.\n\n"
+            "Selecciona el ámbito 'Personaje' para guardar opciones solo para ese personaje."
         )
         info_label.setWordWrap(True)
         info_layout.addWidget(info_label)
         layout.addWidget(info_box)
         layout.addStretch(1)
 
+        self.scope_combo.currentIndexChanged.connect(self._on_scope_changed)
         self.group_combo.currentIndexChanged.connect(self._on_group_changed)
         self.value_combo.currentIndexChanged.connect(self._on_value_changed)
         self.save_btn.clicked.connect(self.save_variation)
         self.new_btn.clicked.connect(self.reset_form)
         self.disable_btn.clicked.connect(self.disable_variation)
 
+        self._refresh_scope_list()
         self._refresh_group_list()
         self.reset_form()
+
+    def _refresh_scope_list(self) -> None:
+        current_data = self.scope_combo.currentData()
+        self.scope_combo.blockSignals(True)
+        self.scope_combo.clear()
+        self.scope_combo.addItem("Global", None)
+        for row in self.store.list_prompt_bases(include_disabled=True):
+            if row.kind != "character":
+                continue
+            label = f"{row.label} [{row.key}]"
+            self.scope_combo.addItem(label, row.key)
+        if current_data:
+            idx = self.scope_combo.findData(current_data)
+            if idx >= 0:
+                self.scope_combo.setCurrentIndex(idx)
+        self.scope_combo.blockSignals(False)
+
+    def _scope_prefix(self) -> str:
+        scope_key = self.scope_combo.currentData()
+        if isinstance(scope_key, str) and scope_key.strip():
+            return f"characters.{scope_key.strip()}."
+        return ""
 
     def _refresh_group_list(self) -> None:
         current_data = self.group_combo.currentData()
         groups = self.store.list_prompt_variation_groups(include_disabled=True)
+        prefix = self._scope_prefix()
+        if prefix:
+            groups = [g for g in groups if g.startswith(prefix)]
+        else:
+            groups = [g for g in groups if not g.startswith("characters.")]
         self.group_combo.blockSignals(True)
         self.group_combo.clear()
         self.group_combo.addItem("Nuevo...", None)
+        self._group_map = {}
         for group in groups:
-            self.group_combo.addItem(group, group)
+            label = group[len(prefix):] if prefix else group
+            self.group_combo.addItem(label, label)
+            self._group_map[label] = group
         if current_data:
             idx = self.group_combo.findData(current_data)
             if idx >= 0:
@@ -148,8 +190,19 @@ class PromptVariationWindow(QMainWindow):
     def _current_group_key(self) -> str:
         group_data = self.group_combo.currentData()
         if isinstance(group_data, str) and group_data.strip():
-            return group_data.strip()
-        return self.group_key_input.text().strip()
+            return self._group_map.get(group_data, group_data).strip()
+        group_key = self.group_key_input.text().strip()
+        if not group_key:
+            return ""
+        prefix = self._scope_prefix()
+        if prefix and not group_key.startswith(prefix):
+            return f"{prefix}{group_key}"
+        return group_key
+
+    def _on_scope_changed(self) -> None:
+        self._refresh_group_list()
+        self._refresh_value_list()
+        self._reset_value_fields()
 
     def _on_group_changed(self) -> None:
         group_data = self.group_combo.currentData()
@@ -188,6 +241,7 @@ class PromptVariationWindow(QMainWindow):
         self.enabled_checkbox.setChecked(True)
 
     def reset_form(self) -> None:
+        self.scope_combo.setCurrentIndex(0)
         self.group_combo.setCurrentIndex(0)
         self.group_key_input.clear()
         self.group_key_input.setEnabled(True)
