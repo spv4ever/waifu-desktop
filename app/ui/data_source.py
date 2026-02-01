@@ -91,6 +91,20 @@ def fetch_category_production_counts() -> list[tuple[str, int]]:
     return store.fetch_category_production_counts()
 
 
+def fetch_dollimages_reel_group_counts(typology: str | None = None) -> dict[str, int]:
+    store = get_store()
+    return store.fetch_dollimages_reel_group_counts(typology=typology)
+
+
+def fetch_dollimages_reel_available_count(
+    *,
+    typology: str | None,
+    group_name: str | None,
+) -> int:
+    store = get_store()
+    return store.fetch_dollimages_reel_available_count(typology=typology, group_name=group_name)
+
+
 def fetch_prompts(
     *,
     limit: int = 50,

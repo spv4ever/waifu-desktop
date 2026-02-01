@@ -104,6 +104,17 @@ class BaseStore:
     def fetch_category_production_counts(self) -> list[tuple[str, int]]:
         raise NotImplementedError
 
+    def fetch_dollimages_reel_group_counts(self, *, typology: str | None) -> dict[str, int]:
+        raise NotImplementedError
+
+    def fetch_dollimages_reel_available_count(
+        self,
+        *,
+        typology: str | None,
+        group_name: str | None,
+    ) -> int:
+        raise NotImplementedError
+
     def fetch_prompts(
         self,
         *,
@@ -485,6 +496,71 @@ class SQLiteStore(BaseStore):
 
         return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
 
+    def _dollimages_reel_conditions(
+        self,
+        *,
+        typology: str | None,
+        group_name: str | None,
+    ) -> tuple[list[str], list[Any]]:
+        conditions = [
+            "used_in_reel = 0",
+            "reel_discarded = 0",
+            "(base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)",
+            "("
+            "json_extract(meta_json, '$.combo.category') = 'dollimages'"
+            " OR json_extract(meta_json, '$.workflow') = 'dollimages'"
+            " OR json_extract(meta_json, '$.category') = 'dollimages'"
+            ")",
+        ]
+        params: list[Any] = []
+        if typology:
+            conditions.append(
+                "("
+                "json_extract(meta_json, '$.combo.variant') = ?"
+                " OR json_extract(meta_json, '$.dollimages_typology') = ?"
+                ")"
+            )
+            params.extend([typology, typology])
+        if group_name is not None:
+            conditions.append("COALESCE(json_extract(meta_json, '$.dollimages_group'), '') = ?")
+            params.append(group_name)
+        return conditions, params
+
+    def fetch_dollimages_reel_group_counts(self, *, typology: str | None) -> dict[str, int]:
+        conditions, params = self._dollimages_reel_conditions(typology=typology, group_name=None)
+        with get_connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT
+                    COALESCE(json_extract(meta_json, '$.dollimages_group'), '') AS group_name,
+                    COUNT(*) AS n
+                FROM prompt_item
+                WHERE {' AND '.join(conditions)}
+                GROUP BY group_name
+                ORDER BY group_name
+                """,
+                params,
+            ).fetchall()
+        return {str(row["group_name"]): int(row["n"]) for row in rows}
+
+    def fetch_dollimages_reel_available_count(
+        self,
+        *,
+        typology: str | None,
+        group_name: str | None,
+    ) -> int:
+        conditions, params = self._dollimages_reel_conditions(typology=typology, group_name=group_name)
+        with get_connection() as conn:
+            row = conn.execute(
+                f"""
+                SELECT COUNT(*) AS n
+                FROM prompt_item
+                WHERE {' AND '.join(conditions)}
+                """,
+                params,
+            ).fetchone()
+        return int(row["n"]) if row else 0
+
     def fetch_prompts(
         self,
         *,
@@ -574,30 +650,12 @@ class SQLiteStore(BaseStore):
         group_name: str | None,
         priority_only: bool = False,
     ) -> list[dict[str, Any]]:
-        conditions = [
-            "used_in_reel = 0",
-            "reel_discarded = 0",
-            "(base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)",
-            "("
-            "json_extract(meta_json, '$.combo.category') = 'dollimages'"
-            " OR json_extract(meta_json, '$.workflow') = 'dollimages'"
-            " OR json_extract(meta_json, '$.category') = 'dollimages'"
-            ")",
-        ]
-        params: list[str] = []
+        conditions, params = self._dollimages_reel_conditions(
+            typology=typology,
+            group_name=group_name,
+        )
         if priority_only:
             conditions.append("reel_priority = 1")
-        if typology:
-            conditions.append(
-                "("
-                "json_extract(meta_json, '$.combo.variant') = ?"
-                " OR json_extract(meta_json, '$.dollimages_typology') = ?"
-                ")"
-            )
-            params.extend([typology, typology])
-        if group_name is not None:
-            conditions.append("json_extract(meta_json, '$.dollimages_group') = ?")
-            params.append(group_name)
 
         with get_connection() as conn:
             rows = conn.execute(
