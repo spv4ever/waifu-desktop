@@ -53,7 +53,7 @@ comfyui_workflow:
     input: "text"
 
   seed:
-    node_id: "10"
+    node_id: ["10", "11"]
     input: "noise_seed"
 
   steps:
@@ -94,7 +94,7 @@ comfyui_workflow_dollimages:
     input: "text"
 
   seed:
-    node_id: "10"
+    node_id: ["10", "11"]
     input: "noise_seed"
 
   steps:
