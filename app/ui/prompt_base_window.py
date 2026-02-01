@@ -40,6 +40,7 @@ class PromptBaseWindow(QMainWindow):
         self.setWindowTitle("Mantenimiento de categorías y personajes")
         self.resize(780, 520)
 
+        self.store = get_store()
         self.prompt_base_map: dict[str, PromptBaseRow] = {}
 
         root = QWidget()
@@ -99,6 +100,23 @@ class PromptBaseWindow(QMainWindow):
         prompt_base_row_iter.addStretch(1)
         prompt_base_layout.addLayout(prompt_base_row_iter)
 
+        prompt_base_row_iter_add = QHBoxLayout()
+        prompt_base_row_iter_add.addWidget(QLabel("Añadir grupo:"))
+        self.prompt_base_group_combo = QComboBox()
+        self.prompt_base_group_combo.setMinimumWidth(220)
+        self.prompt_base_group_combo.setToolTip(
+            "Elige un grupo existente o escribe uno personalizado."
+        )
+        prompt_base_row_iter_add.addWidget(self.prompt_base_group_combo)
+        self.prompt_base_group_input = QLineEdit()
+        self.prompt_base_group_input.setPlaceholderText("ej: characters.makima.g1")
+        self.prompt_base_group_input.setMinimumWidth(220)
+        prompt_base_row_iter_add.addWidget(self.prompt_base_group_input)
+        self.prompt_base_group_add_btn = QPushButton("Añadir")
+        prompt_base_row_iter_add.addWidget(self.prompt_base_group_add_btn)
+        prompt_base_row_iter_add.addStretch(1)
+        prompt_base_layout.addLayout(prompt_base_row_iter_add)
+
         prompt_base_row_two = QHBoxLayout()
         prompt_base_row_two.addWidget(QLabel("Prompt base:"))
         prompt_base_layout.addLayout(prompt_base_row_two)
@@ -122,8 +140,10 @@ class PromptBaseWindow(QMainWindow):
         self.prompt_base_save_btn.clicked.connect(self.save_prompt_base)
         self.prompt_base_new_btn.clicked.connect(self.reset_prompt_base_form)
         self.prompt_base_combo.currentIndexChanged.connect(self.load_prompt_base_from_combo)
+        self.prompt_base_group_add_btn.clicked.connect(self.add_iteration_group)
 
         self._refresh_prompt_base_list()
+        self._refresh_iteration_group_choices()
         self.reset_prompt_base_form()
 
     def _refresh_prompt_base_list(self) -> None:
@@ -149,6 +169,8 @@ class PromptBaseWindow(QMainWindow):
         self.prompt_base_enabled_checkbox.setChecked(True)
         self._set_checked_iteration_groups([])
         self.prompt_base_text.clear()
+        self.prompt_base_group_combo.setCurrentIndex(0)
+        self.prompt_base_group_input.clear()
 
     def load_prompt_base_from_combo(self) -> None:
         key = self.prompt_base_combo.currentData()
@@ -215,6 +237,46 @@ class PromptBaseWindow(QMainWindow):
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Unchecked)
             self.prompt_base_iterations_list.addItem(item)
+
+    def _refresh_iteration_group_choices(self) -> None:
+        current = self.prompt_base_group_combo.currentData()
+        groups = self.store.list_prompt_variation_groups(include_disabled=True)
+        self.prompt_base_group_combo.blockSignals(True)
+        self.prompt_base_group_combo.clear()
+        self.prompt_base_group_combo.addItem("Selecciona grupo...", None)
+        for group in groups:
+            self.prompt_base_group_combo.addItem(group, group)
+        if current:
+            idx = self.prompt_base_group_combo.findData(current)
+            if idx >= 0:
+                self.prompt_base_group_combo.setCurrentIndex(idx)
+        self.prompt_base_group_combo.blockSignals(False)
+
+    def add_iteration_group(self) -> None:
+        group_key = self.prompt_base_group_input.text().strip()
+        if not group_key:
+            combo_value = self.prompt_base_group_combo.currentData()
+            if isinstance(combo_value, str):
+                group_key = combo_value.strip()
+        if not group_key:
+            QMessageBox.warning(self, "Prompts base", "Introduce una clave de grupo.")
+            return
+
+        existing = {
+            str(self.prompt_base_iterations_list.item(i).data(Qt.UserRole)).lower()
+            for i in range(self.prompt_base_iterations_list.count())
+        }
+        if group_key.lower() in existing:
+            QMessageBox.information(self, "Prompts base", "Ese grupo ya está en la lista.")
+            return
+
+        item = QListWidgetItem(group_key)
+        item.setData(Qt.UserRole, group_key)
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Checked)
+        self.prompt_base_iterations_list.addItem(item)
+        self.prompt_base_group_input.clear()
+        self.prompt_base_group_combo.setCurrentIndex(0)
 
     def _checked_iteration_groups(self) -> list[str]:
         groups: list[str] = []

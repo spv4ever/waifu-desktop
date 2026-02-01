@@ -34,6 +34,7 @@ def _sig_from_combo(combo: dict[str, Any]) -> str:
         "mood",
         "top", "bottom", "dress", "extra", "footwear",
         "pose", "background", "lighting",
+        "custom_groups_signature",
     ]
     payload = "|".join(str(combo.get(k, "")) for k in keys)
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
@@ -79,6 +80,22 @@ def _pick_fixed_from_grouped_dict(grouped: dict[str, list[str]] | None, fallback
             if items:
                 return items[0]
     return fallback
+
+
+def _extract_group_values(root: dict[str, Any] | None, group_key: str) -> list[str]:
+    if not root or not group_key:
+        return []
+    parts = [part.strip() for part in group_key.split(".") if part.strip()]
+    if not parts:
+        return []
+    current: Any = root
+    for part in parts:
+        if not isinstance(current, dict):
+            return []
+        current = current.get(part)
+    if isinstance(current, list):
+        return [str(item) for item in current if isinstance(item, (str, int, float)) and str(item).strip()]
+    return []
 
 
 def _normalize_iteration_groups(value: Any) -> set[str]:
@@ -194,8 +211,28 @@ def build_unique_prompts(
     kind = str(cat.get("kind", "category"))
     is_character = kind == "character"
     character_variations = _character_variations(catalog.raw, category_key) if is_character else {}
-    iteration_groups = _normalize_iteration_groups(cat.get("iteration_groups"))
+    raw_iteration_groups = cat.get("iteration_groups") or []
+    iteration_groups = _normalize_iteration_groups(raw_iteration_groups)
     has_iteration_groups = bool(iteration_groups)
+    standard_iteration_groups = {
+        "identity",
+        "outfit",
+        "pose",
+        "background",
+        "lighting",
+        "camera",
+        "mood",
+    }
+    custom_iteration_groups: list[str] = []
+    if isinstance(raw_iteration_groups, str):
+        raw_parts = [part.strip() for part in raw_iteration_groups.split(",") if part.strip()]
+    elif isinstance(raw_iteration_groups, list):
+        raw_parts = [str(part).strip() for part in raw_iteration_groups if str(part).strip()]
+    else:
+        raw_parts = []
+    for group_key in raw_parts:
+        if group_key.lower() not in standard_iteration_groups:
+            custom_iteration_groups.append(group_key)
 
     if has_iteration_groups:
         iterate_identity = "identity" in iteration_groups
@@ -436,6 +473,23 @@ def build_unique_prompts(
         else:
             mood = ""
 
+        custom_group_values: list[str] = []
+        custom_group_signature_parts: list[str] = []
+        custom_group_map: dict[str, str] = {}
+        for group_key in custom_iteration_groups:
+            values = _extract_group_values(character_variations, group_key)
+            if not values:
+                values = _extract_group_values(catalog.raw, group_key)
+            if not values:
+                continue
+            pick = _pick_from_list(rng, values, "")
+            if not pick:
+                continue
+            custom_group_values.append(pick)
+            custom_group_signature_parts.append(f"{group_key}:{pick}")
+            custom_group_map[group_key] = pick
+        custom_groups_signature = "|".join(custom_group_signature_parts)
+
         outfit_parts = [p for p in [top, bottom, dress, extra, footwear_pick] if p]
         if include_outfit:
             outfit_text = ", ".join(outfit_parts) if outfit_parts else "casual outfit"
@@ -453,6 +507,8 @@ def build_unique_prompts(
             "width": ratio_w,
             "height": ratio_h,
             "base_subject": base_subject,
+            "custom_groups": custom_group_map,
+            "custom_groups_signature": custom_groups_signature,
 
             "face_features": face_features,
             "eye_style": eye_style,
@@ -501,6 +557,7 @@ def build_unique_prompts(
             base_prompt,
             manual_prompt_text,
             base_subject,
+            *custom_group_values,
             face_features,
             eye_style,
             hair_desc,
