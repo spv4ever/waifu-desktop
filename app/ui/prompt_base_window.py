@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QGroupBox,
+    QListWidget,
+    QListWidgetItem,
 )
 
 from app.data.repositories import PromptBaseRow
@@ -22,6 +24,16 @@ from app.data.storage import get_store
 
 class PromptBaseWindow(QMainWindow):
     catalog_updated = Signal()
+
+    ITERATION_GROUP_OPTIONS = [
+        ("identity", "Identidad"),
+        ("outfit", "Outfit"),
+        ("pose", "Pose"),
+        ("background", "Fondo"),
+        ("lighting", "Iluminación"),
+        ("camera", "Cámara"),
+        ("mood", "Mood"),
+    ]
 
     def __init__(self) -> None:
         super().__init__()
@@ -76,12 +88,14 @@ class PromptBaseWindow(QMainWindow):
 
         prompt_base_row_iter = QHBoxLayout()
         prompt_base_row_iter.addWidget(QLabel("Iteraciones (grupos):"))
-        self.prompt_base_iterations_input = QLineEdit()
-        self.prompt_base_iterations_input.setPlaceholderText(
-            "outfit, pose, lighting, background, camera, mood, identity"
+        self.prompt_base_iterations_list = QListWidget()
+        self.prompt_base_iterations_list.setMinimumWidth(260)
+        self.prompt_base_iterations_list.setMinimumHeight(90)
+        self.prompt_base_iterations_list.setToolTip(
+            "Selecciona los grupos de iteración disponibles."
         )
-        self.prompt_base_iterations_input.setMinimumWidth(260)
-        prompt_base_row_iter.addWidget(self.prompt_base_iterations_input)
+        self._build_iteration_group_list()
+        prompt_base_row_iter.addWidget(self.prompt_base_iterations_list)
         prompt_base_row_iter.addStretch(1)
         prompt_base_layout.addLayout(prompt_base_row_iter)
 
@@ -133,7 +147,7 @@ class PromptBaseWindow(QMainWindow):
         self.prompt_base_label_input.clear()
         self.prompt_base_ratios_input.clear()
         self.prompt_base_enabled_checkbox.setChecked(True)
-        self.prompt_base_iterations_input.clear()
+        self._set_checked_iteration_groups([])
         self.prompt_base_text.clear()
 
     def load_prompt_base_from_combo(self) -> None:
@@ -152,7 +166,7 @@ class PromptBaseWindow(QMainWindow):
         self.prompt_base_label_input.setText(row.label)
         self.prompt_base_ratios_input.setText(", ".join(row.allowed_ratios))
         self.prompt_base_enabled_checkbox.setChecked(row.enabled)
-        self.prompt_base_iterations_input.setText(", ".join(row.iteration_groups))
+        self._set_checked_iteration_groups(row.iteration_groups)
         self.prompt_base_text.setPlainText(row.base_prompt)
 
     def save_prompt_base(self) -> None:
@@ -161,7 +175,6 @@ class PromptBaseWindow(QMainWindow):
         base_prompt = self.prompt_base_text.toPlainText().strip()
         kind = str(self.prompt_base_kind_combo.currentData() or "category")
         ratios_raw = self.prompt_base_ratios_input.text().strip()
-        iterations_raw = self.prompt_base_iterations_input.text().strip()
         enabled = self.prompt_base_enabled_checkbox.isChecked()
 
         if not key:
@@ -175,7 +188,7 @@ class PromptBaseWindow(QMainWindow):
             return
 
         allowed_ratios = [r.strip() for r in ratios_raw.split(",") if r.strip()]
-        iteration_groups = [g.strip() for g in iterations_raw.split(",") if g.strip()]
+        iteration_groups = self._checked_iteration_groups()
         store = get_store()
         store.upsert_prompt_base(
             key=key,
@@ -193,3 +206,50 @@ class PromptBaseWindow(QMainWindow):
             self.prompt_base_combo.setCurrentIndex(idx)
         QMessageBox.information(self, "Prompts base", "Prompt base guardado.")
         self.catalog_updated.emit()
+
+    def _build_iteration_group_list(self) -> None:
+        self.prompt_base_iterations_list.clear()
+        for key, label in self.ITERATION_GROUP_OPTIONS:
+            item = QListWidgetItem(f"{label} ({key})")
+            item.setData(Qt.UserRole, key)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+            self.prompt_base_iterations_list.addItem(item)
+
+    def _checked_iteration_groups(self) -> list[str]:
+        groups: list[str] = []
+        for idx in range(self.prompt_base_iterations_list.count()):
+            item = self.prompt_base_iterations_list.item(idx)
+            if item.checkState() == Qt.Checked:
+                group_key = item.data(Qt.UserRole)
+                if group_key:
+                    groups.append(str(group_key))
+        return groups
+
+    def _set_checked_iteration_groups(self, groups: list[str]) -> None:
+        normalized = {str(group).strip().lower() for group in groups if str(group).strip()}
+        existing = {
+            str(self.prompt_base_iterations_list.item(i).data(Qt.UserRole)).lower()
+            for i in range(self.prompt_base_iterations_list.count())
+        }
+        for group in groups:
+            group_key = str(group).strip()
+            if not group_key:
+                continue
+            group_lower = group_key.lower()
+            if group_lower in existing:
+                continue
+            item = QListWidgetItem(group_key)
+            item.setData(Qt.UserRole, group_key)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Unchecked)
+            self.prompt_base_iterations_list.addItem(item)
+            existing.add(group_lower)
+
+        for idx in range(self.prompt_base_iterations_list.count()):
+            item = self.prompt_base_iterations_list.item(idx)
+            group_key = str(item.data(Qt.UserRole) or "").strip()
+            if group_key and group_key.lower() in normalized:
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
