@@ -199,7 +199,7 @@ class ReelService:
         category_label = str(category_data.get("label", category_key)).strip() or category_key
         kind = str(category_data.get("kind", "category"))
 
-        library_name = (settings.reel_library_name or "Biblioteca Waifu").strip()
+        library_name = (settings.reel_library_name or "Library Waifu").strip()
         character_name = category_label if kind == "character" else ""
         if not character_name and variant and variant != "__ALL__":
             character_name = str(variant).strip()
@@ -233,7 +233,7 @@ class ReelService:
         if not rows:
             return None
 
-        library_name = (settings.reel_library_name or "Biblioteca Waifu").strip()
+        library_name = (settings.reel_library_name or "Library Waifu").strip()
         character_name = label or "Dollimages"
 
         selected = random.choice(rows)

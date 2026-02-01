@@ -32,6 +32,6 @@ class Settings:
     reel_instagram_handle: str = os.getenv("REEL_INSTAGRAM_HANDLE", "@yourinstagram")
     reel_x_handle: str = os.getenv("REEL_X_HANDLE", "@yourx")
     reel_dollimages_handle: str = os.getenv("REEL_DOLLIMAGES_HANDLE", "@dollimages")
-    reel_library_name: str = os.getenv("REEL_LIBRARY_NAME", "Biblioteca Waifu")
+    reel_library_name: str = os.getenv("REEL_LIBRARY_NAME", "Library Waifu")
 
 settings = Settings()
