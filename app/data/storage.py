@@ -48,33 +48,57 @@ def _normalize_variation_list(value: Any) -> list[str]:
     return [str(item).strip() for item in value if str(item).strip()]
 
 
-def _extract_variation_groups(catalog: dict[str, Any]) -> dict[str, list[str]]:
+def _extract_variation_groups_for_scope(
+    catalog: dict[str, Any],
+    *,
+    prefix: str | None = None,
+) -> dict[str, list[str]]:
     groups: dict[str, list[str]] = {}
+
+    def _add_group(key: str, values: list[str]) -> None:
+        full_key = f"{prefix}.{key}" if prefix else key
+        groups[full_key] = values
 
     identity = catalog.get("identity", {}) if isinstance(catalog, dict) else {}
     if isinstance(identity, dict):
-        groups["identity.face_features"] = _normalize_variation_list(identity.get("face_features"))
-        groups["identity.eye_styles"] = _normalize_variation_list(identity.get("eye_styles"))
+        _add_group("identity.face_features", _normalize_variation_list(identity.get("face_features")))
+        _add_group("identity.eye_styles", _normalize_variation_list(identity.get("eye_styles")))
         hair = identity.get("hair", {})
         if isinstance(hair, dict):
-            groups["identity.hair.colors"] = _normalize_variation_list(hair.get("colors"))
-            groups["identity.hair.styles"] = _normalize_variation_list(hair.get("styles"))
-            groups["identity.hair.details"] = _normalize_variation_list(hair.get("details"))
+            _add_group("identity.hair.colors", _normalize_variation_list(hair.get("colors")))
+            _add_group("identity.hair.styles", _normalize_variation_list(hair.get("styles")))
+            _add_group("identity.hair.details", _normalize_variation_list(hair.get("details")))
 
     camera = catalog.get("camera", {}) if isinstance(catalog, dict) else {}
     if isinstance(camera, dict):
-        groups["camera.focal_lengths"] = _normalize_variation_list(camera.get("focal_lengths"))
-        groups["camera.framing"] = _normalize_variation_list(camera.get("framing"))
-        groups["camera.angle"] = _normalize_variation_list(camera.get("angle"))
+        _add_group("camera.focal_lengths", _normalize_variation_list(camera.get("focal_lengths")))
+        _add_group("camera.framing", _normalize_variation_list(camera.get("framing")))
+        _add_group("camera.angle", _normalize_variation_list(camera.get("angle")))
 
-    groups["mood"] = _normalize_variation_list(catalog.get("mood")) if isinstance(catalog, dict) else []
+    if isinstance(catalog, dict):
+        _add_group("mood", _normalize_variation_list(catalog.get("mood")))
 
     for section in ("combinations", "wardrobe", "footwear", "pose", "background", "lighting"):
         data = catalog.get(section, {}) if isinstance(catalog, dict) else {}
         if not isinstance(data, dict):
             continue
         for key, value in data.items():
-            groups[f"{section}.{key}"] = _normalize_variation_list(value)
+            _add_group(f"{section}.{key}", _normalize_variation_list(value))
+
+    return {key: value for key, value in groups.items() if value}
+
+
+def _extract_variation_groups(catalog: dict[str, Any]) -> dict[str, list[str]]:
+    groups: dict[str, list[str]] = {}
+    groups.update(_extract_variation_groups_for_scope(catalog))
+
+    characters = catalog.get("characters", {}) if isinstance(catalog, dict) else {}
+    if isinstance(characters, dict):
+        for char_key, char_data in characters.items():
+            if not isinstance(char_data, dict):
+                continue
+            prefix = f"characters.{char_key}"
+            groups.update(_extract_variation_groups_for_scope(char_data, prefix=prefix))
 
     return {key: value for key, value in groups.items() if value}
 

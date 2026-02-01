@@ -94,7 +94,10 @@ class PromptVariationWindow(QMainWindow):
             "Se concatena la combinación (si aplica), el prompt base de la categoría/personaje y el sujeto base. "
             "Luego se agregan rasgos (rostro/ojos/pelo), outfit (top/bottom/vestido/extra/calzado), pose, fondo "
             "(se omite en personajes), iluminación, cámara y mood. Finalmente se añaden tags de calidad. "
-            "Los campos vacíos se omiten automáticamente."
+            "Los campos vacíos se omiten automáticamente.\n\n"
+            "Para variaciones específicas de personajes usa el prefijo "
+            "'characters.<key_personaje>.' en la clave del grupo "
+            "(ej: characters.luna.identity.hair.colors)."
         )
         info_label.setWordWrap(True)
         info_layout.addWidget(info_label)
