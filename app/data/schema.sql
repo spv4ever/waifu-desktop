@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS prompt_base (
   base_prompt   TEXT NOT NULL,
   kind          TEXT NOT NULL DEFAULT 'category', -- category | character
   allowed_ratios TEXT,
+  iteration_groups TEXT,
   enabled       INTEGER NOT NULL DEFAULT 1,
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT NOT NULL DEFAULT (datetime('now'))

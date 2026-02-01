@@ -74,6 +74,17 @@ class PromptBaseWindow(QMainWindow):
 
         prompt_base_layout.addLayout(prompt_base_row_one)
 
+        prompt_base_row_iter = QHBoxLayout()
+        prompt_base_row_iter.addWidget(QLabel("Iteraciones (grupos):"))
+        self.prompt_base_iterations_input = QLineEdit()
+        self.prompt_base_iterations_input.setPlaceholderText(
+            "outfit, pose, lighting, background, camera, mood, identity"
+        )
+        self.prompt_base_iterations_input.setMinimumWidth(260)
+        prompt_base_row_iter.addWidget(self.prompt_base_iterations_input)
+        prompt_base_row_iter.addStretch(1)
+        prompt_base_layout.addLayout(prompt_base_row_iter)
+
         prompt_base_row_two = QHBoxLayout()
         prompt_base_row_two.addWidget(QLabel("Prompt base:"))
         prompt_base_layout.addLayout(prompt_base_row_two)
@@ -122,6 +133,7 @@ class PromptBaseWindow(QMainWindow):
         self.prompt_base_label_input.clear()
         self.prompt_base_ratios_input.clear()
         self.prompt_base_enabled_checkbox.setChecked(True)
+        self.prompt_base_iterations_input.clear()
         self.prompt_base_text.clear()
 
     def load_prompt_base_from_combo(self) -> None:
@@ -140,6 +152,7 @@ class PromptBaseWindow(QMainWindow):
         self.prompt_base_label_input.setText(row.label)
         self.prompt_base_ratios_input.setText(", ".join(row.allowed_ratios))
         self.prompt_base_enabled_checkbox.setChecked(row.enabled)
+        self.prompt_base_iterations_input.setText(", ".join(row.iteration_groups))
         self.prompt_base_text.setPlainText(row.base_prompt)
 
     def save_prompt_base(self) -> None:
@@ -148,6 +161,7 @@ class PromptBaseWindow(QMainWindow):
         base_prompt = self.prompt_base_text.toPlainText().strip()
         kind = str(self.prompt_base_kind_combo.currentData() or "category")
         ratios_raw = self.prompt_base_ratios_input.text().strip()
+        iterations_raw = self.prompt_base_iterations_input.text().strip()
         enabled = self.prompt_base_enabled_checkbox.isChecked()
 
         if not key:
@@ -161,6 +175,7 @@ class PromptBaseWindow(QMainWindow):
             return
 
         allowed_ratios = [r.strip() for r in ratios_raw.split(",") if r.strip()]
+        iteration_groups = [g.strip() for g in iterations_raw.split(",") if g.strip()]
         store = get_store()
         store.upsert_prompt_base(
             key=key,
@@ -168,6 +183,7 @@ class PromptBaseWindow(QMainWindow):
             base_prompt=base_prompt,
             kind=kind,
             allowed_ratios=allowed_ratios,
+            iteration_groups=iteration_groups,
             enabled=enabled,
         )
 

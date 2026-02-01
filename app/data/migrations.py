@@ -31,6 +31,7 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         "TEXT",
     )
     _add_column_if_missing(conn, "dollimage_prompt", "group_name", "TEXT NOT NULL DEFAULT ''")
+    _add_column_if_missing(conn, "prompt_base", "iteration_groups", "TEXT")
 
     conn.execute(
         """
@@ -93,6 +94,7 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
           base_prompt   TEXT NOT NULL,
           kind          TEXT NOT NULL DEFAULT 'category',
           allowed_ratios TEXT,
+          iteration_groups TEXT,
           enabled       INTEGER NOT NULL DEFAULT 1,
           created_at    TEXT NOT NULL DEFAULT (datetime('now')),
           updated_at    TEXT NOT NULL DEFAULT (datetime('now'))

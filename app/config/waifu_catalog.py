@@ -67,6 +67,7 @@ def load_waifu_catalog(path: str | Path = "resources/config/waifu_catalog.yaml")
             "allowed_ratios": base.allowed_ratios,
             "enabled": base.enabled,
             "kind": base.kind,
+            "iteration_groups": base.iteration_groups,
         }
 
     data = dict(data)
