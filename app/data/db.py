@@ -10,12 +10,25 @@ from app.config.settings import settings
 def ensure_data_dir() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
+
+REQUIRED_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("prompt_base", "iteration_groups"),
+)
+
+
+def _missing_required_columns(conn: sqlite3.Connection) -> bool:
+    for table, column in REQUIRED_COLUMNS:
+        cols = conn.execute(f"PRAGMA table_info({table})").fetchall()
+        existing = {r[1] for r in cols}
+        if column not in existing:
+            return True
+    return False
 
 
 def _apply_migrations_if_needed(conn: sqlite3.Connection) -> None:
     current_version = int(conn.execute("PRAGMA user_version").fetchone()[0])
-    if current_version >= SCHEMA_VERSION:
+    if current_version >= SCHEMA_VERSION and not _missing_required_columns(conn):
         return
 
     with conn:
