@@ -251,8 +251,8 @@ class ReelService:
         )
         return text, hashtags
 
-    def _build_social_text(self) -> str:
-        x_handle = (settings.reel_x_handle or "").strip()
+    def _build_social_text(self, *, override_handle: str | None = None) -> str:
+        x_handle = (override_handle or settings.reel_x_handle or "").strip()
         if x_handle:
             return f"X: {x_handle}"
         return "X"
@@ -491,6 +491,7 @@ class ReelService:
         image_count: int,
         seconds_per_image: float,
         title: str | None,
+        social_handle: str | None = None,
     ) -> tuple[Path, Path | None]:
         ffmpeg_path = shutil.which("ffmpeg")
         if not ffmpeg_path:
@@ -522,7 +523,7 @@ class ReelService:
             cmd += ["-ss", f"{start_time}", "-t", f"{total_duration}", "-i", str(audio_path)]
 
         # ====== TEXTOS (formateo + archivos) ======
-        social_text = self._build_social_text()
+        social_text = self._build_social_text(override_handle=social_handle)
         social_text, social_font = self._format_reel_text(
             social_text,
             font_size=self._SOCIAL_FONT_SIZE,
@@ -686,6 +687,7 @@ class ReelService:
             image_count=image_count,
             seconds_per_image=seconds_per_image,
             title=title,
+            social_handle=settings.reel_dollimages_handle,
         )
 
         manifest = {
@@ -787,6 +789,7 @@ class ReelService:
             image_count=image_count,
             seconds_per_image=seconds_per_image,
             title=title,
+            social_handle=settings.reel_dollimages_handle,
         )
 
         manifest = {
