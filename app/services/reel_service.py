@@ -430,12 +430,36 @@ class ReelService:
     def _copy_images(self, images: list[_ReelImage], *, folder: Path) -> list[Path]:
         if not images:
             return []
-        ext = images[0].source_path.suffix or ".png"
+        suffixes = {image.source_path.suffix.lower() for image in images if image.source_path.suffix}
+        preferred_suffixes = {".png", ".jpg", ".jpeg"}
+        convert_to_png = len(suffixes) != 1 or any(suffix not in preferred_suffixes for suffix in suffixes)
+        ext = ".png" if convert_to_png else next(iter(suffixes), ".png")
         copied_paths: list[Path] = []
+        ffmpeg_path = None
+        if convert_to_png:
+            ffmpeg_path = shutil.which("ffmpeg")
+            if not ffmpeg_path:
+                raise RuntimeError("No se encontró ffmpeg para convertir imágenes a PNG antes de crear el reel.")
         for idx, image in enumerate(images, start=1):
             target_name = f"frame_{idx:03d}{ext}"
             target_path = folder / target_name
-            shutil.copy2(image.source_path, target_path)
+            if convert_to_png:
+                subprocess.run(
+                    [
+                        ffmpeg_path,
+                        "-y",
+                        "-i",
+                        str(image.source_path),
+                        "-frames:v",
+                        "1",
+                        str(target_path),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            else:
+                shutil.copy2(image.source_path, target_path)
             copied_paths.append(target_path)
         return copied_paths
 
