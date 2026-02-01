@@ -93,6 +93,35 @@ def _normalize_iteration_groups(value: Any) -> set[str]:
     return {item.lower() for item in items}
 
 
+def _merge_nested_dict(base: dict[str, Any] | None, override: dict[str, Any] | None) -> dict[str, Any]:
+    merged: dict[str, Any] = dict(base or {})
+    if not isinstance(override, dict):
+        return merged
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_nested_dict(merged.get(key), value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _select_list(base: list[str] | None, override: Any) -> list[str]:
+    if isinstance(override, list):
+        return override
+    return list(base or [])
+
+
+def _character_variations(raw: dict[str, Any], character_key: str) -> dict[str, Any]:
+    for prefix in ("characters", "character"):
+        scoped = raw.get(prefix)
+        if not isinstance(scoped, dict):
+            continue
+        data = scoped.get(character_key)
+        if isinstance(data, dict):
+            return data
+    return {}
+
+
 def _build_combination_prompt(
     rng: random.Random,
     combo_cfg: list[str] | dict[str, Any] | None,
@@ -164,6 +193,7 @@ def build_unique_prompts(
     manual_prompt_text = str(manual_prompt or "").strip()
     kind = str(cat.get("kind", "category"))
     is_character = kind == "character"
+    character_variations = _character_variations(catalog.raw, category_key) if is_character else {}
     iteration_groups = _normalize_iteration_groups(cat.get("iteration_groups"))
     has_iteration_groups = bool(iteration_groups)
 
@@ -192,7 +222,7 @@ def build_unique_prompts(
     include_camera = iterate_camera or not has_iteration_groups
     include_mood = iterate_mood or not has_iteration_groups
 
-    combinations = catalog.combinations or {}
+    combinations = _merge_nested_dict(catalog.combinations or {}, character_variations.get("combinations"))
     combination_prompt = ""
     combo_cfg: list[str] | dict[str, Any] | None = None
     if combination_key:
@@ -209,22 +239,22 @@ def build_unique_prompts(
         negative_text = "low quality, blurry, bad anatomy, extra fingers, watermark, text"
 
     # Pools: wardrobe
-    wardrobe = catalog.wardrobe or {}
+    wardrobe = _merge_nested_dict(catalog.wardrobe or {}, character_variations.get("wardrobe"))
     tops = wardrobe.get("tops", []) or []
     bottoms = wardrobe.get("bottoms", []) or []
     dresses = wardrobe.get("dresses", []) or []
     extras = wardrobe.get("extras", []) or []
 
     # Pools: grouped dicts
-    pose_grouped = catalog.pose or {}
-    bg_grouped = catalog.background or {}
-    light_grouped = catalog.lighting or {}
+    pose_grouped = _merge_nested_dict(catalog.pose or {}, character_variations.get("pose"))
+    bg_grouped = _merge_nested_dict(catalog.background or {}, character_variations.get("background"))
+    light_grouped = _merge_nested_dict(catalog.lighting or {}, character_variations.get("lighting"))
 
     # Footwear dict
-    footwear = catalog.footwear or {}
+    footwear = _merge_nested_dict(catalog.footwear or {}, character_variations.get("footwear"))
 
     # Identity
-    identity = catalog.raw.get("identity", {}) or {}
+    identity = _merge_nested_dict(catalog.raw.get("identity", {}) or {}, character_variations.get("identity"))
     face_features_list = identity.get("face_features", []) or []
     eye_styles_list = identity.get("eye_styles", []) or []
     hair = identity.get("hair", {}) or {}
@@ -233,13 +263,13 @@ def build_unique_prompts(
     hair_details = hair.get("details", []) or []
 
     # Camera
-    camera = catalog.raw.get("camera", {}) or {}
+    camera = _merge_nested_dict(catalog.raw.get("camera", {}) or {}, character_variations.get("camera"))
     focal_lengths = camera.get("focal_lengths", []) or []
     framings = camera.get("framing", []) or []
     angles = camera.get("angle", []) or []
 
     # Mood
-    mood_list = catalog.raw.get("mood", []) or []
+    mood_list = _select_list(catalog.raw.get("mood", []) or [], character_variations.get("mood"))
 
     out: list[BuiltPrompt] = []
     attempts = 0
