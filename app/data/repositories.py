@@ -21,6 +21,7 @@ class PromptBaseRow:
     base_prompt: str
     kind: str
     allowed_ratios: list[str]
+    iteration_groups: list[str]
     enabled: bool
 
 
@@ -89,7 +90,7 @@ class PromptBaseRepository:
     ) -> list[PromptBaseRow]:
         rows = conn.execute(
             """
-            SELECT key, label, base_prompt, kind, allowed_ratios, enabled
+            SELECT key, label, base_prompt, kind, allowed_ratios, iteration_groups, enabled
             FROM prompt_base
             WHERE (? = 1) OR enabled = 1
             ORDER BY kind, label
@@ -105,6 +106,14 @@ class PromptBaseRepository:
             except json.JSONDecodeError:
                 allowed_ratios = []
             allowed_ratios = [str(x) for x in allowed_ratios if isinstance(x, (str, int, float))]
+            iteration_raw = r["iteration_groups"] if "iteration_groups" in r.keys() else None
+            try:
+                iteration_groups = json.loads(iteration_raw) if iteration_raw else []
+            except json.JSONDecodeError:
+                iteration_groups = []
+            iteration_groups = [
+                str(x) for x in iteration_groups if isinstance(x, (str, int, float)) and str(x).strip()
+            ]
             out.append(
                 PromptBaseRow(
                     key=str(r["key"]),
@@ -112,6 +121,7 @@ class PromptBaseRepository:
                     base_prompt=str(r["base_prompt"]),
                     kind=str(r["kind"] or "category"),
                     allowed_ratios=allowed_ratios,
+                    iteration_groups=iteration_groups,
                     enabled=bool(r["enabled"]),
                 )
             )
@@ -126,22 +136,25 @@ class PromptBaseRepository:
         base_prompt: str,
         kind: str = "category",
         allowed_ratios: list[str] | None = None,
+        iteration_groups: list[str] | None = None,
         enabled: bool = True,
     ) -> None:
         ratios_json = json.dumps(allowed_ratios or [], ensure_ascii=False)
+        iteration_json = json.dumps(iteration_groups or [], ensure_ascii=False)
         conn.execute(
             """
-            INSERT INTO prompt_base (key, label, base_prompt, kind, allowed_ratios, enabled)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO prompt_base (key, label, base_prompt, kind, allowed_ratios, iteration_groups, enabled)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(key) DO UPDATE SET
                 label = excluded.label,
                 base_prompt = excluded.base_prompt,
                 kind = excluded.kind,
                 allowed_ratios = excluded.allowed_ratios,
+                iteration_groups = excluded.iteration_groups,
                 enabled = excluded.enabled,
                 updated_at = datetime('now')
             """,
-            (key, label, base_prompt, kind, ratios_json, 1 if enabled else 0),
+            (key, label, base_prompt, kind, ratios_json, iteration_json, 1 if enabled else 0),
         )
 
     def ensure_seeded(self, conn: sqlite3.Connection, categories: dict[str, Any]) -> int:
@@ -158,6 +171,9 @@ class PromptBaseRepository:
             allowed = data.get("allowed_ratios") or []
             if not isinstance(allowed, list):
                 allowed = []
+            iteration_groups = data.get("iteration_groups") or []
+            if not isinstance(iteration_groups, list):
+                iteration_groups = []
             enabled = bool(data.get("enabled", True))
             if not base_prompt:
                 continue
@@ -168,6 +184,7 @@ class PromptBaseRepository:
                 base_prompt=base_prompt,
                 kind="category",
                 allowed_ratios=[str(x) for x in allowed],
+                iteration_groups=[str(x) for x in iteration_groups if str(x).strip()],
                 enabled=enabled,
             )
             inserted += 1

@@ -969,6 +969,7 @@ class SQLiteStore(BaseStore):
         base_prompt: str,
         kind: str = "category",
         allowed_ratios: list[str] | None = None,
+        iteration_groups: list[str] | None = None,
         enabled: bool = True,
     ) -> None:
         with get_connection() as conn:
@@ -980,6 +981,7 @@ class SQLiteStore(BaseStore):
                     base_prompt=base_prompt,
                     kind=kind,
                     allowed_ratios=allowed_ratios,
+                    iteration_groups=iteration_groups,
                     enabled=enabled,
                 )
 
