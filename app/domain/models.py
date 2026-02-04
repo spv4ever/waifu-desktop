@@ -28,6 +28,16 @@ class DollimagesPackCreate:
 
 
 @dataclass(frozen=True)
+class DollimagesManualPromptCreate:
+    typology: str
+    repetitions: int
+    title: str
+    prompt_text: str
+    checkpoint_base: Optional[str] = None
+    reference_image: Optional[str] = None
+
+
+@dataclass(frozen=True)
 class ManualPromptCreate:
     category: str
     variant: str
