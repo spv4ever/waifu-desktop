@@ -23,7 +23,13 @@ from app.services.file_open import open_file, open_folder_and_select
 from app.services.checkpoint_service import CheckpointService
 from app.services.reel_service import ReelService
 from app.services.manual_prompt_service import ManualPromptService
-from app.domain.models import PackCreate, DollimagesPackCreate, ManualPromptCreate
+from app.services.dollimages_manual_prompt_service import DollimagesManualPromptService
+from app.domain.models import (
+    PackCreate,
+    DollimagesPackCreate,
+    ManualPromptCreate,
+    DollimagesManualPromptCreate,
+)
 from app.ui.data_source import (
     fetch_prompts,
     fetch_prompt_filters,
@@ -72,6 +78,7 @@ class MainWindow(QMainWindow):
         self.store = get_store()
         self.pack_service = PackService()
         self.dollimages_pack_service = DollimagesPackService()
+        self.dollimages_manual_prompt_service = DollimagesManualPromptService()
         self.reel_service = ReelService()
         self.manual_prompt_service = ManualPromptService()
         self.waifu_catalog = load_waifu_catalog()
@@ -161,12 +168,14 @@ class MainWindow(QMainWindow):
         self.open_pack_btn = QPushButton("Generar Pack Waifu")
         self.open_manual_prompt_btn = QPushButton("Prompt Manual Waifu")
         self.open_dollimages_pack_btn = QPushButton("Crear Pack Dollimages")
+        self.open_dollimages_manual_prompt_btn = QPushButton("Prompt Manual Dollimages")
         self.open_reel_btn = QPushButton("Reel Instagram")
         self.open_dollimages_reel_btn = QPushButton("Reel Dollimages")
         quick_actions.addWidget(self.open_filters_btn)
         quick_actions.addWidget(self.open_pack_btn)
         quick_actions.addWidget(self.open_manual_prompt_btn)
         quick_actions.addWidget(self.open_dollimages_pack_btn)
+        quick_actions.addWidget(self.open_dollimages_manual_prompt_btn)
         quick_actions.addWidget(self.open_reel_btn)
         quick_actions.addWidget(self.open_dollimages_reel_btn)
         quick_actions.addStretch(1)
@@ -464,6 +473,58 @@ class MainWindow(QMainWindow):
 
         doll_dialog_layout.addWidget(doll_group)
 
+        # Dollimages manual prompt generator
+        self.dollimages_manual_dialog = QDialog(self)
+        self.dollimages_manual_dialog.setWindowTitle("Prompt manual Dollimages")
+        self.dollimages_manual_dialog.setModal(False)
+        doll_manual_layout = QVBoxLayout(self.dollimages_manual_dialog)
+        doll_manual_group = QGroupBox("Prompt manual (Dollimages)")
+        doll_manual_grid = QGridLayout(doll_manual_group)
+        doll_manual_grid.setHorizontalSpacing(10)
+        doll_manual_grid.setVerticalSpacing(8)
+
+        doll_manual_grid.addWidget(QLabel("Tipología:"), 0, 0)
+        self.dollimages_manual_typology_combo = QComboBox()
+        self.dollimages_manual_typology_combo.addItem("Normal", "normal")
+        self.dollimages_manual_typology_combo.addItem("SFW", "sfw")
+        self.dollimages_manual_typology_combo.addItem("NSFW", "nsfw")
+        doll_manual_grid.addWidget(self.dollimages_manual_typology_combo, 0, 1)
+
+        doll_manual_grid.addWidget(QLabel("Imagen referencia:"), 0, 2)
+        self.dollimages_manual_reference_input = QLineEdit()
+        self.dollimages_manual_reference_input.setPlaceholderText("Selecciona una imagen para faceswap")
+        doll_manual_grid.addWidget(self.dollimages_manual_reference_input, 0, 3, 1, 3)
+        self.dollimages_manual_reference_btn = QPushButton("Buscar")
+        doll_manual_grid.addWidget(self.dollimages_manual_reference_btn, 0, 6)
+
+        doll_manual_grid.addWidget(QLabel("Checkpoint Base:"), 1, 0)
+        self.dollimages_manual_checkpoint_combo = QComboBox()
+        self.dollimages_manual_checkpoint_combo.setMinimumWidth(220)
+        doll_manual_grid.addWidget(self.dollimages_manual_checkpoint_combo, 1, 1)
+
+        doll_manual_grid.addWidget(QLabel("Repeticiones:"), 1, 2)
+        self.dollimages_manual_repetitions_spin = QSpinBox()
+        self.dollimages_manual_repetitions_spin.setRange(1, 500)
+        self.dollimages_manual_repetitions_spin.setValue(1)
+        doll_manual_grid.addWidget(self.dollimages_manual_repetitions_spin, 1, 3)
+
+        doll_manual_grid.addWidget(QLabel("Título:"), 2, 0)
+        self.dollimages_manual_title_input = QLineEdit()
+        self.dollimages_manual_title_input.setPlaceholderText("Título manual")
+        doll_manual_grid.addWidget(self.dollimages_manual_title_input, 2, 1, 1, 6)
+
+        doll_manual_grid.addWidget(QLabel("Prompt manual:"), 3, 0)
+        self.dollimages_manual_prompt_text_input = QPlainTextEdit()
+        self.dollimages_manual_prompt_text_input.setPlaceholderText("Escribe el prompt tal cual lo quieres enviar.")
+        self.dollimages_manual_prompt_text_input.setMinimumHeight(120)
+        doll_manual_grid.addWidget(self.dollimages_manual_prompt_text_input, 3, 1, 1, 6)
+
+        self.dollimages_manual_generate_btn = QPushButton("Enviar a cola")
+        doll_manual_grid.addWidget(self.dollimages_manual_generate_btn, 4, 6)
+        doll_manual_grid.setColumnStretch(7, 1)
+
+        doll_manual_layout.addWidget(doll_manual_group)
+
         self.reel_dialog = QDialog(self)
         self.reel_dialog.setWindowTitle("Reel Instagram")
         self.reel_dialog.setModal(False)
@@ -716,15 +777,20 @@ class MainWindow(QMainWindow):
         self.pack_generate_btn.clicked.connect(self.generate_pack)
         self.manual_prompt_generate_btn.clicked.connect(self.generate_manual_prompt)
         self.dollimages_generate_btn.clicked.connect(self.generate_dollimages_pack)
+        self.dollimages_manual_generate_btn.clicked.connect(self.generate_dollimages_manual_prompt)
         self.reel_generate_btn.clicked.connect(self.generate_reel)
         self.dollimages_reel_generate_btn.clicked.connect(self.generate_dollimages_reel)
         self.open_filters_btn.clicked.connect(self.filters_dialog.show)
         self.open_pack_btn.clicked.connect(self.pack_dialog.show)
         self.open_manual_prompt_btn.clicked.connect(self.manual_prompt_dialog.show)
         self.open_dollimages_pack_btn.clicked.connect(self.dollimages_dialog.show)
+        self.open_dollimages_manual_prompt_btn.clicked.connect(self.dollimages_manual_dialog.show)
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
         self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
         self.dollimages_reference_btn.clicked.connect(self.select_dollimages_reference_image)
+        self.dollimages_manual_reference_btn.clicked.connect(
+            self.select_dollimages_manual_reference_image
+        )
         self.limit_spin.valueChanged.connect(self.refresh)
         self.pause_between_spin.valueChanged.connect(self._update_worker_delay)
         self.prompt_id_input.textChanged.connect(self.refresh)
@@ -1222,6 +1288,7 @@ class MainWindow(QMainWindow):
         fill_combo(self.pack_checkpoint_base_combo, default_base)
         fill_combo(self.pack_checkpoint_refiner_combo, default_refiner)
         fill_combo(self.dollimages_checkpoint_combo, default_base)
+        fill_combo(self.dollimages_manual_checkpoint_combo, default_base)
         fill_combo(self.manual_prompt_checkpoint_combo, default_base)
         self._sync_manual_prompt_refiner_label()
 
@@ -1326,6 +1393,16 @@ class MainWindow(QMainWindow):
         if file_path:
             self.dollimages_reference_input.setText(file_path)
 
+    def select_dollimages_manual_reference_image(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Seleccionar imagen de referencia",
+            "",
+            "Images (*.png *.jpg *.jpeg *.webp *.bmp)",
+        )
+        if file_path:
+            self.dollimages_manual_reference_input.setText(file_path)
+
     def generate_dollimages_pack(self) -> None:
         typology = self.dollimages_typology_combo.currentData()
         repetitions = int(self.dollimages_iterations_spin.value())
@@ -1363,6 +1440,56 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "Crear Pack Dollimages",
+            f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} items.",
+        )
+
+    def generate_dollimages_manual_prompt(self) -> None:
+        typology = self.dollimages_manual_typology_combo.currentData()
+        repetitions = int(self.dollimages_manual_repetitions_spin.value())
+        checkpoint_base = self.dollimages_manual_checkpoint_combo.currentData()
+        reference_image = self.dollimages_manual_reference_input.text().strip()
+        title_raw = self.dollimages_manual_title_input.text()
+        prompt_raw = self.dollimages_manual_prompt_text_input.toPlainText()
+
+        if not typology:
+            QMessageBox.warning(self, "Prompt manual Dollimages", "Selecciona una tipología.")
+            return
+        if not reference_image:
+            QMessageBox.warning(
+                self, "Prompt manual Dollimages", "Selecciona una imagen de referencia."
+            )
+            return
+        if not checkpoint_base:
+            QMessageBox.warning(
+                self, "Prompt manual Dollimages", "Selecciona un checkpoint base."
+            )
+            return
+        if not title_raw.strip():
+            QMessageBox.warning(self, "Prompt manual Dollimages", "El título es obligatorio.")
+            return
+        if not prompt_raw.strip():
+            QMessageBox.warning(self, "Prompt manual Dollimages", "El prompt no puede estar vacío.")
+            return
+
+        req = DollimagesManualPromptCreate(
+            typology=str(typology),
+            repetitions=repetitions,
+            title=title_raw,
+            prompt_text=prompt_raw,
+            checkpoint_base=str(checkpoint_base),
+            reference_image=reference_image,
+        )
+
+        try:
+            result = self.dollimages_manual_prompt_service.create_manual_prompts_and_enqueue(req)
+        except Exception as exc:
+            QMessageBox.critical(self, "Prompt manual Dollimages", str(exc))
+            return
+
+        self.refresh()
+        QMessageBox.information(
+            self,
+            "Prompt manual Dollimages",
             f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} items.",
         )
 
