@@ -668,6 +668,7 @@ class ReelService:
         variant: str | None,
         image_count: int,
         seconds_per_image: float,
+        social_handle: str | None = None,
     ) -> ReelCreateResult:
         if image_count <= 0:
             raise ValueError("La cantidad de imágenes debe ser mayor a cero.")
@@ -711,7 +712,7 @@ class ReelService:
             image_count=image_count,
             seconds_per_image=seconds_per_image,
             title=title,
-            social_handle=settings.reel_x_handle,
+            social_handle=social_handle or settings.reel_x_handle,
         )
 
         manifest = {
@@ -724,6 +725,7 @@ class ReelService:
             "transition_seconds": self._TRANSITION_SECONDS,
             "video": video_path.name,
             "audio": audio_path.name if audio_path else None,
+            "social_handle": social_handle or settings.reel_x_handle,
             "social_post": {
                 "text": social_text,
                 "hashtags": social_hashtags,
@@ -760,6 +762,7 @@ class ReelService:
         group_name: str | None,
         image_count: int,
         seconds_per_image: float,
+        social_handle: str | None = None,
     ) -> ReelCreateResult:
         if image_count <= 0:
             raise ValueError("La cantidad de imágenes debe ser mayor a cero.")
@@ -813,7 +816,7 @@ class ReelService:
             image_count=image_count,
             seconds_per_image=seconds_per_image,
             title=title,
-            social_handle=settings.reel_dollimages_handle,
+            social_handle=social_handle or settings.reel_dollimages_handle,
         )
 
         manifest = {
@@ -827,6 +830,7 @@ class ReelService:
             "transition_seconds": self._TRANSITION_SECONDS,
             "video": video_path.name,
             "audio": audio_path.name if audio_path else None,
+            "social_handle": social_handle or settings.reel_dollimages_handle,
             "social_post": {
                 "text": social_text,
                 "hashtags": social_hashtags,
