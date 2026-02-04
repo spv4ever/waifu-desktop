@@ -711,7 +711,7 @@ class ReelService:
             image_count=image_count,
             seconds_per_image=seconds_per_image,
             title=title,
-            social_handle=settings.reel_dollimages_handle,
+            social_handle=settings.reel_x_handle,
         )
 
         manifest = {
