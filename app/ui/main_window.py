@@ -495,6 +495,11 @@ class MainWindow(QMainWindow):
         self.reel_seconds_spin.setValue(2.0)
         reel_layout.addWidget(self.reel_seconds_spin, 0, 7)
 
+        reel_layout.addWidget(QLabel("Redes (manual):"), 1, 0)
+        self.reel_social_input = QLineEdit()
+        self.reel_social_input.setPlaceholderText("Ej: @waifu / @instagram")
+        reel_layout.addWidget(self.reel_social_input, 1, 1, 1, 4)
+
         self.reel_generate_btn = QPushButton("Crear Reel")
         reel_layout.addWidget(self.reel_generate_btn, 0, 8)
         reel_layout.setColumnStretch(9, 1)
@@ -538,6 +543,11 @@ class MainWindow(QMainWindow):
         self.dollimages_reel_seconds_spin.setSingleStep(0.5)
         self.dollimages_reel_seconds_spin.setValue(2.0)
         doll_reel_grid.addWidget(self.dollimages_reel_seconds_spin, 0, 7)
+
+        doll_reel_grid.addWidget(QLabel("Redes (manual):"), 1, 0)
+        self.dollimages_reel_social_input = QLineEdit()
+        self.dollimages_reel_social_input.setPlaceholderText("Ej: @dollimages / @instagram")
+        doll_reel_grid.addWidget(self.dollimages_reel_social_input, 1, 1, 1, 3)
 
         self.dollimages_reel_generate_btn = QPushButton("Crear Reel")
         doll_reel_grid.addWidget(self.dollimages_reel_generate_btn, 0, 8)
@@ -1361,6 +1371,7 @@ class MainWindow(QMainWindow):
         quantity = int(self.reel_quantity_spin.value())
         seconds_per_image = float(self.reel_seconds_spin.value())
         variant = self.reel_variant_combo.currentData()
+        social_handle = self.reel_social_input.text().strip() or None
         if variant == "__ALL__":
             variant = None
 
@@ -1374,6 +1385,7 @@ class MainWindow(QMainWindow):
                 variant=str(variant) if variant else None,
                 image_count=quantity,
                 seconds_per_image=seconds_per_image,
+                social_handle=social_handle,
             )
         except Exception as exc:
             QMessageBox.critical(self, "Reel Instagram", str(exc))
@@ -1389,6 +1401,7 @@ class MainWindow(QMainWindow):
         typology = self.dollimages_reel_typology_combo.currentData()
         quantity = int(self.dollimages_reel_quantity_spin.value())
         seconds_per_image = float(self.dollimages_reel_seconds_spin.value())
+        social_handle = self.dollimages_reel_social_input.text().strip() or None
 
         try:
             result = self.reel_service.create_dollimages_reel(
@@ -1396,6 +1409,7 @@ class MainWindow(QMainWindow):
                 group_name=str(group_name) if group_name is not None else None,
                 image_count=quantity,
                 seconds_per_image=seconds_per_image,
+                social_handle=social_handle,
             )
         except Exception as exc:
             QMessageBox.critical(self, "Reel Dollimages", str(exc))
