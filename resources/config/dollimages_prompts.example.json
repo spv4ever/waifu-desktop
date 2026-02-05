@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "prompts": [
+    {
+      "group_name": "enfermeras",
+      "title": "Enfermera futurista",
+      "prompt_text": "futuristic nurse, white clean uniform, neon accents, soft studio light, shallow depth of field",
+      "typology": "normal",
+      "enabled": true
+    },
+    {
+      "group_name": "playa",
+      "title": "Retrato en la playa",
+      "prompt_text": "portrait on a tropical beach, golden hour, gentle breeze, natural skin texture, 85mm lens",
+      "typology": "sfw",
+      "enabled": true
+    },
+    {
+      "group_name": "",
+      "title": "Noir dramático",
+      "prompt_text": "black and white noir portrait, dramatic shadows, cinematic lighting, film grain",
+      "typology": "normal",
+      "enabled": false
+    }
+  ]
+}

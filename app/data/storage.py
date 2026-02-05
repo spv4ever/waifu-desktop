@@ -373,6 +373,9 @@ class BaseStore:
     def delete_dollimage_prompt(self, *, prompt_id: int) -> None:
         raise NotImplementedError
 
+    def import_dollimage_prompts(self, prompts: list[dict[str, Any]], *, replace: bool = False) -> int:
+        raise NotImplementedError
+
 
 class SQLiteStore(BaseStore):
     def __init__(self) -> None:
@@ -1252,3 +1255,31 @@ class SQLiteStore(BaseStore):
         with get_connection() as conn:
             with conn:
                 self._dollimage_prompts.delete(conn, prompt_id=prompt_id)
+
+    def import_dollimage_prompts(self, prompts: list[dict[str, Any]], *, replace: bool = False) -> int:
+        if not prompts:
+            return 0
+        inserted = 0
+        with get_connection() as conn:
+            with conn:
+                if replace:
+                    conn.execute("DELETE FROM dollimage_prompt")
+                for prompt in prompts:
+                    group_name = str(prompt.get("group_name", "") or "")
+                    title = str(prompt.get("title", "") or "")
+                    prompt_text = str(prompt.get("prompt_text", "") or "")
+                    typology = str(prompt.get("typology", "normal") or "normal")
+                    enabled = bool(prompt.get("enabled", True))
+                    if not title or not prompt_text:
+                        continue
+                    self._dollimage_prompts.save(
+                        conn,
+                        prompt_id=None,
+                        group_name=group_name,
+                        title=title,
+                        prompt_text=prompt_text,
+                        typology=typology,
+                        enabled=enabled,
+                    )
+                    inserted += 1
+        return inserted

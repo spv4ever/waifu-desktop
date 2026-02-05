@@ -26,3 +26,9 @@ python -m app.runner.init_db
 DB inicializada en: resources\data\waifu_desktop.sqlite3
 
 python -m app.runner.run_ui
+
+Importar prompts Dollimages desde JSON:
+
+python -m app.runner.import_dollimages_prompts --path resources/config/dollimages_prompts.example.json
+
+Opcionalmente, puedes usar la variable DOLLIMAGES_PROMPTS_JSON para definir la ruta por defecto y agregar --replace si quieres limpiar los prompts existentes.

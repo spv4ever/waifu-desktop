@@ -28,6 +28,12 @@ class Settings:
     # Worker
     queue_max_in_flight: int = int(os.getenv("QUEUE_MAX_IN_FLIGHT", "1"))
 
+    # Dollimages prompts
+    dollimages_prompts_json: str = os.getenv(
+        "DOLLIMAGES_PROMPTS_JSON",
+        "resources/config/dollimages_prompts.json",
+    )
+
     # Reel social handles (desde .env)
     reel_instagram_handle: str = os.getenv("REEL_INSTAGRAM_HANDLE", "@yourinstagram")
     reel_x_handle: str = os.getenv("REEL_X_HANDLE", "@yourx")
