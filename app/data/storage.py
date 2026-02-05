@@ -137,9 +137,6 @@ class BaseStore:
     def delete_prompt_items(self, *, prompt_ids: Iterable[int]) -> int:
         raise NotImplementedError
 
-    def delete_prompt_items_for_category(self, *, category: str) -> int:
-        raise NotImplementedError
-
     def fetch_dollimages_reel_group_counts(self, *, typology: str | None) -> dict[str, int]:
         raise NotImplementedError
 
@@ -582,18 +579,6 @@ class SQLiteStore(BaseStore):
                     WHERE id IN ({placeholders})
                     """,
                     ids,
-                )
-        return int(cursor.rowcount or 0)
-
-    def delete_prompt_items_for_category(self, *, category: str) -> int:
-        with get_connection() as conn:
-            with conn:
-                cursor = conn.execute(
-                    """
-                    DELETE FROM prompt_item
-                    WHERE json_extract(meta_json, '$.combo.category') = ?
-                    """,
-                    (category,),
                 )
         return int(cursor.rowcount or 0)
 

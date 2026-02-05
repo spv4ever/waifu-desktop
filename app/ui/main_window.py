@@ -1201,7 +1201,7 @@ class MainWindow(QMainWindow):
                 except Exception:
                     error_files += 1
 
-        cleared_rows = self.store.delete_prompt_items_for_category(category=str(category))
+        cleared_rows = self.store.delete_prompt_items(prompt_ids=prompt_ids)
         self._schedule_refresh()
 
         QMessageBox.information(
