@@ -134,6 +134,9 @@ class BaseStore:
     def clear_prompt_images(self, *, prompt_ids: Iterable[int]) -> int:
         raise NotImplementedError
 
+    def delete_prompt_items(self, *, prompt_ids: Iterable[int]) -> int:
+        raise NotImplementedError
+
     def fetch_dollimages_reel_group_counts(self, *, typology: str | None) -> dict[str, int]:
         raise NotImplementedError
 
@@ -557,6 +560,22 @@ class SQLiteStore(BaseStore):
                     f"""
                     UPDATE prompt_item
                     SET base_image_json=NULL, upscale_image_json=NULL
+                    WHERE id IN ({placeholders})
+                    """,
+                    ids,
+                )
+        return int(cursor.rowcount or 0)
+
+    def delete_prompt_items(self, *, prompt_ids: Iterable[int]) -> int:
+        ids = [int(pid) for pid in prompt_ids]
+        if not ids:
+            return 0
+        placeholders = ",".join(["?"] * len(ids))
+        with get_connection() as conn:
+            with conn:
+                cursor = conn.execute(
+                    f"""
+                    DELETE FROM prompt_item
                     WHERE id IN ({placeholders})
                     """,
                     ids,
