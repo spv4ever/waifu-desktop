@@ -149,6 +149,9 @@ class MainWindow(QMainWindow):
         self.open_social_copy_action.triggered.connect(self.open_social_copy_window)
         self.open_dollimages_prompt_action = maintenance_menu.addAction("Prompts Dollimages")
         self.open_dollimages_prompt_action.triggered.connect(self.open_dollimages_prompt_window)
+        maintenance_menu.addSeparator()
+        self.clear_category_images_action = maintenance_menu.addAction("Vaciar imágenes por categoría")
+        self.clear_category_images_action.triggered.connect(self.open_clear_category_images_dialog)
 
         header = QHBoxLayout()
         title_stack = QVBoxLayout()
@@ -1095,6 +1098,124 @@ class MainWindow(QMainWindow):
 
     def _clear_dollimages_prompt_window(self) -> None:
         self.dollimages_prompt_window = None
+
+    def open_clear_category_images_dialog(self) -> None:
+        filters = self.store.fetch_prompt_filters()
+        filter_categories = set(filters.get("categories") or [])
+        catalog_categories = set(self.waifu_catalog.categories.keys())
+        categories = sorted(filter_categories | catalog_categories)
+        if not categories:
+            QMessageBox.information(
+                self,
+                "Vaciado de imágenes",
+                "No hay categorías disponibles para vaciar.",
+            )
+            return
+
+        counts = dict(self.store.fetch_category_production_counts())
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Vaciado de imágenes por categoría")
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(
+            QLabel("Selecciona una categoría y borra todas las imágenes creadas para ella.")
+        )
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel("Categoría:"))
+        combo = QComboBox()
+        for category in categories:
+            count = counts.get(category, 0)
+            combo.addItem(f"{category} ({count})", category)
+        row.addWidget(combo)
+        layout.addLayout(row)
+
+        action_row = QHBoxLayout()
+        action_row.addStretch(1)
+        cancel_btn = QPushButton("Cancelar")
+        confirm_btn = QPushButton("Vaciar imágenes")
+        action_row.addWidget(cancel_btn)
+        action_row.addWidget(confirm_btn)
+        layout.addLayout(action_row)
+
+        cancel_btn.clicked.connect(dialog.reject)
+        confirm_btn.clicked.connect(
+            lambda: self._confirm_clear_category_images(dialog, combo)
+        )
+
+        dialog.exec()
+
+    def _confirm_clear_category_images(self, dialog: QDialog, combo: QComboBox) -> None:
+        category = combo.currentData()
+        if not category:
+            QMessageBox.warning(self, "Vaciado de imágenes", "Selecciona una categoría válida.")
+            return
+
+        confirm = QMessageBox.question(
+            self,
+            "Confirmar vaciado",
+            (
+                f"¿Seguro que quieres borrar todas las imágenes creadas de '{category}'?\n"
+                "Esta acción no se puede deshacer."
+            ),
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if confirm != QMessageBox.Yes:
+            return
+
+        rows = self.store.list_prompt_images_for_category(category=category)
+        if not rows:
+            QMessageBox.information(
+                self,
+                "Vaciado de imágenes",
+                f"No hay imágenes creadas para la categoría '{category}'.",
+            )
+            dialog.accept()
+            return
+
+        deleted_files = 0
+        missing_files = 0
+        error_files = 0
+        prompt_ids: list[int] = []
+
+        for row in rows:
+            prompt_ids.append(int(row["id"]))
+            workflow_key = self._workflow_key_from_row(row)
+            for key in ("base_image_json", "upscale_image_json"):
+                raw = row.get(key)
+                if not raw:
+                    continue
+                try:
+                    image_json = json.loads(raw)
+                except Exception:
+                    continue
+                if not isinstance(image_json, dict):
+                    continue
+                path = build_output_path(image_json, workflow_key=workflow_key)
+                try:
+                    if path.exists():
+                        path.unlink()
+                        deleted_files += 1
+                    else:
+                        missing_files += 1
+                except Exception:
+                    error_files += 1
+
+        cleared_rows = self.store.clear_prompt_images(prompt_ids=prompt_ids)
+        self._schedule_refresh()
+
+        QMessageBox.information(
+            self,
+            "Vaciado de imágenes",
+            (
+                f"Categoría '{category}' vaciada.\n"
+                f"Archivos borrados: {deleted_files}\n"
+                f"Archivos no encontrados: {missing_files}\n"
+                f"Filas actualizadas: {cleared_rows}\n"
+                f"Errores al borrar archivos: {error_files}"
+            ),
+        )
+        dialog.accept()
 
     def on_prompt_base_updated(self) -> None:
         self._reload_waifu_catalog()
