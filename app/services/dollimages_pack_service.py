@@ -74,7 +74,7 @@ class DollimagesPackService:
         conn,
         req: DollimagesPackCreate,
     ) -> DollimagesPackCreateResult:
-        if not req.reference_image:
+        if req.faceswap_enabled and not req.reference_image:
             raise ValueError("La imagen de referencia es obligatoria.")
 
         prompts = [
@@ -90,7 +90,9 @@ class DollimagesPackService:
                 )
             raise ValueError("No hay prompts para la tipología seleccionada.")
 
-        reference_name = self._prepare_reference_image(req.reference_image)
+        reference_name = ""
+        if req.reference_image:
+            reference_name = self._prepare_reference_image(req.reference_image)
         width, height = self._default_canvas()
         ratio_tag = f"{width}x{height}"
 
@@ -143,6 +145,7 @@ class DollimagesPackService:
                     "width": width,
                     "height": height,
                     "reference_image": reference_name,
+                    "faceswap_enabled": req.faceswap_enabled,
                     "dollimages_prompt_id": prompt.id,
                     "dollimages_typology": req.typology,
                     "dollimages_group": req.group_name or "",

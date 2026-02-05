@@ -63,10 +63,12 @@ class DollimagesManualPromptService:
         self,
         req: DollimagesManualPromptCreate,
     ) -> DollimagesManualPromptResult:
-        if not req.reference_image:
+        if req.faceswap_enabled and not req.reference_image:
             raise ValueError("La imagen de referencia es obligatoria.")
 
-        reference_name = self._prepare_reference_image(req.reference_image)
+        reference_name = ""
+        if req.reference_image:
+            reference_name = self._prepare_reference_image(req.reference_image)
         width, height = self._default_canvas()
         ratio_tag = f"{width}x{height}"
 
@@ -118,6 +120,7 @@ class DollimagesManualPromptService:
                 "width": width,
                 "height": height,
                 "reference_image": reference_name,
+                "faceswap_enabled": req.faceswap_enabled,
                 "dollimages_prompt_id": None,
                 "dollimages_typology": req.typology,
                 "dollimages_group": "",
