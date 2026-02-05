@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -16,6 +19,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QListWidget,
     QListWidgetItem,
+    QFileDialog,
 )
 
 from app.data.repositories import PromptBaseRow
@@ -129,8 +133,10 @@ class PromptBaseWindow(QMainWindow):
         prompt_base_row_three = QHBoxLayout()
         self.prompt_base_save_btn = QPushButton("Guardar prompt base")
         self.prompt_base_new_btn = QPushButton("Nuevo")
+        self.prompt_base_import_btn = QPushButton("Importar JSON")
         prompt_base_row_three.addWidget(self.prompt_base_save_btn)
         prompt_base_row_three.addWidget(self.prompt_base_new_btn)
+        prompt_base_row_three.addWidget(self.prompt_base_import_btn)
         prompt_base_row_three.addStretch(1)
         prompt_base_layout.addLayout(prompt_base_row_three)
 
@@ -139,6 +145,7 @@ class PromptBaseWindow(QMainWindow):
 
         self.prompt_base_save_btn.clicked.connect(self.save_prompt_base)
         self.prompt_base_new_btn.clicked.connect(self.reset_prompt_base_form)
+        self.prompt_base_import_btn.clicked.connect(self.import_prompt_catalog)
         self.prompt_base_combo.currentIndexChanged.connect(self.load_prompt_base_from_combo)
         self.prompt_base_group_add_btn.clicked.connect(self.add_iteration_group)
 
@@ -227,6 +234,124 @@ class PromptBaseWindow(QMainWindow):
         if idx >= 0:
             self.prompt_base_combo.setCurrentIndex(idx)
         QMessageBox.information(self, "Prompts base", "Prompt base guardado.")
+        self.catalog_updated.emit()
+
+    def import_prompt_catalog(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Importar catálogo JSON",
+            "",
+            "Catálogo JSON (*.json);;Todos los archivos (*.*)",
+        )
+        if not file_path:
+            return
+
+        try:
+            raw_text = Path(file_path).read_text(encoding="utf-8")
+        except OSError as exc:
+            QMessageBox.warning(self, "Importar catálogo", f"No se pudo leer el fichero.\n{exc}")
+            return
+
+        try:
+            data = json.loads(raw_text)
+        except json.JSONDecodeError as exc:
+            QMessageBox.warning(
+                self,
+                "Importar catálogo",
+                f"El fichero no contiene JSON válido.\n{exc}",
+            )
+            return
+
+        if not isinstance(data, dict):
+            QMessageBox.warning(self, "Importar catálogo", "El JSON debe tener un objeto raíz.")
+            return
+
+        errors: list[str] = []
+        bases: list[dict[str, object]] = []
+
+        def _collect_bases(source: object, *, default_kind: str) -> None:
+            if source is None:
+                return
+            if not isinstance(source, dict):
+                errors.append(f"Se esperaba un dict para '{default_kind}s'.")
+                return
+            for key, entry in source.items():
+                if not isinstance(entry, dict):
+                    errors.append(f"Entrada inválida en '{key}'.")
+                    continue
+                base_prompt = str(entry.get("base_prompt", "")).strip()
+                if not base_prompt:
+                    errors.append(f"'{key}' no tiene base_prompt.")
+                    continue
+                label = str(entry.get("label", key)).strip() or str(key)
+                allowed_ratios = entry.get("allowed_ratios") or []
+                if not isinstance(allowed_ratios, list):
+                    errors.append(f"'{key}' tiene allowed_ratios inválido.")
+                    allowed_ratios = []
+                iteration_groups = entry.get("iteration_groups") or []
+                if not isinstance(iteration_groups, list):
+                    errors.append(f"'{key}' tiene iteration_groups inválido.")
+                    iteration_groups = []
+                kind = str(entry.get("kind") or default_kind)
+                enabled = bool(entry.get("enabled", True))
+                bases.append(
+                    {
+                        "key": str(key),
+                        "label": label,
+                        "base_prompt": base_prompt,
+                        "kind": kind,
+                        "allowed_ratios": [str(r).strip() for r in allowed_ratios if str(r).strip()],
+                        "iteration_groups": [
+                            str(group).strip()
+                            for group in iteration_groups
+                            if isinstance(group, (str, int, float)) and str(group).strip()
+                        ],
+                        "enabled": enabled,
+                    }
+                )
+
+        _collect_bases(data.get("categories"), default_kind="category")
+        _collect_bases(data.get("characters"), default_kind="character")
+
+        if errors:
+            message = "\n".join(errors[:10])
+            if len(errors) > 10:
+                message = f"{message}\n..."
+            QMessageBox.warning(self, "Importar catálogo", f"Errores detectados:\n{message}")
+            return
+
+        store = get_store()
+        imported_bases = 0
+        for base in bases:
+            store.upsert_prompt_base(
+                key=str(base["key"]),
+                label=str(base["label"]),
+                base_prompt=str(base["base_prompt"]),
+                kind=str(base["kind"]),
+                allowed_ratios=list(base["allowed_ratios"]),
+                iteration_groups=list(base["iteration_groups"]),
+                enabled=bool(base["enabled"]),
+            )
+            imported_bases += 1
+
+        imported_variations = store.import_prompt_variations(data)
+
+        if imported_bases == 0 and imported_variations == 0:
+            QMessageBox.warning(
+                self,
+                "Importar catálogo",
+                "No se encontraron categorías, personajes u opciones para importar.",
+            )
+            return
+
+        self._refresh_prompt_base_list()
+        self._refresh_iteration_group_choices()
+        self.reset_prompt_base_form()
+        QMessageBox.information(
+            self,
+            "Importar catálogo",
+            f"Importación completada.\nPrompts base: {imported_bases}\nVariaciones: {imported_variations}",
+        )
         self.catalog_updated.emit()
 
     def _build_iteration_group_list(self) -> None:
