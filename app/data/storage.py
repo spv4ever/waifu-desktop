@@ -541,11 +541,14 @@ class SQLiteStore(BaseStore):
                 """
                 SELECT id, base_image_json, upscale_image_json, meta_json
                 FROM prompt_item
-                WHERE json_extract(meta_json, '$.combo.category') = ?
-                  AND (base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)
+                WHERE (
+                    json_extract(meta_json, '$.combo.category') = ?
+                    OR json_extract(meta_json, '$.category') = ?
+                    OR json_extract(meta_json, '$.workflow') = ?
+                )
                 ORDER BY id
                 """,
-                (category,),
+                (category, category, category),
             ).fetchall()
         return [dict(row) for row in rows]
 
