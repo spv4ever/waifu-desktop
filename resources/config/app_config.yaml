@@ -42,6 +42,26 @@ variants:
     mods: ["film_grain", "soft_contrast"]
     prompt_prefix: "editorial fashion photo, "
     negative_append: "oversharpen, plastic skin"
+  v3:
+    mods: []
+    prompt_prefix: ""
+    negative_append: ""
+  v4:
+    mods: []
+    prompt_prefix: ""
+    negative_append: ""
+  v5:
+    mods: []
+    prompt_prefix: ""
+    negative_append: ""
+  sfw:
+    mods: []
+    prompt_prefix: ""
+    negative_append: ""
+  nsfw:
+    mods: []
+    prompt_prefix: ""
+    negative_append: ""
 
 comfyui_workflow:
   prompt_pos:
