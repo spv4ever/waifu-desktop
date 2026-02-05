@@ -128,6 +128,12 @@ class BaseStore:
     def fetch_category_production_counts(self) -> list[tuple[str, int]]:
         raise NotImplementedError
 
+    def list_prompt_images_for_category(self, *, category: str) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
+    def clear_prompt_images(self, *, prompt_ids: Iterable[int]) -> int:
+        raise NotImplementedError
+
     def fetch_dollimages_reel_group_counts(self, *, typology: str | None) -> dict[str, int]:
         raise NotImplementedError
 
@@ -525,6 +531,37 @@ class SQLiteStore(BaseStore):
             counts[category] = counts.get(category, 0) + 1
 
         return sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+
+    def list_prompt_images_for_category(self, *, category: str) -> list[dict[str, Any]]:
+        with get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, base_image_json, upscale_image_json, meta_json
+                FROM prompt_item
+                WHERE json_extract(meta_json, '$.combo.category') = ?
+                  AND (base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)
+                ORDER BY id
+                """,
+                (category,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def clear_prompt_images(self, *, prompt_ids: Iterable[int]) -> int:
+        ids = [int(pid) for pid in prompt_ids]
+        if not ids:
+            return 0
+        placeholders = ",".join(["?"] * len(ids))
+        with get_connection() as conn:
+            with conn:
+                cursor = conn.execute(
+                    f"""
+                    UPDATE prompt_item
+                    SET base_image_json=NULL, upscale_image_json=NULL
+                    WHERE id IN ({placeholders})
+                    """,
+                    ids,
+                )
+        return int(cursor.rowcount or 0)
 
     def _dollimages_reel_conditions(
         self,
