@@ -297,6 +297,9 @@ class BaseStore:
     def fetch_prompt_variations_tree(self) -> dict[str, Any]:
         raise NotImplementedError
 
+    def import_prompt_variations(self, catalog: dict[str, Any], *, replace: bool = False) -> int:
+        raise NotImplementedError
+
     def select_unused_reel_images(
         self,
         *,
@@ -1083,6 +1086,32 @@ class SQLiteStore(BaseStore):
                 continue
             _insert_group_tree(tree, parts, values)
         return tree
+
+    def import_prompt_variations(self, catalog: dict[str, Any], *, replace: bool = False) -> int:
+        groups = _extract_variation_groups(catalog)
+        if not groups:
+            return 0
+        inserted = 0
+        with get_connection() as conn:
+            with conn:
+                if replace:
+                    conn.execute("DELETE FROM prompt_variation")
+                for group_key, values in groups.items():
+                    if not values:
+                        continue
+                    for position, value in enumerate(values):
+                        cleaned = str(value).strip()
+                        if not cleaned:
+                            continue
+                        self._variations.upsert(
+                            conn,
+                            group_key=str(group_key),
+                            value=cleaned,
+                            position=position,
+                            enabled=True,
+                        )
+                        inserted += 1
+        return inserted
 
     def select_unused_reel_images(
         self,
