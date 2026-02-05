@@ -1201,7 +1201,7 @@ class MainWindow(QMainWindow):
                 except Exception:
                     error_files += 1
 
-        cleared_rows = self.store.clear_prompt_images(prompt_ids=prompt_ids)
+        cleared_rows = self.store.delete_prompt_items_for_category(category=str(category))
         self._schedule_refresh()
 
         QMessageBox.information(
@@ -1211,7 +1211,7 @@ class MainWindow(QMainWindow):
                 f"Categoría '{category}' vaciada.\n"
                 f"Archivos borrados: {deleted_files}\n"
                 f"Archivos no encontrados: {missing_files}\n"
-                f"Filas actualizadas: {cleared_rows}\n"
+                f"Filas eliminadas: {cleared_rows}\n"
                 f"Errores al borrar archivos: {error_files}"
             ),
         )
