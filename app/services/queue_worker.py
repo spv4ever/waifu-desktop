@@ -188,6 +188,7 @@ class QueueWorker:
 
         reference_image = None
         mapping_key = "comfyui_workflow"
+        faceswap_enabled = meta.get("faceswap_enabled")
 
         if workflow_key == "dollimages":
             typology = sanitize_segment(
@@ -264,6 +265,7 @@ class QueueWorker:
                 checkpoint_base=checkpoint_base,
                 checkpoint_refiner=checkpoint_refiner,
                 load_image=reference_image,
+                faceswap_enabled=faceswap_enabled,
                 mapping_key=mapping_key,
             )
 

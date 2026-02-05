@@ -144,3 +144,7 @@ comfyui_workflow_dollimages:
   load_image:
     node_id: "55"
     input: "image"
+
+  faceswap_enabled:
+    node_id: "54"
+    input: "enabled"

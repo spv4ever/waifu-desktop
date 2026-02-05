@@ -445,6 +445,9 @@ class MainWindow(QMainWindow):
         doll_layout.addWidget(self.dollimages_reference_input, 0, 3, 1, 3)
         self.dollimages_reference_btn = QPushButton("Buscar")
         doll_layout.addWidget(self.dollimages_reference_btn, 0, 6)
+        self.dollimages_faceswap_check = QCheckBox("Faceswap")
+        self.dollimages_faceswap_check.setChecked(True)
+        doll_layout.addWidget(self.dollimages_faceswap_check, 0, 7)
 
         doll_layout.addWidget(QLabel("Checkpoint Base:"), 1, 0)
         self.dollimages_checkpoint_combo = QComboBox()
@@ -496,6 +499,9 @@ class MainWindow(QMainWindow):
         doll_manual_grid.addWidget(self.dollimages_manual_reference_input, 0, 3, 1, 3)
         self.dollimages_manual_reference_btn = QPushButton("Buscar")
         doll_manual_grid.addWidget(self.dollimages_manual_reference_btn, 0, 6)
+        self.dollimages_manual_faceswap_check = QCheckBox("Faceswap")
+        self.dollimages_manual_faceswap_check.setChecked(True)
+        doll_manual_grid.addWidget(self.dollimages_manual_faceswap_check, 0, 7)
 
         doll_manual_grid.addWidget(QLabel("Checkpoint Base:"), 1, 0)
         self.dollimages_manual_checkpoint_combo = QComboBox()
@@ -791,6 +797,10 @@ class MainWindow(QMainWindow):
         self.dollimages_manual_reference_btn.clicked.connect(
             self.select_dollimages_manual_reference_image
         )
+        self.dollimages_faceswap_check.toggled.connect(self._toggle_dollimages_faceswap_inputs)
+        self.dollimages_manual_faceswap_check.toggled.connect(
+            self._toggle_dollimages_manual_faceswap_inputs
+        )
         self.limit_spin.valueChanged.connect(self.refresh)
         self.pause_between_spin.valueChanged.connect(self._update_worker_delay)
         self.prompt_id_input.textChanged.connect(self.refresh)
@@ -826,6 +836,10 @@ class MainWindow(QMainWindow):
         self._populate_dollimages_groups()
         self._update_dollimages_reel_availability()
         self._update_nsfw_controls()
+        self._toggle_dollimages_faceswap_inputs(self.dollimages_faceswap_check.isChecked())
+        self._toggle_dollimages_manual_faceswap_inputs(
+            self.dollimages_manual_faceswap_check.isChecked()
+        )
 
         self._update_right_column_visibility()
         self.prompt_dialog: PromptDetailDialog | None = None
@@ -842,6 +856,14 @@ class MainWindow(QMainWindow):
     def _clear_current_cell(self) -> None:
         # Evita que Qt dibuje el indicador de "celda actual" (rayas azules)
         self.table.setCurrentCell(-1, -1)
+
+    def _toggle_dollimages_faceswap_inputs(self, enabled: bool) -> None:
+        self.dollimages_reference_input.setEnabled(enabled)
+        self.dollimages_reference_btn.setEnabled(enabled)
+
+    def _toggle_dollimages_manual_faceswap_inputs(self, enabled: bool) -> None:
+        self.dollimages_manual_reference_input.setEnabled(enabled)
+        self.dollimages_manual_reference_btn.setEnabled(enabled)
 
     # -------- Queue controls --------
 
@@ -1410,11 +1432,12 @@ class MainWindow(QMainWindow):
         manual_text = self.dollimages_manual_input.text().strip()
         reference_image = self.dollimages_reference_input.text().strip()
         group_name = self.dollimages_group_combo.currentData()
+        faceswap_enabled = self.dollimages_faceswap_check.isChecked()
 
         if not typology:
             QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona una tipología.")
             return
-        if not reference_image:
+        if faceswap_enabled and not reference_image:
             QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona una imagen de referencia.")
             return
         if not checkpoint_base:
@@ -1428,6 +1451,7 @@ class MainWindow(QMainWindow):
             checkpoint_base=str(checkpoint_base),
             reference_image=reference_image,
             group_name=str(group_name) if group_name is not None else None,
+            faceswap_enabled=faceswap_enabled,
         )
 
         try:
@@ -1450,11 +1474,12 @@ class MainWindow(QMainWindow):
         reference_image = self.dollimages_manual_reference_input.text().strip()
         title_raw = self.dollimages_manual_title_input.text()
         prompt_raw = self.dollimages_manual_prompt_text_input.toPlainText()
+        faceswap_enabled = self.dollimages_manual_faceswap_check.isChecked()
 
         if not typology:
             QMessageBox.warning(self, "Prompt manual Dollimages", "Selecciona una tipología.")
             return
-        if not reference_image:
+        if faceswap_enabled and not reference_image:
             QMessageBox.warning(
                 self, "Prompt manual Dollimages", "Selecciona una imagen de referencia."
             )
@@ -1478,6 +1503,7 @@ class MainWindow(QMainWindow):
             prompt_text=prompt_raw,
             checkpoint_base=str(checkpoint_base),
             reference_image=reference_image,
+            faceswap_enabled=faceswap_enabled,
         )
 
         try:

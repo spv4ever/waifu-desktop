@@ -39,6 +39,7 @@ class WorkflowService:
             checkpoint_base: str | None,
             checkpoint_refiner: str | None,
             load_image: str | None = None,
+            faceswap_enabled: bool | None = None,
             mapping_key: str = "comfyui_workflow",
         ) -> dict[str, Any]:
         """
@@ -111,6 +112,13 @@ class WorkflowService:
                 mapping["load_image"]["node_id"],
                 mapping["load_image"]["input"],
                 load_image,
+            )
+
+        if faceswap_enabled is not None and mapping.get("faceswap_enabled"):
+            set_input_for_nodes(
+                mapping["faceswap_enabled"]["node_id"],
+                mapping["faceswap_enabled"]["input"],
+                bool(faceswap_enabled),
             )
 
         return workflow

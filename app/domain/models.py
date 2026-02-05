@@ -25,6 +25,7 @@ class DollimagesPackCreate:
     checkpoint_base: Optional[str] = None
     reference_image: Optional[str] = None
     group_name: Optional[str] = None
+    faceswap_enabled: bool = True
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class DollimagesManualPromptCreate:
     prompt_text: str
     checkpoint_base: Optional[str] = None
     reference_image: Optional[str] = None
+    faceswap_enabled: bool = True
 
 
 @dataclass(frozen=True)
