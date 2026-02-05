@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -82,9 +86,11 @@ class DollimagesPromptWindow(QMainWindow):
         self.save_btn = QPushButton("Guardar")
         self.new_btn = QPushButton("Nuevo")
         self.delete_btn = QPushButton("Eliminar")
+        self.import_btn = QPushButton("Importar JSON Dollimages")
         action_row.addWidget(self.save_btn)
         action_row.addWidget(self.new_btn)
         action_row.addWidget(self.delete_btn)
+        action_row.addWidget(self.import_btn)
         action_row.addStretch(1)
         prompt_layout.addLayout(action_row)
 
@@ -95,6 +101,7 @@ class DollimagesPromptWindow(QMainWindow):
         self.save_btn.clicked.connect(self.save_prompt)
         self.new_btn.clicked.connect(self.reset_form)
         self.delete_btn.clicked.connect(self.delete_prompt)
+        self.import_btn.clicked.connect(self.import_prompts)
 
         self._refresh_prompt_list()
         self.reset_form()
@@ -194,4 +201,64 @@ class DollimagesPromptWindow(QMainWindow):
         self._refresh_prompt_list()
         self.reset_form()
         QMessageBox.information(self, "Dollimages", "Prompt eliminado.")
+        self.catalog_updated.emit()
+
+    def import_prompts(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Importar prompts Dollimages",
+            "",
+            "Catálogo JSON (*.json);;Todos los archivos (*.*)",
+        )
+        if not file_path:
+            return
+
+        try:
+            raw_text = Path(file_path).read_text(encoding="utf-8")
+        except OSError as exc:
+            QMessageBox.warning(self, "Importar prompts Dollimages", f"No se pudo leer el fichero.\n{exc}")
+            return
+
+        try:
+            data = json.loads(raw_text)
+        except json.JSONDecodeError as exc:
+            QMessageBox.warning(
+                self,
+                "Importar prompts Dollimages",
+                f"El fichero no contiene JSON válido.\n{exc}",
+            )
+            return
+
+        prompts: list[dict[str, object]] = []
+        if isinstance(data, dict):
+            raw_prompts = data.get("prompts")
+            if isinstance(raw_prompts, list):
+                prompts = [item for item in raw_prompts if isinstance(item, dict)]
+        elif isinstance(data, list):
+            prompts = [item for item in data if isinstance(item, dict)]
+
+        if not prompts:
+            QMessageBox.warning(
+                self,
+                "Importar prompts Dollimages",
+                "No se encontraron prompts en el JSON. Se esperaba una lista en 'prompts'.",
+            )
+            return
+
+        imported = self.store.import_dollimage_prompts(prompts)
+        if imported == 0:
+            QMessageBox.warning(
+                self,
+                "Importar prompts Dollimages",
+                "No se pudieron importar prompts válidos.",
+            )
+            return
+
+        self._refresh_prompt_list()
+        self.reset_form()
+        QMessageBox.information(
+            self,
+            "Importar prompts Dollimages",
+            f"Importación completada.\nPrompts importados: {imported}",
+        )
         self.catalog_updated.emit()
