@@ -133,7 +133,7 @@ class PromptBaseWindow(QMainWindow):
         prompt_base_row_three = QHBoxLayout()
         self.prompt_base_save_btn = QPushButton("Guardar prompt base")
         self.prompt_base_new_btn = QPushButton("Nuevo")
-        self.prompt_base_import_btn = QPushButton("Importar JSON")
+        self.prompt_base_import_btn = QPushButton("Importar JSON Dollimages")
         prompt_base_row_three.addWidget(self.prompt_base_save_btn)
         prompt_base_row_three.addWidget(self.prompt_base_new_btn)
         prompt_base_row_three.addWidget(self.prompt_base_import_btn)
@@ -239,7 +239,7 @@ class PromptBaseWindow(QMainWindow):
     def import_prompt_catalog(self) -> None:
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Importar catálogo JSON",
+            "Importar catálogo Dollimages",
             "",
             "Catálogo JSON (*.json);;Todos los archivos (*.*)",
         )
@@ -249,7 +249,7 @@ class PromptBaseWindow(QMainWindow):
         try:
             raw_text = Path(file_path).read_text(encoding="utf-8")
         except OSError as exc:
-            QMessageBox.warning(self, "Importar catálogo", f"No se pudo leer el fichero.\n{exc}")
+            QMessageBox.warning(self, "Importar catálogo Dollimages", f"No se pudo leer el fichero.\n{exc}")
             return
 
         try:
@@ -257,13 +257,15 @@ class PromptBaseWindow(QMainWindow):
         except json.JSONDecodeError as exc:
             QMessageBox.warning(
                 self,
-                "Importar catálogo",
+                "Importar catálogo Dollimages",
                 f"El fichero no contiene JSON válido.\n{exc}",
             )
             return
 
         if not isinstance(data, dict):
-            QMessageBox.warning(self, "Importar catálogo", "El JSON debe tener un objeto raíz.")
+            QMessageBox.warning(
+                self, "Importar catálogo Dollimages", "El JSON debe tener un objeto raíz."
+            )
             return
 
         errors: list[str] = []
@@ -317,7 +319,9 @@ class PromptBaseWindow(QMainWindow):
             message = "\n".join(errors[:10])
             if len(errors) > 10:
                 message = f"{message}\n..."
-            QMessageBox.warning(self, "Importar catálogo", f"Errores detectados:\n{message}")
+            QMessageBox.warning(
+                self, "Importar catálogo Dollimages", f"Errores detectados:\n{message}"
+            )
             return
 
         store = get_store()
@@ -339,7 +343,7 @@ class PromptBaseWindow(QMainWindow):
         if imported_bases == 0 and imported_variations == 0:
             QMessageBox.warning(
                 self,
-                "Importar catálogo",
+                "Importar catálogo Dollimages",
                 "No se encontraron categorías, personajes u opciones para importar.",
             )
             return
@@ -349,7 +353,7 @@ class PromptBaseWindow(QMainWindow):
         self.reset_prompt_base_form()
         QMessageBox.information(
             self,
-            "Importar catálogo",
+            "Importar catálogo Dollimages",
             f"Importación completada.\nPrompts base: {imported_bases}\nVariaciones: {imported_variations}",
         )
         self.catalog_updated.emit()
