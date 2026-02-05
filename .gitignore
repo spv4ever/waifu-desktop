@@ -36,3 +36,5 @@ audio/
 input/
 test.txt
 resources/config/dollimages_prompts.example copy.json
+resources/config/police.json
+resources/config/bombera.json
