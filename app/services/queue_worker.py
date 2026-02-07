@@ -400,7 +400,7 @@ class QueueWorker:
                     self._emit_progress()
 
             if finished and entry:
-                base_img, up_img = extract_base_and_upscale(entry)
+                base_img, up_img = extract_base_and_upscale(entry, workflow_key=workflow_key)
 
                 self.store.set_remote_status(job_id, "COMPLETED")
                 self.store.set_output_json(job_id, json.dumps(entry, ensure_ascii=False))
