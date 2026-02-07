@@ -581,6 +581,10 @@ class MainWindow(QMainWindow):
         self.reel_social_input = QLineEdit()
         self.reel_social_input.setPlaceholderText("Ej: @waifu / @instagram")
         reel_layout.addWidget(self.reel_social_input, 1, 1, 1, 4)
+        reel_layout.addWidget(QLabel("Fundido final:"), 1, 5)
+        self.reel_fade_out_checkbox = QCheckBox()
+        self.reel_fade_out_checkbox.setChecked(True)
+        reel_layout.addWidget(self.reel_fade_out_checkbox, 1, 6)
 
         self.reel_generate_btn = QPushButton("Crear Reel")
         reel_layout.addWidget(self.reel_generate_btn, 0, 8)
@@ -630,6 +634,10 @@ class MainWindow(QMainWindow):
         self.dollimages_reel_social_input = QLineEdit()
         self.dollimages_reel_social_input.setPlaceholderText("Ej: @dollimages / @instagram")
         doll_reel_grid.addWidget(self.dollimages_reel_social_input, 1, 1, 1, 3)
+        doll_reel_grid.addWidget(QLabel("Fundido final:"), 1, 6)
+        self.dollimages_reel_fade_out_checkbox = QCheckBox()
+        self.dollimages_reel_fade_out_checkbox.setChecked(True)
+        doll_reel_grid.addWidget(self.dollimages_reel_fade_out_checkbox, 1, 7)
 
         self.dollimages_reel_generate_btn = QPushButton("Crear Reel")
         doll_reel_grid.addWidget(self.dollimages_reel_generate_btn, 0, 8)
@@ -1691,6 +1699,7 @@ class MainWindow(QMainWindow):
         quantity = int(self.reel_quantity_spin.value())
         seconds_per_image = float(self.reel_seconds_spin.value())
         variant = self.reel_variant_combo.currentData()
+        fade_out = self.reel_fade_out_checkbox.isChecked()
         social_handle = self.reel_social_input.text().strip() or None
         if variant == "__ALL__":
             variant = None
@@ -1705,6 +1714,7 @@ class MainWindow(QMainWindow):
                 variant=str(variant) if variant else None,
                 image_count=quantity,
                 seconds_per_image=seconds_per_image,
+                fade_out=fade_out,
                 social_handle=social_handle,
             )
         except Exception as exc:
@@ -1721,6 +1731,7 @@ class MainWindow(QMainWindow):
         typology = self.dollimages_reel_typology_combo.currentData()
         quantity = int(self.dollimages_reel_quantity_spin.value())
         seconds_per_image = float(self.dollimages_reel_seconds_spin.value())
+        fade_out = self.dollimages_reel_fade_out_checkbox.isChecked()
         social_handle = self.dollimages_reel_social_input.text().strip() or None
 
         try:
@@ -1729,6 +1740,7 @@ class MainWindow(QMainWindow):
                 group_name=str(group_name) if group_name is not None else None,
                 image_count=quantity,
                 seconds_per_image=seconds_per_image,
+                fade_out=fade_out,
                 social_handle=social_handle,
             )
         except Exception as exc:
