@@ -176,6 +176,9 @@ class BaseStore:
     def delete_prompt_item(self, prompt_id: int) -> None:
         raise NotImplementedError
 
+    def update_prompt_item_meta(self, *, prompt_id: int, updates: dict[str, Any]) -> None:
+        raise NotImplementedError
+
     def get_queue_job_for_prompt(self, prompt_id: int, statuses: Iterable[str]) -> dict[str, Any] | None:
         raise NotImplementedError
 
@@ -795,6 +798,32 @@ class SQLiteStore(BaseStore):
         with get_connection() as conn:
             with conn:
                 conn.execute("DELETE FROM prompt_item WHERE id=?", (prompt_id,))
+
+    def update_prompt_item_meta(self, *, prompt_id: int, updates: dict[str, Any]) -> None:
+        if not updates:
+            return
+        with get_connection() as conn:
+            row = conn.execute(
+                "SELECT meta_json FROM prompt_item WHERE id = ?",
+                (prompt_id,),
+            ).fetchone()
+            if not row:
+                return
+            meta_json = row["meta_json"]
+            if meta_json:
+                try:
+                    parsed = json.loads(meta_json)
+                    meta = parsed if isinstance(parsed, dict) else {}
+                except json.JSONDecodeError:
+                    meta = {}
+            else:
+                meta = {}
+            meta.update(updates)
+            updated_meta = json.dumps(meta, ensure_ascii=False)
+            conn.execute(
+                "UPDATE prompt_item SET meta_json = ? WHERE id = ?",
+                (updated_meta, prompt_id),
+            )
 
     def get_queue_job_for_prompt(self, prompt_id: int, statuses: Iterable[str]) -> dict[str, Any] | None:
         statuses = list(statuses)

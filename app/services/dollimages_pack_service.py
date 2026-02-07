@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import random
 import shutil
+from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -106,6 +107,7 @@ class DollimagesPackService:
         created_prompt_item_ids: list[int] = []
         created_queue_job_ids: list[int] = []
         rng = random.Random()
+        created_at = datetime.now().isoformat(timespec="seconds")
 
         for prompt in prompts:
             for repetition in range(req.repetitions):
@@ -149,6 +151,7 @@ class DollimagesPackService:
                     "dollimages_prompt_id": prompt.id,
                     "dollimages_typology": req.typology,
                     "dollimages_group": req.group_name or "",
+                    "created_at": created_at,
                 }
 
                 if req.checkpoint_base:
