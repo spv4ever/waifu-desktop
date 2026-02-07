@@ -468,6 +468,12 @@ class MainWindow(QMainWindow):
         self.dollimages_group_combo.setMinimumWidth(180)
         doll_layout.addWidget(self.dollimages_group_combo, 1, 5)
 
+        doll_layout.addWidget(QLabel("Workflow:"), 1, 6)
+        self.dollimages_workflow_combo = QComboBox()
+        self.dollimages_workflow_combo.addItem("Dollimages", "dollimages")
+        self.dollimages_workflow_combo.addItem("Dollimages Z", "dollimagesz")
+        doll_layout.addWidget(self.dollimages_workflow_combo, 1, 7)
+
         doll_layout.addWidget(QLabel("Texto manual:"), 2, 0)
         self.dollimages_manual_input = QLineEdit()
         self.dollimages_manual_input.setPlaceholderText("Añade un texto común para todo el pack")
@@ -516,6 +522,12 @@ class MainWindow(QMainWindow):
         self.dollimages_manual_repetitions_spin.setRange(1, 500)
         self.dollimages_manual_repetitions_spin.setValue(1)
         doll_manual_grid.addWidget(self.dollimages_manual_repetitions_spin, 1, 3)
+
+        doll_manual_grid.addWidget(QLabel("Workflow:"), 1, 4)
+        self.dollimages_manual_workflow_combo = QComboBox()
+        self.dollimages_manual_workflow_combo.addItem("Dollimages", "dollimages")
+        self.dollimages_manual_workflow_combo.addItem("Dollimages Z", "dollimagesz")
+        doll_manual_grid.addWidget(self.dollimages_manual_workflow_combo, 1, 5)
 
         doll_manual_grid.addWidget(QLabel("Título:"), 2, 0)
         self.dollimages_manual_title_input = QLineEdit()
@@ -804,6 +816,12 @@ class MainWindow(QMainWindow):
         self.dollimages_manual_faceswap_check.toggled.connect(
             self._toggle_dollimages_manual_faceswap_inputs
         )
+        self.dollimages_workflow_combo.currentIndexChanged.connect(
+            self._update_dollimages_workflow_controls
+        )
+        self.dollimages_manual_workflow_combo.currentIndexChanged.connect(
+            self._update_dollimages_manual_workflow_controls
+        )
         self.limit_spin.valueChanged.connect(self.refresh)
         self.pause_between_spin.valueChanged.connect(self._update_worker_delay)
         self.prompt_id_input.textChanged.connect(self.refresh)
@@ -839,10 +857,8 @@ class MainWindow(QMainWindow):
         self._populate_dollimages_groups()
         self._update_dollimages_reel_availability()
         self._update_nsfw_controls()
-        self._toggle_dollimages_faceswap_inputs(self.dollimages_faceswap_check.isChecked())
-        self._toggle_dollimages_manual_faceswap_inputs(
-            self.dollimages_manual_faceswap_check.isChecked()
-        )
+        self._update_dollimages_workflow_controls()
+        self._update_dollimages_manual_workflow_controls()
 
         self._update_right_column_visibility()
         self.prompt_dialog: PromptDetailDialog | None = None
@@ -867,6 +883,32 @@ class MainWindow(QMainWindow):
     def _toggle_dollimages_manual_faceswap_inputs(self, enabled: bool) -> None:
         self.dollimages_manual_reference_input.setEnabled(enabled)
         self.dollimages_manual_reference_btn.setEnabled(enabled)
+
+    def _update_dollimages_workflow_controls(self) -> None:
+        workflow_key = self.dollimages_workflow_combo.currentData()
+        faceswap_allowed = workflow_key == "dollimages"
+        checkpoint_allowed = workflow_key == "dollimages"
+
+        self.dollimages_faceswap_check.setEnabled(faceswap_allowed)
+        if not faceswap_allowed:
+            self.dollimages_faceswap_check.setChecked(False)
+        self._toggle_dollimages_faceswap_inputs(
+            faceswap_allowed and self.dollimages_faceswap_check.isChecked()
+        )
+        self.dollimages_checkpoint_combo.setEnabled(checkpoint_allowed)
+
+    def _update_dollimages_manual_workflow_controls(self) -> None:
+        workflow_key = self.dollimages_manual_workflow_combo.currentData()
+        faceswap_allowed = workflow_key == "dollimages"
+        checkpoint_allowed = workflow_key == "dollimages"
+
+        self.dollimages_manual_faceswap_check.setEnabled(faceswap_allowed)
+        if not faceswap_allowed:
+            self.dollimages_manual_faceswap_check.setChecked(False)
+        self._toggle_dollimages_manual_faceswap_inputs(
+            faceswap_allowed and self.dollimages_manual_faceswap_check.isChecked()
+        )
+        self.dollimages_manual_checkpoint_combo.setEnabled(checkpoint_allowed)
 
     # -------- Queue controls --------
 
@@ -1554,22 +1596,24 @@ class MainWindow(QMainWindow):
         reference_image = self.dollimages_reference_input.text().strip()
         group_name = self.dollimages_group_combo.currentData()
         faceswap_enabled = self.dollimages_faceswap_check.isChecked()
+        workflow_key = self.dollimages_workflow_combo.currentData()
 
         if not typology:
             QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona una tipología.")
             return
-        if faceswap_enabled and not reference_image:
+        if workflow_key == "dollimages" and faceswap_enabled and not reference_image:
             QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona una imagen de referencia.")
             return
-        if not checkpoint_base:
+        if workflow_key == "dollimages" and not checkpoint_base:
             QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona un checkpoint base.")
             return
 
         req = DollimagesPackCreate(
             typology=str(typology),
             repetitions=repetitions,
+            workflow_key=str(workflow_key),
             manual_text=manual_text,
-            checkpoint_base=str(checkpoint_base),
+            checkpoint_base=str(checkpoint_base) if checkpoint_base else None,
             reference_image=reference_image,
             group_name=str(group_name) if group_name is not None else None,
             faceswap_enabled=faceswap_enabled,
@@ -1596,16 +1640,17 @@ class MainWindow(QMainWindow):
         title_raw = self.dollimages_manual_title_input.text()
         prompt_raw = self.dollimages_manual_prompt_text_input.toPlainText()
         faceswap_enabled = self.dollimages_manual_faceswap_check.isChecked()
+        workflow_key = self.dollimages_manual_workflow_combo.currentData()
 
         if not typology:
             QMessageBox.warning(self, "Prompt manual Dollimages", "Selecciona una tipología.")
             return
-        if faceswap_enabled and not reference_image:
+        if workflow_key == "dollimages" and faceswap_enabled and not reference_image:
             QMessageBox.warning(
                 self, "Prompt manual Dollimages", "Selecciona una imagen de referencia."
             )
             return
-        if not checkpoint_base:
+        if workflow_key == "dollimages" and not checkpoint_base:
             QMessageBox.warning(
                 self, "Prompt manual Dollimages", "Selecciona un checkpoint base."
             )
@@ -1622,7 +1667,8 @@ class MainWindow(QMainWindow):
             repetitions=repetitions,
             title=title_raw,
             prompt_text=prompt_raw,
-            checkpoint_base=str(checkpoint_base),
+            workflow_key=str(workflow_key),
+            checkpoint_base=str(checkpoint_base) if checkpoint_base else None,
             reference_image=reference_image,
             faceswap_enabled=faceswap_enabled,
         )
@@ -1837,7 +1883,7 @@ class MainWindow(QMainWindow):
         workflow_key = self._workflow_key_from_row(row)
         current_variant = self._extract_variant_from_meta(row.get("meta_json"), workflow_key)
 
-        if workflow_key == "dollimages":
+        if workflow_key in {"dollimages", "dollimagesz"}:
             label = "Cambiar tipología"
             options = [
                 ("Normal", "normal"),
@@ -1870,7 +1916,7 @@ class MainWindow(QMainWindow):
             return None
         if not isinstance(meta, dict):
             return None
-        if workflow_key == "dollimages":
+        if workflow_key in {"dollimages", "dollimagesz"}:
             typology = meta.get("dollimages_typology")
             if typology:
                 return str(typology)

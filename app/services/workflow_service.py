@@ -18,6 +18,9 @@ class WorkflowService:
         if workflow_key == "dollimages":
             env_key = "COMFYUI_WORKFLOW_DOLLIMAGES_JSON"
             default_path = "resources/workflows/dollimages.json"
+        elif workflow_key == "dollimagesz":
+            env_key = "COMFYUI_WORKFLOW_DOLLIMAGESZ_JSON"
+            default_path = "resources/workflows/dollimagesz.json"
 
         path = Path(settings.__dict__.get("comfyui_workflow_json", ""))  # por si lo añades luego
         # Usamos .env directamente para no depender de settings si aún no lo añadiste:
