@@ -515,6 +515,7 @@ class ReelService:
         image_count: int,
         seconds_per_image: float,
         title: str | None,
+        fade_out: bool = True,
         social_handle: str | None = None,
     ) -> tuple[Path, Path | None]:
         ffmpeg_path = shutil.which("ffmpeg")
@@ -524,7 +525,7 @@ class ReelService:
         output_path = folder / "reel.mp4"
         total_duration = (image_count * seconds_per_image) - ((image_count - 1) * self._TRANSITION_SECONDS)
         total_duration = max(total_duration, seconds_per_image)
-        fade_out_start = max(total_duration - self._FADE_OUT_SECONDS, 0.0)
+        fade_out_start = max(total_duration - self._FADE_OUT_SECONDS, 0.0) if fade_out else 0.0
 
         cmd = [ffmpeg_path, "-y"]
         for idx in range(1, image_count + 1):
@@ -621,16 +622,22 @@ class ReelService:
             current_label = out_label
             offset += seconds_per_image - self._TRANSITION_SECONDS
 
-        filter_parts.append(
-            f"[{current_label}]fade=t=out:st={fade_out_start}:d={self._FADE_OUT_SECONDS},format=yuv420p[v]"
-        )
+        video_label = "v"
+        if fade_out:
+            filter_parts.append(
+                f"[{current_label}]fade=t=out:st={fade_out_start}:d={self._FADE_OUT_SECONDS},format=yuv420p[{video_label}]"
+            )
+        else:
+            filter_parts.append(f"[{current_label}]format=yuv420p[{video_label}]")
 
         audio_label = None
         if audio_selection:
             audio_label = "a"
+            audio_filters = ["volume=0.5"]
+            if fade_out:
+                audio_filters.append(f"afade=t=out:st={fade_out_start}:d={self._FADE_OUT_SECONDS}")
             filter_parts.append(
-                f"[{image_count}:a]volume=0.5,"
-                f"afade=t=out:st={fade_out_start}:d={self._FADE_OUT_SECONDS}[{audio_label}]"
+                f"[{image_count}:a]{','.join(audio_filters)}[{audio_label}]"
             )
 
         filter_complex = ";".join(filter_parts)
@@ -668,6 +675,7 @@ class ReelService:
         variant: str | None,
         image_count: int,
         seconds_per_image: float,
+        fade_out: bool = True,
         social_handle: str | None = None,
     ) -> ReelCreateResult:
         if image_count <= 0:
@@ -712,6 +720,7 @@ class ReelService:
             image_count=image_count,
             seconds_per_image=seconds_per_image,
             title=title,
+            fade_out=fade_out,
             social_handle=social_handle or settings.reel_x_handle,
         )
 
@@ -723,6 +732,7 @@ class ReelService:
             "image_count": len(images),
             "seconds_per_image": seconds_per_image,
             "transition_seconds": self._TRANSITION_SECONDS,
+            "fade_out": fade_out,
             "video": video_path.name,
             "audio": audio_path.name if audio_path else None,
             "social_handle": social_handle or settings.reel_x_handle,
@@ -762,6 +772,7 @@ class ReelService:
         group_name: str | None,
         image_count: int,
         seconds_per_image: float,
+        fade_out: bool = True,
         social_handle: str | None = None,
     ) -> ReelCreateResult:
         if image_count <= 0:
@@ -816,6 +827,7 @@ class ReelService:
             image_count=image_count,
             seconds_per_image=seconds_per_image,
             title=title,
+            fade_out=fade_out,
             social_handle=social_handle or settings.reel_dollimages_handle,
         )
 
@@ -828,6 +840,7 @@ class ReelService:
             "image_count": len(images),
             "seconds_per_image": seconds_per_image,
             "transition_seconds": self._TRANSITION_SECONDS,
+            "fade_out": fade_out,
             "video": video_path.name,
             "audio": audio_path.name if audio_path else None,
             "social_handle": social_handle or settings.reel_dollimages_handle,
