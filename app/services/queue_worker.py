@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Literal, Any, Callable
 
@@ -10,7 +11,9 @@ import requests
 from app.data.storage import get_store
 from app.config.settings import settings
 from app.services.comfy_client import ComfyClient
+from app.services.cloudinary_uploader import CloudinaryUploadError, upload_dollimages_image
 from app.services.image_validation import validate_image_file
+from app.services.output_paths import build_output_path
 from app.services.workflow_service import WorkflowService
 from app.config.app_config import load_app_config
 from app.utils.path_sanitize import sanitize_segment, sanitize_relpath
@@ -51,6 +54,43 @@ class QueueWorker:
     def _emit_progress(self) -> None:
         if self._progress_callback:
             self._progress_callback()
+
+    def _upload_dollimages_to_cloudinary(
+        self,
+        *,
+        prompt_item_id: int,
+        meta: dict[str, Any],
+        checkpoint_base: str | None,
+        image_json: dict[str, Any] | None,
+        title: str,
+    ) -> None:
+        if not image_json:
+            self._log(f"[WORKER] Dollimages sin imagen para subir prompt_item_id={prompt_item_id}")
+            return
+        if meta.get("cloudinary_url"):
+            return
+        created_at = str(meta.get("created_at") or "").strip()
+        if not created_at:
+            created_at = datetime.now().isoformat(timespec="seconds")
+        try:
+            image_path = build_output_path(image_json, workflow_key="dollimages")
+            payload = upload_dollimages_image(
+                image_path=image_path,
+                title=title or "Dollimages",
+                checkpoint=checkpoint_base,
+                version=settings.dollimages_version or None,
+                created_at=created_at,
+            )
+        except (CloudinaryUploadError, OSError, ValueError) as exc:
+            self._log(f"[WORKER] Cloudinary error prompt_item_id={prompt_item_id}: {exc}")
+            return
+
+        updates = {
+            "cloudinary_url": payload.get("secure_url") or payload.get("url"),
+            "cloudinary_public_id": payload.get("public_id"),
+            "cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
 
     def recover_inflight_jobs(self, conn=None) -> tuple[int, int, int]:
         return self.store.recover_inflight_jobs()
@@ -368,6 +408,15 @@ class QueueWorker:
 
                 self.store.mark_done(job_id)
                 self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="DONE")
+
+                if workflow_key == "dollimages":
+                    self._upload_dollimages_to_cloudinary(
+                        prompt_item_id=prompt_item_id,
+                        meta=meta,
+                        checkpoint_base=checkpoint_base,
+                        image_json=base_img or up_img,
+                        title=str(item.get("title") or ""),
+                    )
 
                 self._log(f"[WORKER] COMPLETED job_id={job_id} remote_id={remote_id}")
                 break
