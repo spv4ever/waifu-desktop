@@ -75,7 +75,15 @@ class DollimagesPackService:
         conn,
         req: DollimagesPackCreate,
     ) -> DollimagesPackCreateResult:
-        if req.faceswap_enabled and not req.reference_image:
+        faceswap_enabled = req.faceswap_enabled
+        reference_image = req.reference_image
+        checkpoint_base = req.checkpoint_base
+        if req.workflow_key == "dollimagesz":
+            faceswap_enabled = False
+            reference_image = None
+            checkpoint_base = None
+
+        if faceswap_enabled and not reference_image:
             raise ValueError("La imagen de referencia es obligatoria.")
 
         prompts = [
@@ -92,8 +100,8 @@ class DollimagesPackService:
             raise ValueError("No hay prompts para la tipología seleccionada.")
 
         reference_name = ""
-        if req.reference_image:
-            reference_name = self._prepare_reference_image(req.reference_image)
+        if reference_image:
+            reference_name = self._prepare_reference_image(reference_image)
         width, height = self._default_canvas()
         ratio_tag = f"{width}x{height}"
 
@@ -118,6 +126,7 @@ class DollimagesPackService:
                     candidate = _hash_signature(
                         prompt.id,
                         req.typology,
+                        req.workflow_key,
                         repetition,
                         seed,
                         reference_name,
@@ -142,22 +151,22 @@ class DollimagesPackService:
                         "width": width,
                         "height": height,
                     },
-                    "workflow": "dollimages",
+                    "workflow": req.workflow_key,
                     "seed": seed,
                     "width": width,
                     "height": height,
                     "reference_image": reference_name,
-                    "faceswap_enabled": req.faceswap_enabled,
+                    "faceswap_enabled": faceswap_enabled,
                     "dollimages_prompt_id": prompt.id,
                     "dollimages_typology": req.typology,
                     "dollimages_group": req.group_name or "",
                     "created_at": created_at,
                 }
 
-                if req.checkpoint_base:
+                if checkpoint_base:
                     meta["checkpoints"] = {
-                        "base": req.checkpoint_base,
-                        "refiner": req.checkpoint_base,
+                        "base": checkpoint_base,
+                        "refiner": checkpoint_base,
                     }
 
                 prompt_text = _append_manual_text(prompt.prompt_text, req.manual_text)

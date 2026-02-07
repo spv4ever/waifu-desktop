@@ -73,7 +73,8 @@ class QueueWorker:
         if not created_at:
             created_at = datetime.now().isoformat(timespec="seconds")
         try:
-            image_path = build_output_path(image_json, workflow_key="dollimages")
+            workflow_key = str(meta.get("workflow") or "dollimages")
+            image_path = build_output_path(image_json, workflow_key=workflow_key)
             payload = upload_dollimages_image(
                 image_path=image_path,
                 title=title or "Dollimages",
@@ -224,13 +225,17 @@ class QueueWorker:
         checkpoint_base = checkpoints.get("base")
         checkpoint_refiner = checkpoints.get("refiner")
         workflow_key = str(meta.get("workflow") or "waifu")
-        comfy_client = self.dollimages_comfy if workflow_key == "dollimages" and self.dollimages_comfy else self.comfy
+        comfy_client = (
+            self.dollimages_comfy
+            if workflow_key in {"dollimages", "dollimagesz"} and self.dollimages_comfy
+            else self.comfy
+        )
 
         reference_image = None
         mapping_key = "comfyui_workflow"
         faceswap_enabled = meta.get("faceswap_enabled")
 
-        if workflow_key == "dollimages":
+        if workflow_key in {"dollimages", "dollimagesz"}:
             typology = sanitize_segment(
                 meta.get("dollimages_typology") or combo.get("variant") or "normal"
             )
@@ -254,7 +259,11 @@ class QueueWorker:
             width = int(meta.get("width") or 832)
             height = int(meta.get("height") or 1216)
             seed = meta.get("seed")
-            mapping_key = "comfyui_workflow_dollimages"
+            mapping_key = (
+                "comfyui_workflow_dollimagesz"
+                if workflow_key == "dollimagesz"
+                else "comfyui_workflow_dollimages"
+            )
         else:
             # -------------------------
             # PATH / NAMING (Jerarquía correcta)
@@ -409,7 +418,7 @@ class QueueWorker:
                 self.store.mark_done(job_id)
                 self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="DONE")
 
-                if workflow_key == "dollimages":
+                if workflow_key in {"dollimages", "dollimagesz"}:
                     self._upload_dollimages_to_cloudinary(
                         prompt_item_id=prompt_item_id,
                         meta=meta,

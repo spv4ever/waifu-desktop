@@ -148,3 +148,32 @@ comfyui_workflow_dollimages:
   faceswap_enabled:
     node_id: "54"
     input: "enabled"
+
+comfyui_workflow_dollimagesz:
+  prompt_pos:
+    node_id: "6"
+    input: "text"
+
+  prompt_neg:
+    node_id: "7"
+    input: "text"
+
+  seed:
+    node_id: "3"
+    input: "seed"
+
+  steps:
+    node_id: "3"
+    input: "steps"
+
+  width:
+    node_id: "13"
+    input: "width"
+
+  height:
+    node_id: "13"
+    input: "height"
+
+  output_base:
+    node_id: "9"
+    input: "filename_prefix"
