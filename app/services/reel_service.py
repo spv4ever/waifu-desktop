@@ -773,6 +773,7 @@ class ReelService:
         image_count: int,
         seconds_per_image: float,
         fade_out: bool = True,
+        overlay_title: bool = True,
         social_handle: str | None = None,
     ) -> ReelCreateResult:
         if image_count <= 0:
@@ -821,12 +822,13 @@ class ReelService:
                 text=social_content,
             )
 
+        title_for_overlay = title if overlay_title else None
         video_path, audio_path = self._render_video(
             folder=folder,
             ext=ext,
             image_count=image_count,
             seconds_per_image=seconds_per_image,
-            title=title,
+            title=title_for_overlay,
             fade_out=fade_out,
             social_handle=social_handle or settings.reel_dollimages_handle,
         )

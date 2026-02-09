@@ -639,6 +639,11 @@ class MainWindow(QMainWindow):
         self.dollimages_reel_fade_out_checkbox.setChecked(True)
         doll_reel_grid.addWidget(self.dollimages_reel_fade_out_checkbox, 1, 7)
 
+        doll_reel_grid.addWidget(QLabel("Mostrar título:"), 2, 0)
+        self.dollimages_reel_overlay_title_checkbox = QCheckBox()
+        self.dollimages_reel_overlay_title_checkbox.setChecked(True)
+        doll_reel_grid.addWidget(self.dollimages_reel_overlay_title_checkbox, 2, 1)
+
         self.dollimages_reel_generate_btn = QPushButton("Crear Reel")
         doll_reel_grid.addWidget(self.dollimages_reel_generate_btn, 0, 8)
         doll_reel_grid.setColumnStretch(9, 1)
@@ -1732,6 +1737,7 @@ class MainWindow(QMainWindow):
         quantity = int(self.dollimages_reel_quantity_spin.value())
         seconds_per_image = float(self.dollimages_reel_seconds_spin.value())
         fade_out = self.dollimages_reel_fade_out_checkbox.isChecked()
+        overlay_title = self.dollimages_reel_overlay_title_checkbox.isChecked()
         social_handle = self.dollimages_reel_social_input.text().strip() or None
 
         try:
@@ -1741,6 +1747,7 @@ class MainWindow(QMainWindow):
                 image_count=quantity,
                 seconds_per_image=seconds_per_image,
                 fade_out=fade_out,
+                overlay_title=overlay_title,
                 social_handle=social_handle,
             )
         except Exception as exc:
