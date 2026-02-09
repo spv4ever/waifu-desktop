@@ -11,7 +11,11 @@ import requests
 from app.data.storage import get_store
 from app.config.settings import settings
 from app.services.comfy_client import ComfyClient
-from app.services.cloudinary_uploader import CloudinaryUploadError, upload_dollimages_image
+from app.services.cloudinary_uploader import (
+    CloudinaryUploadError,
+    upload_dollimages_image,
+    upload_waifu_image,
+)
 from app.services.image_validation import validate_image_file
 from app.services.output_paths import build_output_path
 from app.services.workflow_service import WorkflowService
@@ -90,6 +94,43 @@ class QueueWorker:
             "cloudinary_url": payload.get("secure_url") or payload.get("url"),
             "cloudinary_public_id": payload.get("public_id"),
             "cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
+
+    def _upload_waifu_to_cloudinary(
+        self,
+        *,
+        prompt_item_id: int,
+        meta: dict[str, Any],
+        checkpoint_base: str | None,
+        image_json: dict[str, Any] | None,
+        title: str,
+    ) -> None:
+        if not image_json:
+            self._log(f"[WORKER] Waifu sin imagen para subir prompt_item_id={prompt_item_id}")
+            return
+        if meta.get("waifu_cloudinary_url"):
+            return
+        created_at = str(meta.get("created_at") or "").strip()
+        if not created_at:
+            created_at = datetime.now().isoformat(timespec="seconds")
+        try:
+            image_path = build_output_path(image_json, workflow_key="waifu")
+            payload = upload_waifu_image(
+                image_path=image_path,
+                title=title or "Waifu",
+                checkpoint=checkpoint_base,
+                version=settings.waifu_version or None,
+                created_at=created_at,
+            )
+        except (CloudinaryUploadError, OSError, ValueError) as exc:
+            self._log(f"[WORKER] Cloudinary error prompt_item_id={prompt_item_id}: {exc}")
+            return
+
+        updates = {
+            "waifu_cloudinary_url": payload.get("secure_url") or payload.get("url"),
+            "waifu_cloudinary_public_id": payload.get("public_id"),
+            "waifu_cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
         }
         self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
 
@@ -420,6 +461,14 @@ class QueueWorker:
 
                 if workflow_key in {"dollimages", "dollimagesz"}:
                     self._upload_dollimages_to_cloudinary(
+                        prompt_item_id=prompt_item_id,
+                        meta=meta,
+                        checkpoint_base=checkpoint_base,
+                        image_json=base_img or up_img,
+                        title=str(item.get("title") or ""),
+                    )
+                else:
+                    self._upload_waifu_to_cloudinary(
                         prompt_item_id=prompt_item_id,
                         meta=meta,
                         checkpoint_base=checkpoint_base,
