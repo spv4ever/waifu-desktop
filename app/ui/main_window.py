@@ -116,6 +116,7 @@ class MainWindow(QMainWindow):
         self._cached_status_counts: dict[str, int] | None = None
         self._cached_category_counts: list[tuple[str, int]] | None = None
         self._image2vid_source_options: list[dict[str, Any]] = []
+        self._image2vid_filtered_source_options: list[dict[str, Any]] = []
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -639,6 +640,18 @@ class MainWindow(QMainWindow):
         source_picker_top.addWidget(self.image2vid_source_count_label)
         source_picker_layout.addLayout(source_picker_top)
 
+        source_picker_filters = QHBoxLayout()
+        source_picker_filters.addWidget(QLabel("Categoría:"))
+        self.image2vid_filter_category_combo = QComboBox()
+        self.image2vid_filter_category_combo.addItem("Todas", None)
+        source_picker_filters.addWidget(self.image2vid_filter_category_combo)
+        source_picker_filters.addWidget(QLabel("Variante:"))
+        self.image2vid_filter_variant_combo = QComboBox()
+        self.image2vid_filter_variant_combo.addItem("Todas", None)
+        source_picker_filters.addWidget(self.image2vid_filter_variant_combo)
+        source_picker_filters.addStretch(1)
+        source_picker_layout.addLayout(source_picker_filters)
+
         source_picker_content = QHBoxLayout()
         self.image2vid_source_table = QTableWidget(0, 3)
         self.image2vid_source_table.setHorizontalHeaderLabels(["ID", "Origen", "Título"])
@@ -998,6 +1011,12 @@ class MainWindow(QMainWindow):
         self.image2vid_source_table.itemSelectionChanged.connect(self._update_image2vid_source_preview)
         self.image2vid_source_table.itemDoubleClicked.connect(
             lambda _item: self._apply_selected_image2vid_source()
+        )
+        self.image2vid_filter_category_combo.currentIndexChanged.connect(
+            self._apply_image2vid_source_filters
+        )
+        self.image2vid_filter_variant_combo.currentIndexChanged.connect(
+            self._apply_image2vid_source_filters
         )
         self.manual_prompt_category_combo.currentIndexChanged.connect(self._update_manual_prompt_ratios)
         self.manual_prompt_checkpoint_combo.currentIndexChanged.connect(
@@ -1904,6 +1923,8 @@ class MainWindow(QMainWindow):
                     {
                         "prompt_id": prompt_id,
                         "source_category": "waifu",
+                        "category": str(meta.get("category") or meta.get("workflow") or "waifu"),
+                        "variant": str(meta.get("combo", {}).get("variant") or meta.get("dollimages_typology") or "?"),
                         "url": waifu_url,
                         "title": title,
                     }
@@ -1913,12 +1934,16 @@ class MainWindow(QMainWindow):
                     {
                         "prompt_id": prompt_id,
                         "source_category": "dollimages",
+                        "category": str(meta.get("category") or meta.get("workflow") or "dollimages"),
+                        "variant": str(meta.get("combo", {}).get("variant") or meta.get("dollimages_typology") or "?"),
                         "url": doll_url,
                         "title": title,
                     }
                 )
 
         self._image2vid_source_options = options
+        self._refresh_image2vid_filter_options()
+        self._apply_image2vid_source_filters()
 
         selected: dict[str, Any] | None = None
         if options:
@@ -1933,6 +1958,71 @@ class MainWindow(QMainWindow):
         self.image2vid_selected_source = selected
         self._update_image2vid_source_label()
 
+    def _refresh_image2vid_filter_options(self) -> None:
+        category = self.image2vid_filter_category_combo.currentData()
+        variant = self.image2vid_filter_variant_combo.currentData()
+
+        categories = sorted({str(item.get("category") or "?") for item in self._image2vid_source_options})
+        variants = sorted({str(item.get("variant") or "?") for item in self._image2vid_source_options})
+
+        self.image2vid_filter_category_combo.blockSignals(True)
+        self.image2vid_filter_category_combo.clear()
+        self.image2vid_filter_category_combo.addItem("Todas", None)
+        for value in categories:
+            self.image2vid_filter_category_combo.addItem(value, value)
+        self.image2vid_filter_category_combo.blockSignals(False)
+
+        self.image2vid_filter_variant_combo.blockSignals(True)
+        self.image2vid_filter_variant_combo.clear()
+        self.image2vid_filter_variant_combo.addItem("Todas", None)
+        for value in variants:
+            self.image2vid_filter_variant_combo.addItem(value, value)
+        self.image2vid_filter_variant_combo.blockSignals(False)
+
+        category_index = self.image2vid_filter_category_combo.findData(category)
+        self.image2vid_filter_category_combo.setCurrentIndex(category_index if category_index >= 0 else 0)
+        variant_index = self.image2vid_filter_variant_combo.findData(variant)
+        self.image2vid_filter_variant_combo.setCurrentIndex(variant_index if variant_index >= 0 else 0)
+
+    def _apply_image2vid_source_filters(self) -> None:
+        selected_category = self.image2vid_filter_category_combo.currentData()
+        selected_variant = self.image2vid_filter_variant_combo.currentData()
+        selected = self.image2vid_selected_source or {}
+
+        filtered_options = [
+            option for option in self._image2vid_source_options
+            if (not selected_category or option.get("category") == selected_category)
+            and (not selected_variant or option.get("variant") == selected_variant)
+        ]
+        self._image2vid_filtered_source_options = filtered_options
+
+        self.image2vid_source_table.setRowCount(0)
+        for option in filtered_options:
+            row_index = self.image2vid_source_table.rowCount()
+            self.image2vid_source_table.insertRow(row_index)
+            self.image2vid_source_table.setItem(row_index, 0, QTableWidgetItem(str(option["prompt_id"])))
+            self.image2vid_source_table.setItem(row_index, 1, QTableWidgetItem(str(option["source_category"])))
+            self.image2vid_source_table.setItem(row_index, 2, QTableWidgetItem(str(option["title"])))
+
+        self.image2vid_source_count_label.setText(str(len(filtered_options)))
+
+        selected_index = 0
+        if self.image2vid_selected_source:
+            for idx, option in enumerate(filtered_options):
+                if (
+                    option["prompt_id"] == selected.get("prompt_id")
+                    and option["source_category"] == selected.get("source_category")
+                ):
+                    selected_index = idx
+                    break
+
+        if filtered_options:
+            self.image2vid_source_table.selectRow(selected_index)
+            self._update_image2vid_source_preview()
+        else:
+            self.image2vid_source_preview.setPixmap(QPixmap())
+            self.image2vid_source_preview.setText("No hay imágenes disponibles con esos filtros")
+
     def _update_image2vid_source_label(self) -> None:
         source = self.image2vid_selected_source
         if not source:
@@ -1946,33 +2036,7 @@ class MainWindow(QMainWindow):
     def open_image2vid_source_picker(self) -> None:
         if not self._image2vid_source_options:
             self._populate_image2vid_sources()
-
-        self.image2vid_source_table.setRowCount(0)
-        for option in self._image2vid_source_options:
-            row_index = self.image2vid_source_table.rowCount()
-            self.image2vid_source_table.insertRow(row_index)
-            self.image2vid_source_table.setItem(row_index, 0, QTableWidgetItem(str(option["prompt_id"])))
-            self.image2vid_source_table.setItem(row_index, 1, QTableWidgetItem(str(option["source_category"])))
-            self.image2vid_source_table.setItem(row_index, 2, QTableWidgetItem(str(option["title"])))
-
-        self.image2vid_source_count_label.setText(str(len(self._image2vid_source_options)))
-
-        selected_index = 0
-        if self.image2vid_selected_source:
-            for idx, option in enumerate(self._image2vid_source_options):
-                if (
-                    option["prompt_id"] == self.image2vid_selected_source.get("prompt_id")
-                    and option["source_category"] == self.image2vid_selected_source.get("source_category")
-                ):
-                    selected_index = idx
-                    break
-
-        if self._image2vid_source_options:
-            self.image2vid_source_table.selectRow(selected_index)
-            self._update_image2vid_source_preview()
-        else:
-            self.image2vid_source_preview.setPixmap(QPixmap())
-            self.image2vid_source_preview.setText("No hay imágenes disponibles")
+        self._apply_image2vid_source_filters()
 
         self.image2vid_source_picker_dialog.exec()
 
@@ -1981,9 +2045,9 @@ class MainWindow(QMainWindow):
         if not selected_rows:
             return None
         row_index = selected_rows[0].row()
-        if row_index < 0 or row_index >= len(self._image2vid_source_options):
+        if row_index < 0 or row_index >= len(self._image2vid_filtered_source_options):
             return None
-        return self._image2vid_source_options[row_index]
+        return self._image2vid_filtered_source_options[row_index]
 
     def _update_image2vid_source_preview(self) -> None:
         option = self._get_selected_image2vid_option()
