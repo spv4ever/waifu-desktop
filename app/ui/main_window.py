@@ -56,6 +56,12 @@ from app.ui.dollimages_prompt_window import DollimagesPromptWindow
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
 
+IMAGE2VID_MIN_NEGATIVE_PROMPT = (
+    "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，"
+    "最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，"
+    "畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"
+)
+
 class NoFocusRectStyle(QProxyStyle):
     """Elimina el rectángulo de foco (focus rect) que en Windows 11 aparece como marcas/lineas."""
     def drawPrimitive(self, element, option, painter, widget=None):
@@ -605,6 +611,7 @@ class MainWindow(QMainWindow):
         image2vid_layout.addWidget(QLabel("Prompt -:"), 4, 0)
         self.image2vid_negative_input = QPlainTextEdit()
         self.image2vid_negative_input.setPlaceholderText("Prompt negativo")
+        self.image2vid_negative_input.setPlainText(IMAGE2VID_MIN_NEGATIVE_PROMPT)
         self.image2vid_negative_input.setFixedHeight(90)
         image2vid_layout.addWidget(self.image2vid_negative_input, 4, 1, 1, 6)
 
@@ -1878,6 +1885,8 @@ class MainWindow(QMainWindow):
 
         positive = self.image2vid_positive_input.toPlainText().strip()
         negative = self.image2vid_negative_input.toPlainText().strip()
+        if IMAGE2VID_MIN_NEGATIVE_PROMPT not in negative:
+            negative = f"{IMAGE2VID_MIN_NEGATIVE_PROMPT}, {negative}" if negative else IMAGE2VID_MIN_NEGATIVE_PROMPT
         if not positive:
             QMessageBox.warning(self, "Image2Vid", "El prompt positivo es obligatorio.")
             return
