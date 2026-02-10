@@ -5,13 +5,15 @@ from pathlib import Path
 from functools import partial
 from typing import Any
 
-from PySide6.QtCore import Qt, QDateTime, QDate, QTime, QTimer
+from PySide6.QtCore import Qt, QDateTime, QDate, QTime, QTimer, QUrl
 from PySide6.QtGui import QPixmap
+from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QMenu
+    QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QMenu, QStackedWidget
 )
 
 from app.config.app_config import load_app_config
@@ -94,6 +96,7 @@ class MainWindow(QMainWindow):
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
+        self._preview_video_url: str | None = None
         self._refresh_timer = QTimer(self)
         self._refresh_timer.setSingleShot(True)
         self._refresh_timer.timeout.connect(self._run_scheduled_refresh)
@@ -795,11 +798,26 @@ class MainWindow(QMainWindow):
         # Base preview group (right column)
         self.base_group = QGroupBox("Preview Base")
         base_layout = QVBoxLayout(self.base_group)
+        self.base_preview_stack = QStackedWidget()
+        base_layout.addWidget(self.base_preview_stack)
+
         self.base_image_label = ClickableLabel("(sin base)")
         self.base_image_label.setAlignment(Qt.AlignCenter)
         self.base_image_label.setMinimumHeight(240)
         self.base_image_label.setStyleSheet("border: 1px solid #444;")
-        base_layout.addWidget(self.base_image_label)
+        self.base_preview_stack.addWidget(self.base_image_label)
+
+        self.base_video_widget = QVideoWidget()
+        self.base_video_widget.setMinimumHeight(240)
+        self.base_video_widget.setStyleSheet("border: 1px solid #444;")
+        self.base_preview_stack.addWidget(self.base_video_widget)
+
+        self.base_video_player = QMediaPlayer(self)
+        self.base_video_audio = QAudioOutput(self)
+        self.base_video_audio.setVolume(0)
+        self.base_video_player.setAudioOutput(self.base_video_audio)
+        self.base_video_player.setVideoOutput(self.base_video_widget)
+        self.base_video_player.mediaStatusChanged.connect(self._on_base_video_status_changed)
 
         self.base_image_label.doubleClicked.connect(lambda: self.open_preview_dialog("base"))
 
@@ -1995,13 +2013,23 @@ class MainWindow(QMainWindow):
             self.main_content_layout.setStretch(0, 10)
             self.main_content_layout.setStretch(1, 0)
 
-    def _set_preview(self, *, which: str, path: Path | None) -> None:
+    def _set_preview(self, *, which: str, path: Path | None, video_url: str | None = None) -> None:
         if which != "base":
             return
 
         self._base_path = path
+        self._preview_video_url = video_url
         img_label = self.base_image_label
         self._pix_base = None
+        self.base_video_player.stop()
+
+        if video_url:
+            self.base_preview_stack.setCurrentWidget(self.base_video_widget)
+            self.base_video_player.setSource(QUrl(video_url))
+            self.base_video_player.play()
+            return
+
+        self.base_preview_stack.setCurrentWidget(self.base_image_label)
 
         if not path:
             img_label.setText("(sin imagen)")
@@ -2024,6 +2052,8 @@ class MainWindow(QMainWindow):
         self._rescale_previews()
 
     def _rescale_previews(self) -> None:
+        if self.base_preview_stack.currentWidget() is self.base_video_widget:
+            return
         if self._pix_base and not self._pix_base.isNull():
             target = self.base_image_label.size()
             scaled = self._pix_base.scaled(target, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -2049,7 +2079,7 @@ class MainWindow(QMainWindow):
             self.mark_reel_priority_action.setEnabled(False)
             self.mark_reel_discard_action.setEnabled(False)
             self.clear_reel_flags_action.setEnabled(False)
-            self._set_preview(which="base", path=None)
+            self._set_preview(which="base", path=None, video_url=None)
             return
 
         r = self.store.get_prompt_item_media(pid)
@@ -2065,12 +2095,27 @@ class MainWindow(QMainWindow):
         self.clear_reel_flags_action.setEnabled(True)
 
         base_path: Path | None = None
+        video_url: str | None = None
         if r and r.get("base_image_json"):
             base = json.loads(r["base_image_json"])
             workflow_key = self._workflow_key_from_row(r)
             base_path = build_output_path(base, workflow_key=workflow_key)
+        elif r and r.get("meta_json"):
+            try:
+                meta = json.loads(r["meta_json"])
+            except ValueError:
+                meta = {}
+            if isinstance(meta, dict):
+                video_url = str(meta.get("image2vid_cloudinary_url") or "").strip() or None
 
-        self._set_preview(which="base", path=base_path)
+        self._set_preview(which="base", path=base_path, video_url=video_url)
+
+    def _on_base_video_status_changed(self, status) -> None:
+        if self.base_preview_stack.currentWidget() is not self.base_video_widget:
+            return
+        if status == QMediaPlayer.EndOfMedia:
+            self.base_video_player.setPosition(0)
+            self.base_video_player.play()
 
     def _show_table_context_menu(self, position) -> None:
         item = self.table.itemAt(position)
