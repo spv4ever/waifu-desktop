@@ -21,6 +21,7 @@ class Settings:
     comfyui_request_timeout: int = int(os.getenv("COMFYUI_REQUEST_TIMEOUT", "120"))
     comfyui_history_wait_seconds: float = float(os.getenv("COMFYUI_HISTORY_WAIT_SECONDS", "180"))
     comfyui_output_dir: str = os.getenv("COMFYUI_OUTPUT_DIR", "output")
+    comfyui_image2vid_output_dir: str = os.getenv("COMFYUI_IMAGE2VID_OUTPUT_DIR", "")
     comfyui_dollimages_output_dir: str = os.getenv("COMFYUI_DOLLIMAGES_OUTPUT_DIR", "")
     comfyui_input_dir: str = os.getenv("COMFYUI_INPUT_DIR", "input")
     comfyui_checkpoints_dir: str = os.getenv("COMFYUI_CHECKPOINTS_DIR", "")

@@ -155,8 +155,7 @@ class QueueWorker:
         source_category = str(meta.get("image2vid_source_category") or "waifu").strip().lower()
 
         try:
-            workflow_key = "dollimages" if source_category == "dollimages" else "waifu"
-            video_path = build_output_path(video_json, workflow_key=workflow_key)
+            video_path = build_output_path(video_json, workflow_key="image2vid")
             if source_category == "dollimages":
                 payload = upload_dollimages_video(
                     video_path=video_path,
