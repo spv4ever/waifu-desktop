@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from functools import partial
 from typing import Any
+from urllib.error import URLError
+from urllib.request import urlopen
 
 from PySide6.QtCore import Qt, QDateTime, QDate, QTime, QTimer, QUrl
 from PySide6.QtGui import QPixmap
@@ -13,7 +15,8 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
-    QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QMenu, QStackedWidget
+    QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QMenu, QStackedWidget,
+    QHeaderView,
 )
 
 from app.config.app_config import load_app_config
@@ -112,6 +115,7 @@ class MainWindow(QMainWindow):
         self._cached_filters: dict[str, list[str]] | None = None
         self._cached_status_counts: dict[str, int] | None = None
         self._cached_category_counts: list[tuple[str, int]] | None = None
+        self._image2vid_source_options: list[dict[str, Any]] = []
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -571,9 +575,12 @@ class MainWindow(QMainWindow):
         image2vid_layout.setVerticalSpacing(8)
 
         image2vid_layout.addWidget(QLabel("Imagen origen:"), 0, 0)
-        self.image2vid_source_combo = QComboBox()
-        self.image2vid_source_combo.setMinimumWidth(420)
-        image2vid_layout.addWidget(self.image2vid_source_combo, 0, 1, 1, 5)
+        self.image2vid_selected_source: dict[str, Any] | None = None
+        self.image2vid_source_label = QLabel("Sin imagen seleccionada")
+        self.image2vid_source_label.setStyleSheet("color: #9aa0a6;")
+        image2vid_layout.addWidget(self.image2vid_source_label, 0, 1, 1, 4)
+        self.image2vid_select_source_btn = QPushButton("Seleccionar imagen...")
+        image2vid_layout.addWidget(self.image2vid_select_source_btn, 0, 5)
         self.image2vid_reload_sources_btn = QPushButton("Recargar")
         image2vid_layout.addWidget(self.image2vid_reload_sources_btn, 0, 6)
 
@@ -619,6 +626,49 @@ class MainWindow(QMainWindow):
         image2vid_layout.addWidget(self.image2vid_generate_btn, 5, 5, 1, 2)
 
         image2vid_dialog_layout.addWidget(image2vid_group)
+
+        self.image2vid_source_picker_dialog = QDialog(self)
+        self.image2vid_source_picker_dialog.setWindowTitle("Seleccionar imagen origen")
+        self.image2vid_source_picker_dialog.setModal(True)
+        self.image2vid_source_picker_dialog.resize(1160, 720)
+        source_picker_layout = QVBoxLayout(self.image2vid_source_picker_dialog)
+        source_picker_top = QHBoxLayout()
+        source_picker_top.addWidget(QLabel("Imágenes disponibles (últimas 300):"))
+        source_picker_top.addStretch(1)
+        self.image2vid_source_count_label = QLabel("0")
+        source_picker_top.addWidget(self.image2vid_source_count_label)
+        source_picker_layout.addLayout(source_picker_top)
+
+        source_picker_content = QHBoxLayout()
+        self.image2vid_source_table = QTableWidget(0, 3)
+        self.image2vid_source_table.setHorizontalHeaderLabels(["ID", "Origen", "Título"])
+        self.image2vid_source_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.image2vid_source_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.image2vid_source_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.image2vid_source_table.verticalHeader().setVisible(False)
+        table_header = self.image2vid_source_table.horizontalHeader()
+        table_header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        table_header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        table_header.setSectionResizeMode(2, QHeaderView.Stretch)
+        source_picker_content.addWidget(self.image2vid_source_table, 6)
+
+        preview_panel = QVBoxLayout()
+        preview_panel.addWidget(QLabel("Vista previa:"))
+        self.image2vid_source_preview = QLabel("Selecciona una imagen")
+        self.image2vid_source_preview.setAlignment(Qt.AlignCenter)
+        self.image2vid_source_preview.setMinimumSize(420, 560)
+        self.image2vid_source_preview.setStyleSheet("border: 1px solid #2b2f35; background: #14171c; color: #9aa0a6;")
+        preview_panel.addWidget(self.image2vid_source_preview, 1)
+        source_picker_content.addLayout(preview_panel, 4)
+        source_picker_layout.addLayout(source_picker_content, 1)
+
+        source_picker_actions = QHBoxLayout()
+        source_picker_actions.addStretch(1)
+        self.image2vid_source_cancel_btn = QPushButton("Cancelar")
+        self.image2vid_source_apply_btn = QPushButton("Usar esta imagen")
+        source_picker_actions.addWidget(self.image2vid_source_cancel_btn)
+        source_picker_actions.addWidget(self.image2vid_source_apply_btn)
+        source_picker_layout.addLayout(source_picker_actions)
 
         self.reel_dialog = QDialog(self)
         self.reel_dialog.setWindowTitle("Reel Instagram")
@@ -942,6 +992,13 @@ class MainWindow(QMainWindow):
         self.image2vid_ratio_combo.currentIndexChanged.connect(self._update_image2vid_labels)
         self.image2vid_seconds_spin.valueChanged.connect(self._update_image2vid_labels)
         self.image2vid_reload_sources_btn.clicked.connect(self._populate_image2vid_sources)
+        self.image2vid_select_source_btn.clicked.connect(self.open_image2vid_source_picker)
+        self.image2vid_source_cancel_btn.clicked.connect(self.image2vid_source_picker_dialog.reject)
+        self.image2vid_source_apply_btn.clicked.connect(self._apply_selected_image2vid_source)
+        self.image2vid_source_table.itemSelectionChanged.connect(self._update_image2vid_source_preview)
+        self.image2vid_source_table.itemDoubleClicked.connect(
+            lambda _item: self._apply_selected_image2vid_source()
+        )
         self.manual_prompt_category_combo.currentIndexChanged.connect(self._update_manual_prompt_ratios)
         self.manual_prompt_checkpoint_combo.currentIndexChanged.connect(
             self._sync_manual_prompt_refiner_label
@@ -962,7 +1019,6 @@ class MainWindow(QMainWindow):
         self._populate_checkpoint_selectors()
         self._populate_manual_prompt_selectors()
         self._populate_dollimages_groups()
-        self._populate_image2vid_sources()
         self._update_image2vid_labels()
         self._update_dollimages_reel_availability()
         self._update_nsfw_controls()
@@ -1796,7 +1852,8 @@ class MainWindow(QMainWindow):
         )
 
     def open_image2vid_dialog(self) -> None:
-        self._populate_image2vid_sources()
+        if not self._image2vid_source_options:
+            self._populate_image2vid_sources()
         self._update_image2vid_labels()
         self.image2vid_dialog.show()
 
@@ -1822,9 +1879,9 @@ class MainWindow(QMainWindow):
         self.image2vid_frames_label.setText(f"Frames Wan: {length_frames}")
 
     def _populate_image2vid_sources(self) -> None:
-        current = self.image2vid_source_combo.currentData() or {}
+        current = self.image2vid_selected_source or {}
         current_prompt_id = current.get("prompt_id") if isinstance(current, dict) else None
-        rows = self.store.fetch_prompts(limit=1000, status="DONE")
+        rows = self.store.fetch_prompts(limit=300, status="DONE")
 
         options: list[dict[str, Any]] = []
         for row in rows:
@@ -1861,12 +1918,9 @@ class MainWindow(QMainWindow):
                     }
                 )
 
-        self.image2vid_source_combo.blockSignals(True)
-        self.image2vid_source_combo.clear()
-        for option in options:
-            label = f"[{option['source_category']}] #{option['prompt_id']} - {option['title']}"
-            self.image2vid_source_combo.addItem(label, option)
+        self._image2vid_source_options = options
 
+        selected: dict[str, Any] | None = None
         if options:
             target_index = 0
             if current_prompt_id is not None:
@@ -1874,11 +1928,110 @@ class MainWindow(QMainWindow):
                     if option["prompt_id"] == current_prompt_id and option["source_category"] == current.get("source_category"):
                         target_index = i
                         break
-            self.image2vid_source_combo.setCurrentIndex(target_index)
-        self.image2vid_source_combo.blockSignals(False)
+            selected = options[target_index]
+
+        self.image2vid_selected_source = selected
+        self._update_image2vid_source_label()
+
+    def _update_image2vid_source_label(self) -> None:
+        source = self.image2vid_selected_source
+        if not source:
+            self.image2vid_source_label.setText("Sin imagen seleccionada")
+            return
+
+        self.image2vid_source_label.setText(
+            f"[{source['source_category']}] #{source['prompt_id']} - {source['title']}"
+        )
+
+    def open_image2vid_source_picker(self) -> None:
+        if not self._image2vid_source_options:
+            self._populate_image2vid_sources()
+
+        self.image2vid_source_table.setRowCount(0)
+        for option in self._image2vid_source_options:
+            row_index = self.image2vid_source_table.rowCount()
+            self.image2vid_source_table.insertRow(row_index)
+            self.image2vid_source_table.setItem(row_index, 0, QTableWidgetItem(str(option["prompt_id"])))
+            self.image2vid_source_table.setItem(row_index, 1, QTableWidgetItem(str(option["source_category"])))
+            self.image2vid_source_table.setItem(row_index, 2, QTableWidgetItem(str(option["title"])))
+
+        self.image2vid_source_count_label.setText(str(len(self._image2vid_source_options)))
+
+        selected_index = 0
+        if self.image2vid_selected_source:
+            for idx, option in enumerate(self._image2vid_source_options):
+                if (
+                    option["prompt_id"] == self.image2vid_selected_source.get("prompt_id")
+                    and option["source_category"] == self.image2vid_selected_source.get("source_category")
+                ):
+                    selected_index = idx
+                    break
+
+        if self._image2vid_source_options:
+            self.image2vid_source_table.selectRow(selected_index)
+            self._update_image2vid_source_preview()
+        else:
+            self.image2vid_source_preview.setPixmap(QPixmap())
+            self.image2vid_source_preview.setText("No hay imágenes disponibles")
+
+        self.image2vid_source_picker_dialog.exec()
+
+    def _get_selected_image2vid_option(self) -> dict[str, Any] | None:
+        selected_rows = self.image2vid_source_table.selectionModel().selectedRows()
+        if not selected_rows:
+            return None
+        row_index = selected_rows[0].row()
+        if row_index < 0 or row_index >= len(self._image2vid_source_options):
+            return None
+        return self._image2vid_source_options[row_index]
+
+    def _update_image2vid_source_preview(self) -> None:
+        option = self._get_selected_image2vid_option()
+        if not option:
+            self.image2vid_source_preview.setPixmap(QPixmap())
+            self.image2vid_source_preview.setText("Selecciona una imagen")
+            return
+
+        image_url = str(option.get("url") or "").strip()
+        if not image_url:
+            self.image2vid_source_preview.setPixmap(QPixmap())
+            self.image2vid_source_preview.setText("Imagen sin URL")
+            return
+
+        try:
+            with urlopen(image_url, timeout=6) as response:
+                image_bytes = response.read()
+        except (URLError, TimeoutError, ValueError):
+            self.image2vid_source_preview.setPixmap(QPixmap())
+            self.image2vid_source_preview.setText("No se pudo cargar la vista previa")
+            return
+
+        pixmap = QPixmap()
+        if not pixmap.loadFromData(image_bytes):
+            self.image2vid_source_preview.setPixmap(QPixmap())
+            self.image2vid_source_preview.setText("Formato de imagen no soportado")
+            return
+
+        scaled = pixmap.scaled(
+            self.image2vid_source_preview.size(),
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation,
+        )
+        self.image2vid_source_preview.setPixmap(scaled)
+        self.image2vid_source_preview.setText("")
+
+    def _apply_selected_image2vid_source(self) -> None:
+        option = self._get_selected_image2vid_option()
+        if not option:
+            QMessageBox.warning(self, "Image2Vid", "Selecciona una imagen de origen.")
+            return
+
+        self.image2vid_selected_source = option
+        self._update_image2vid_source_label()
+        self.image2vid_source_picker_dialog.accept()
 
     def generate_image2vid(self) -> None:
-        source_info = self.image2vid_source_combo.currentData() or {}
+        source_info = self.image2vid_selected_source or {}
         if not isinstance(source_info, dict) or not source_info.get("url"):
             QMessageBox.warning(self, "Image2Vid", "Debes seleccionar una imagen de origen subida a Cloudinary.")
             return
