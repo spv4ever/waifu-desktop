@@ -471,11 +471,39 @@ class QueueWorker:
 
                 elapsed = time.monotonic() - missing_history_started
                 if elapsed >= max_missing_seconds:
+                    still_queued = False
+                    queue_lookup_error: str | None = None
+                    try:
+                        still_queued = comfy_client.is_prompt_in_queue(remote_id)
+                    except requests.RequestException as exc:
+                        queue_lookup_error = str(exc)
+
+                    if still_queued:
+                        self.store.set_remote_status(job_id, "WAITING_QUEUE")
+                        self._log(
+                            f"[WORKER] job_id={job_id} remote_id={remote_id} sigue en cola remota sin history; esperando"
+                        )
+                        missing_history_started = time.monotonic()
+                        self._emit_progress()
+                        time.sleep(poll)
+                        continue
+
+                    if queue_lookup_error:
+                        self._log(
+                            f"[WORKER] No se pudo verificar /queue para job_id={job_id}: {queue_lookup_error}. "
+                            "Se mantiene en espera de history."
+                        )
+                        missing_history_started = time.monotonic()
+                        self.store.set_remote_status(job_id, "WAITING_HISTORY")
+                        self._emit_progress()
+                        time.sleep(poll)
+                        continue
+
                     self._requeue_for_retry(
                         conn,
                         job_id=job_id,
                         prompt_item_id=prompt_item_id,
-                        reason="history sin entrada para remote_id",
+                        reason="history sin entrada para remote_id y no aparece en /queue",
                     )
                     return "PROCESSED"
                 time.sleep(poll)

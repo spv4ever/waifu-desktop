@@ -35,3 +35,23 @@ class ComfyClient:
         r = requests.get(url, timeout=self.timeout)
         r.raise_for_status()
         return r.json()
+
+    def get_queue(self) -> dict[str, Any]:
+        url = f"{self.base_url}/queue"
+        r = requests.get(url, timeout=self.timeout)
+        r.raise_for_status()
+        return r.json()
+
+    def is_prompt_in_queue(self, prompt_id: str) -> bool:
+        queue = self.get_queue()
+
+        def _contains_prompt_id(value: Any) -> bool:
+            if isinstance(value, dict):
+                return any(_contains_prompt_id(v) for v in value.values())
+            if isinstance(value, (list, tuple)):
+                return any(_contains_prompt_id(v) for v in value)
+            return str(value) == prompt_id
+
+        running = queue.get("queue_running")
+        pending = queue.get("queue_pending")
+        return _contains_prompt_id(running) or _contains_prompt_id(pending)
