@@ -439,6 +439,7 @@ class QueueWorker:
         poll = float(settings.comfyui_poll_interval)
         last_progress: int | None = None
         last_backend_status: str | None = None
+        last_logged_status: str | None = None
         missing_history_started: float | None = None
         max_missing_seconds = float(settings.comfyui_history_wait_seconds)
         while True:
@@ -488,12 +489,22 @@ class QueueWorker:
                 if progress is not None and progress != last_progress:
                     last_progress = progress
                     self.store.set_progress(job_id, progress)
+                    mode = "IMAGE2VID" if workflow_key == "image2vid" else "RENDER"
+                    self._log(
+                        f"[WORKER][{mode}] job_id={job_id} remote_id={remote_id} progreso={progress}%"
+                    )
                     self._emit_progress()
 
                 backend_status = self._extract_backend_status(entry)
                 if backend_status and backend_status != last_backend_status:
                     last_backend_status = backend_status
                     self.store.set_backend_status(job_id, backend_status)
+                    if backend_status != last_logged_status:
+                        mode = "IMAGE2VID" if workflow_key == "image2vid" else "RENDER"
+                        self._log(
+                            f"[WORKER][{mode}] job_id={job_id} remote_id={remote_id} estado={backend_status}"
+                        )
+                        last_logged_status = backend_status
                     self._emit_progress()
 
             if finished and entry:
