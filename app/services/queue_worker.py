@@ -14,14 +14,16 @@ from app.services.comfy_client import ComfyClient
 from app.services.cloudinary_uploader import (
     CloudinaryUploadError,
     upload_dollimages_image,
+    upload_dollimages_video,
     upload_waifu_image,
+    upload_waifu_video,
 )
 from app.services.image_validation import validate_image_file
 from app.services.output_paths import build_output_path
 from app.services.workflow_service import WorkflowService
 from app.config.app_config import load_app_config
 from app.utils.path_sanitize import sanitize_segment, sanitize_relpath
-from app.services.comfy_history_parser import extract_base_and_upscale
+from app.services.comfy_history_parser import extract_base_and_upscale, extract_video_output, has_rendered_media
 
 
 WorkerResult = Literal["PROCESSED", "PAUSED", "EMPTY"]
@@ -134,6 +136,50 @@ class QueueWorker:
         }
         self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
 
+    def _upload_image2vid_to_cloudinary(
+        self,
+        *,
+        prompt_item_id: int,
+        meta: dict[str, Any],
+        video_json: dict[str, Any] | None,
+        title: str,
+    ) -> None:
+        if not video_json:
+            self._log(f"[WORKER] Image2Vid sin video para subir prompt_item_id={prompt_item_id}")
+            return
+        if meta.get("image2vid_cloudinary_url"):
+            return
+        created_at = str(meta.get("created_at") or "").strip()
+        if not created_at:
+            created_at = datetime.now().isoformat(timespec="seconds")
+        source_category = str(meta.get("image2vid_source_category") or "waifu").strip().lower()
+
+        try:
+            workflow_key = "dollimages" if source_category == "dollimages" else "waifu"
+            video_path = build_output_path(video_json, workflow_key=workflow_key)
+            if source_category == "dollimages":
+                payload = upload_dollimages_video(
+                    video_path=video_path,
+                    title=title or "Dollimages Image2Vid",
+                    created_at=created_at,
+                )
+            else:
+                payload = upload_waifu_video(
+                    video_path=video_path,
+                    title=title or "Waifu Image2Vid",
+                    created_at=created_at,
+                )
+        except (CloudinaryUploadError, OSError, ValueError) as exc:
+            self._log(f"[WORKER] Cloudinary video error prompt_item_id={prompt_item_id}: {exc}")
+            return
+
+        updates = {
+            "image2vid_cloudinary_url": payload.get("secure_url") or payload.get("url"),
+            "image2vid_cloudinary_public_id": payload.get("public_id"),
+            "image2vid_cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
+
     def recover_inflight_jobs(self, conn=None) -> tuple[int, int, int]:
         return self.store.recover_inflight_jobs()
 
@@ -141,14 +187,7 @@ class QueueWorker:
         entry = history.get(prompt_id)
         if not entry:
             return False, None
-
-        outputs = entry.get("outputs") or {}
-        # Si cualquier output contiene "images", ya terminó y hay ficheros
-        for _, out in outputs.items():
-            if isinstance(out, dict) and out.get("images"):
-                return True, entry
-
-        return False, entry
+        return has_rendered_media(entry), entry
 
     def _extract_progress(self, entry: dict[str, Any]) -> int | None:
         status = entry.get("status")
@@ -266,11 +305,11 @@ class QueueWorker:
         checkpoint_base = checkpoints.get("base")
         checkpoint_refiner = checkpoints.get("refiner")
         workflow_key = str(meta.get("workflow") or "waifu")
-        comfy_client = (
-            self.dollimages_comfy
-            if workflow_key in {"dollimages", "dollimagesz"} and self.dollimages_comfy
-            else self.comfy
-        )
+        source_category = str(meta.get("image2vid_source_category") or "").strip().lower()
+        use_dollimages_comfy = workflow_key in {"dollimages", "dollimagesz"}
+        if workflow_key == "image2vid" and source_category == "dollimages":
+            use_dollimages_comfy = True
+        comfy_client = self.dollimages_comfy if use_dollimages_comfy and self.dollimages_comfy else self.comfy
 
         reference_image = None
         mapping_key = "comfyui_workflow"
@@ -305,6 +344,17 @@ class QueueWorker:
                 if workflow_key == "dollimagesz"
                 else "comfyui_workflow_dollimages"
             )
+        elif workflow_key == "image2vid":
+            source_category = str(meta.get("image2vid_source_category") or "waifu").strip().lower()
+            folder = sanitize_relpath(f"image2vid/{'dollimages' if source_category == 'dollimages' else 'waifu'}")
+            base_name = sanitize_segment(f"{prompt_item_id}")
+            base_prefix = sanitize_relpath(f"{folder}/{base_name}")
+            upscale_prefix = base_prefix
+            width = int(meta.get("width") or 480)
+            height = int(meta.get("height") or 720)
+            seed = meta.get("seed")
+            reference_image = str(meta.get("image2vid_source_url") or "").strip()
+            mapping_key = "comfyui_workflow_image2vid"
         else:
             # -------------------------
             # PATH / NAMING (Jerarquía correcta)
@@ -358,6 +408,14 @@ class QueueWorker:
                 faceswap_enabled=faceswap_enabled,
                 mapping_key=mapping_key,
             )
+
+            if workflow_key == "image2vid":
+                image2vid_length = int(meta.get("image2vid_length") or 81)
+                node_98 = wf.get("98") if isinstance(wf, dict) else None
+                if isinstance(node_98, dict):
+                    inputs = node_98.get("inputs")
+                    if isinstance(inputs, dict):
+                        inputs["length"] = image2vid_length
 
             try:
                 remote_id = comfy_client.submit_prompt(wf)
@@ -449,17 +507,26 @@ class QueueWorker:
                 self.store.set_backend_status(job_id, "Completado")
                 self._emit_progress()
 
+                video_output = extract_video_output(entry) if workflow_key == "image2vid" else None
+
                 # Guardar outputs en prompt_item
                 self.store.set_prompt_outputs(
                     item_id=prompt_item_id,
-                    base_image_json=json.dumps(base_img, ensure_ascii=False) if base_img else None,
-                    upscale_image_json=json.dumps(up_img, ensure_ascii=False) if up_img else None,
+                    base_image_json=json.dumps(base_img, ensure_ascii=False) if base_img and workflow_key != "image2vid" else None,
+                    upscale_image_json=json.dumps(up_img, ensure_ascii=False) if up_img and workflow_key != "image2vid" else None,
                 )
 
                 self.store.mark_done(job_id)
                 self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="DONE")
 
-                if workflow_key in {"dollimages", "dollimagesz"}:
+                if workflow_key == "image2vid":
+                    self._upload_image2vid_to_cloudinary(
+                        prompt_item_id=prompt_item_id,
+                        meta=meta,
+                        video_json=video_output,
+                        title=str(item.get("title") or ""),
+                    )
+                elif workflow_key in {"dollimages", "dollimagesz"}:
                     self._upload_dollimages_to_cloudinary(
                         prompt_item_id=prompt_item_id,
                         meta=meta,

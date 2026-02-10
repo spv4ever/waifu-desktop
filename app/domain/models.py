@@ -54,6 +54,21 @@ class ManualPromptCreate:
 
 
 @dataclass(frozen=True)
+class ImageToVideoCreate:
+    source_category: str
+    source_prompt_id: int
+    source_url: str
+    title: str
+    prompt_text: str
+    negative_text: str
+    ratio: str
+    width: int
+    height: int
+    seconds: float
+    fps: int
+    length_frames: int
+
+@dataclass(frozen=True)
 class PromptDraft:
     # Lo que generamos antes de persistir
     title: str
