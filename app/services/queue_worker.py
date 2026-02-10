@@ -305,9 +305,8 @@ class QueueWorker:
         checkpoint_base = checkpoints.get("base")
         checkpoint_refiner = checkpoints.get("refiner")
         workflow_key = str(meta.get("workflow") or "waifu")
-        source_category = str(meta.get("image2vid_source_category") or "").strip().lower()
         use_dollimages_comfy = workflow_key in {"dollimages", "dollimagesz"}
-        if workflow_key == "image2vid" and source_category == "dollimages":
+        if workflow_key == "image2vid":
             use_dollimages_comfy = True
         comfy_client = self.dollimages_comfy if use_dollimages_comfy and self.dollimages_comfy else self.comfy
 
