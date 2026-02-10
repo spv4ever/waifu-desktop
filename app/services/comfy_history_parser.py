@@ -5,6 +5,7 @@ from typing import Any
 SAVE_NODE_BASE = "19"
 SAVE_NODE_UPSCALE = "52"
 SAVE_NODE_DOLLIMAGESZ_BASE = "9"
+SAVE_NODE_IMAGE2VID_VIDEO = "108"
 
 
 def _pick_first_image(output: dict[str, Any]) -> dict[str, Any] | None:
@@ -16,6 +17,24 @@ def _pick_first_image(output: dict[str, Any]) -> dict[str, Any] | None:
         return None
     first = images[0]
     return first if isinstance(first, dict) else None
+
+
+def _pick_first_media(output: dict[str, Any]) -> dict[str, Any] | None:
+    for key in ("videos", "gifs", "images"):
+        media = output.get(key)
+        if isinstance(media, list) and media:
+            first = media[0]
+            if isinstance(first, dict):
+                return first
+    return None
+
+
+def has_rendered_media(entry: dict[str, Any]) -> bool:
+    outputs = entry.get("outputs") or {}
+    for out in outputs.values():
+        if isinstance(out, dict) and _pick_first_media(out):
+            return True
+    return False
 
 
 def extract_base_and_upscale(
@@ -49,3 +68,27 @@ def extract_base_and_upscale(
                 return fallback, None
 
     return None, None
+
+
+def extract_video_output(entry: dict[str, Any]) -> dict[str, Any] | None:
+    outputs = entry.get("outputs") or {}
+
+    preferred = outputs.get(SAVE_NODE_IMAGE2VID_VIDEO)
+    if isinstance(preferred, dict):
+        media = _pick_first_media(preferred)
+        if media:
+            return media
+
+    for out in outputs.values():
+        if isinstance(out, dict):
+            media = _pick_first_media(out)
+            if media and str(media.get("filename", "")).lower().endswith((".mp4", ".webm", ".mov", ".mkv", ".gif")):
+                return media
+
+    for out in outputs.values():
+        if isinstance(out, dict):
+            media = _pick_first_media(out)
+            if media:
+                return media
+
+    return None

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from functools import partial
+from typing import Any
 
 from PySide6.QtCore import Qt, QDateTime, QDate, QTime, QTimer
 from PySide6.QtGui import QPixmap
@@ -24,11 +25,13 @@ from app.services.checkpoint_service import CheckpointService
 from app.services.reel_service import ReelService
 from app.services.manual_prompt_service import ManualPromptService
 from app.services.dollimages_manual_prompt_service import DollimagesManualPromptService
+from app.services.image2vid_service import ImageToVideoService
 from app.domain.models import (
     PackCreate,
     DollimagesPackCreate,
     ManualPromptCreate,
     DollimagesManualPromptCreate,
+    ImageToVideoCreate,
 )
 from app.ui.data_source import (
     fetch_prompts,
@@ -81,6 +84,7 @@ class MainWindow(QMainWindow):
         self.dollimages_manual_prompt_service = DollimagesManualPromptService()
         self.reel_service = ReelService()
         self.manual_prompt_service = ManualPromptService()
+        self.image2vid_service = ImageToVideoService()
         self.waifu_catalog = load_waifu_catalog()
         self.app_config = load_app_config()
         self.prompt_base_window: PromptBaseWindow | None = None
@@ -172,6 +176,7 @@ class MainWindow(QMainWindow):
         self.open_manual_prompt_btn = QPushButton("Prompt Manual Waifu")
         self.open_dollimages_pack_btn = QPushButton("Crear Pack Dollimages")
         self.open_dollimages_manual_prompt_btn = QPushButton("Prompt Manual Dollimages")
+        self.open_image2vid_btn = QPushButton("Image2Vid WAN 2.2")
         self.open_reel_btn = QPushButton("Reel Instagram")
         self.open_dollimages_reel_btn = QPushButton("Reel Dollimages")
         quick_actions.addWidget(self.open_filters_btn)
@@ -179,6 +184,7 @@ class MainWindow(QMainWindow):
         quick_actions.addWidget(self.open_manual_prompt_btn)
         quick_actions.addWidget(self.open_dollimages_pack_btn)
         quick_actions.addWidget(self.open_dollimages_manual_prompt_btn)
+        quick_actions.addWidget(self.open_image2vid_btn)
         quick_actions.addWidget(self.open_reel_btn)
         quick_actions.addWidget(self.open_dollimages_reel_btn)
         quick_actions.addStretch(1)
@@ -546,6 +552,64 @@ class MainWindow(QMainWindow):
 
         doll_manual_layout.addWidget(doll_manual_group)
 
+        self.image2vid_dialog = QDialog(self)
+        self.image2vid_dialog.setWindowTitle("Image2Vid WAN 2.2")
+        self.image2vid_dialog.setModal(False)
+        image2vid_dialog_layout = QVBoxLayout(self.image2vid_dialog)
+        image2vid_group = QGroupBox("Generar video desde imagen Cloudinary")
+        image2vid_layout = QGridLayout(image2vid_group)
+        image2vid_layout.setHorizontalSpacing(10)
+        image2vid_layout.setVerticalSpacing(8)
+
+        image2vid_layout.addWidget(QLabel("Imagen origen:"), 0, 0)
+        self.image2vid_source_combo = QComboBox()
+        self.image2vid_source_combo.setMinimumWidth(420)
+        image2vid_layout.addWidget(self.image2vid_source_combo, 0, 1, 1, 5)
+        self.image2vid_reload_sources_btn = QPushButton("Recargar")
+        image2vid_layout.addWidget(self.image2vid_reload_sources_btn, 0, 6)
+
+        image2vid_layout.addWidget(QLabel("Ratio:"), 1, 0)
+        self.image2vid_ratio_combo = QComboBox()
+        self.image2vid_ratio_combo.addItem("1:1", "1:1")
+        self.image2vid_ratio_combo.addItem("4:5", "4:5")
+        self.image2vid_ratio_combo.addItem("9:16", "9:16")
+        self.image2vid_ratio_combo.addItem("16:9", "16:9")
+        image2vid_layout.addWidget(self.image2vid_ratio_combo, 1, 1)
+
+        image2vid_layout.addWidget(QLabel("Segundos:"), 1, 2)
+        self.image2vid_seconds_spin = QDoubleSpinBox()
+        self.image2vid_seconds_spin.setRange(1.0, 20.0)
+        self.image2vid_seconds_spin.setSingleStep(0.5)
+        self.image2vid_seconds_spin.setValue(5.0)
+        image2vid_layout.addWidget(self.image2vid_seconds_spin, 1, 3)
+
+        self.image2vid_size_label = QLabel("Tamaño: 720x720")
+        self.image2vid_frames_label = QLabel("Frames Wan: 80")
+        image2vid_layout.addWidget(self.image2vid_size_label, 1, 4)
+        image2vid_layout.addWidget(self.image2vid_frames_label, 1, 5, 1, 2)
+
+        image2vid_layout.addWidget(QLabel("Título:"), 2, 0)
+        self.image2vid_title_input = QLineEdit()
+        self.image2vid_title_input.setPlaceholderText("Título del video")
+        image2vid_layout.addWidget(self.image2vid_title_input, 2, 1, 1, 6)
+
+        image2vid_layout.addWidget(QLabel("Prompt +:"), 3, 0)
+        self.image2vid_positive_input = QPlainTextEdit()
+        self.image2vid_positive_input.setPlaceholderText("Prompt positivo")
+        self.image2vid_positive_input.setFixedHeight(90)
+        image2vid_layout.addWidget(self.image2vid_positive_input, 3, 1, 1, 6)
+
+        image2vid_layout.addWidget(QLabel("Prompt -:"), 4, 0)
+        self.image2vid_negative_input = QPlainTextEdit()
+        self.image2vid_negative_input.setPlaceholderText("Prompt negativo")
+        self.image2vid_negative_input.setFixedHeight(90)
+        image2vid_layout.addWidget(self.image2vid_negative_input, 4, 1, 1, 6)
+
+        self.image2vid_generate_btn = QPushButton("Enviar Image2Vid a cola")
+        image2vid_layout.addWidget(self.image2vid_generate_btn, 5, 5, 1, 2)
+
+        image2vid_dialog_layout.addWidget(image2vid_group)
+
         self.reel_dialog = QDialog(self)
         self.reel_dialog.setWindowTitle("Reel Instagram")
         self.reel_dialog.setModal(False)
@@ -814,11 +878,13 @@ class MainWindow(QMainWindow):
         self.dollimages_manual_generate_btn.clicked.connect(self.generate_dollimages_manual_prompt)
         self.reel_generate_btn.clicked.connect(self.generate_reel)
         self.dollimages_reel_generate_btn.clicked.connect(self.generate_dollimages_reel)
+        self.image2vid_generate_btn.clicked.connect(self.generate_image2vid)
         self.open_filters_btn.clicked.connect(self.filters_dialog.show)
         self.open_pack_btn.clicked.connect(self.pack_dialog.show)
         self.open_manual_prompt_btn.clicked.connect(self.manual_prompt_dialog.show)
         self.open_dollimages_pack_btn.clicked.connect(self.dollimages_dialog.show)
         self.open_dollimages_manual_prompt_btn.clicked.connect(self.dollimages_manual_dialog.show)
+        self.open_image2vid_btn.clicked.connect(self.open_image2vid_dialog)
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
         self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
         self.dollimages_reference_btn.clicked.connect(self.select_dollimages_reference_image)
@@ -848,6 +914,9 @@ class MainWindow(QMainWindow):
         self.filter_date_order_combo.currentIndexChanged.connect(self.refresh)
         self.filter_last_days_spin.valueChanged.connect(self._on_last_days_changed)
         self.reel_category_combo.currentIndexChanged.connect(self._populate_reel_variants)
+        self.image2vid_ratio_combo.currentIndexChanged.connect(self._update_image2vid_labels)
+        self.image2vid_seconds_spin.valueChanged.connect(self._update_image2vid_labels)
+        self.image2vid_reload_sources_btn.clicked.connect(self._populate_image2vid_sources)
         self.manual_prompt_category_combo.currentIndexChanged.connect(self._update_manual_prompt_ratios)
         self.manual_prompt_checkpoint_combo.currentIndexChanged.connect(
             self._sync_manual_prompt_refiner_label
@@ -868,6 +937,8 @@ class MainWindow(QMainWindow):
         self._populate_checkpoint_selectors()
         self._populate_manual_prompt_selectors()
         self._populate_dollimages_groups()
+        self._populate_image2vid_sources()
+        self._update_image2vid_labels()
         self._update_dollimages_reel_availability()
         self._update_nsfw_controls()
         self._update_dollimages_workflow_controls()
@@ -1698,6 +1769,137 @@ class MainWindow(QMainWindow):
             "Prompt manual Dollimages",
             f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} items.",
         )
+
+    def open_image2vid_dialog(self) -> None:
+        self._populate_image2vid_sources()
+        self._update_image2vid_labels()
+        self.image2vid_dialog.show()
+
+    def _image2vid_ratio_dimensions(self, ratio: str) -> tuple[int, int]:
+        mapping = {
+            "1:1": (720, 720),
+            "4:5": (576, 720),
+            "9:16": (480, 848),
+            "16:9": (848, 480),
+        }
+        return mapping.get(ratio, (720, 720))
+
+    def _compute_image2vid_length(self, *, seconds: float, fps: int = 32, interpolation_multiplier: int = 2) -> int:
+        base_frames = int(round((seconds * fps) / max(interpolation_multiplier, 1)))
+        return max(base_frames, 1)
+
+    def _update_image2vid_labels(self) -> None:
+        ratio = str(self.image2vid_ratio_combo.currentData() or "1:1")
+        width, height = self._image2vid_ratio_dimensions(ratio)
+        seconds = float(self.image2vid_seconds_spin.value())
+        length_frames = self._compute_image2vid_length(seconds=seconds)
+        self.image2vid_size_label.setText(f"Tamaño: {width}x{height}")
+        self.image2vid_frames_label.setText(f"Frames Wan: {length_frames}")
+
+    def _populate_image2vid_sources(self) -> None:
+        current = self.image2vid_source_combo.currentData() or {}
+        current_prompt_id = current.get("prompt_id") if isinstance(current, dict) else None
+        rows = self.store.fetch_prompts(limit=1000, status="DONE")
+
+        options: list[dict[str, Any]] = []
+        for row in rows:
+            meta_raw = row.get("meta_json")
+            if not meta_raw:
+                continue
+            try:
+                meta = json.loads(meta_raw)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(meta, dict):
+                continue
+
+            waifu_url = str(meta.get("waifu_cloudinary_url") or "").strip()
+            doll_url = str(meta.get("cloudinary_url") or "").strip()
+            prompt_id = int(row.get("id") or 0)
+            title = str(row.get("title") or "").strip() or f"Prompt {prompt_id}"
+            if waifu_url:
+                options.append(
+                    {
+                        "prompt_id": prompt_id,
+                        "source_category": "waifu",
+                        "url": waifu_url,
+                        "title": title,
+                    }
+                )
+            if doll_url:
+                options.append(
+                    {
+                        "prompt_id": prompt_id,
+                        "source_category": "dollimages",
+                        "url": doll_url,
+                        "title": title,
+                    }
+                )
+
+        self.image2vid_source_combo.blockSignals(True)
+        self.image2vid_source_combo.clear()
+        for option in options:
+            label = f"[{option['source_category']}] #{option['prompt_id']} - {option['title']}"
+            self.image2vid_source_combo.addItem(label, option)
+
+        if options:
+            target_index = 0
+            if current_prompt_id is not None:
+                for i, option in enumerate(options):
+                    if option["prompt_id"] == current_prompt_id and option["source_category"] == current.get("source_category"):
+                        target_index = i
+                        break
+            self.image2vid_source_combo.setCurrentIndex(target_index)
+        self.image2vid_source_combo.blockSignals(False)
+
+    def generate_image2vid(self) -> None:
+        source_info = self.image2vid_source_combo.currentData() or {}
+        if not isinstance(source_info, dict) or not source_info.get("url"):
+            QMessageBox.warning(self, "Image2Vid", "Debes seleccionar una imagen de origen subida a Cloudinary.")
+            return
+
+        positive = self.image2vid_positive_input.toPlainText().strip()
+        negative = self.image2vid_negative_input.toPlainText().strip()
+        if not positive:
+            QMessageBox.warning(self, "Image2Vid", "El prompt positivo es obligatorio.")
+            return
+
+        ratio = str(self.image2vid_ratio_combo.currentData() or "1:1")
+        width, height = self._image2vid_ratio_dimensions(ratio)
+        seconds = float(self.image2vid_seconds_spin.value())
+        fps = 32
+        length_frames = self._compute_image2vid_length(seconds=seconds, fps=fps)
+
+        source_category = str(source_info.get("source_category") or "waifu")
+        source_prompt_id = int(source_info.get("prompt_id") or 0)
+        source_url = str(source_info.get("url") or "").strip()
+        title = self.image2vid_title_input.text().strip() or f"Image2Vid {source_category} #{source_prompt_id}"
+
+        req = ImageToVideoCreate(
+            source_category=source_category,
+            source_prompt_id=source_prompt_id,
+            source_url=source_url,
+            title=title,
+            prompt_text=positive,
+            negative_text=negative,
+            ratio=ratio,
+            width=width,
+            height=height,
+            seconds=seconds,
+            fps=fps,
+            length_frames=length_frames,
+        )
+
+        try:
+            result = self.image2vid_service.create_and_enqueue(req)
+            QMessageBox.information(
+                self,
+                "Image2Vid",
+                f"Video en cola. Pack #{result.pack_id} · Prompt #{result.created_prompt_item_ids[0]}",
+            )
+            self.refresh()
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", f"No se pudo encolar image2vid\n{exc}")
 
     def generate_reel(self) -> None:
         category = self.reel_category_combo.currentData()
