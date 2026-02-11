@@ -16,6 +16,10 @@ REQUIRED_COLUMNS: tuple[tuple[str, str], ...] = (
     ("prompt_base", "iteration_groups"),
 )
 
+REQUIRED_TABLES: tuple[str, ...] = (
+    "video_prompt_template",
+)
+
 
 def _missing_required_columns(conn: sqlite3.Connection) -> bool:
     for table, column in REQUIRED_COLUMNS:
@@ -26,9 +30,24 @@ def _missing_required_columns(conn: sqlite3.Connection) -> bool:
     return False
 
 
+def _missing_required_tables(conn: sqlite3.Connection) -> bool:
+    for table in REQUIRED_TABLES:
+        row = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
+            (table,),
+        ).fetchone()
+        if row is None:
+            return True
+    return False
+
+
 def _apply_migrations_if_needed(conn: sqlite3.Connection) -> None:
     current_version = int(conn.execute("PRAGMA user_version").fetchone()[0])
-    if current_version >= SCHEMA_VERSION and not _missing_required_columns(conn):
+    if (
+        current_version >= SCHEMA_VERSION
+        and not _missing_required_columns(conn)
+        and not _missing_required_tables(conn)
+    ):
         return
 
     with conn:
