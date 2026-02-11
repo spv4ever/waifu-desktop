@@ -890,6 +890,16 @@ class MainWindow(QMainWindow):
         self.base_video_player.setVideoOutput(self.base_video_widget)
         self.base_video_player.mediaStatusChanged.connect(self._on_base_video_status_changed)
 
+        base_video_controls = QHBoxLayout()
+        self.base_video_play_btn = QPushButton("Play")
+        self.base_video_stop_btn = QPushButton("Stop")
+        self.base_video_play_btn.setEnabled(False)
+        self.base_video_stop_btn.setEnabled(False)
+        base_video_controls.addStretch(1)
+        base_video_controls.addWidget(self.base_video_play_btn)
+        base_video_controls.addWidget(self.base_video_stop_btn)
+        base_layout.addLayout(base_video_controls)
+
         self.base_image_label.doubleClicked.connect(lambda: self.open_preview_dialog("base"))
 
         self.base_group.setVisible(False)
@@ -1034,6 +1044,8 @@ class MainWindow(QMainWindow):
         self.preview_toggle_check.toggled.connect(self._toggle_base_preview)
         self.toggle_worker_log_action.toggled.connect(self._toggle_worker_log)
         self.clear_worker_log_btn.clicked.connect(self.clear_worker_log)
+        self.base_video_play_btn.clicked.connect(self._play_base_video_preview)
+        self.base_video_stop_btn.clicked.connect(self._stop_base_video_preview)
         self.pack_combination_combo.currentIndexChanged.connect(self._update_nsfw_controls)
         self._populate_pack_selectors()
         self._populate_checkpoint_selectors()
@@ -2248,12 +2260,14 @@ class MainWindow(QMainWindow):
         self._preview_video_url = video_url
         img_label = self.base_image_label
         self._pix_base = None
-        self.base_video_player.stop()
+        self._stop_base_video_preview()
+        has_video_preview = bool(video_url)
+        self.base_video_play_btn.setEnabled(has_video_preview)
+        self.base_video_stop_btn.setEnabled(has_video_preview)
 
         if video_url:
             self.base_preview_stack.setCurrentWidget(self.base_video_widget)
             self.base_video_player.setSource(QUrl(video_url))
-            self.base_video_player.play()
             return
 
         self.base_preview_stack.setCurrentWidget(self.base_image_label)
@@ -2342,7 +2356,17 @@ class MainWindow(QMainWindow):
             return
         if status == QMediaPlayer.EndOfMedia:
             self.base_video_player.setPosition(0)
-            self.base_video_player.play()
+
+    def _play_base_video_preview(self) -> None:
+        if not self._preview_video_url:
+            return
+        if self.base_preview_stack.currentWidget() is not self.base_video_widget:
+            self.base_preview_stack.setCurrentWidget(self.base_video_widget)
+        self.base_video_player.play()
+
+    def _stop_base_video_preview(self) -> None:
+        self.base_video_player.stop()
+        self.base_video_player.setPosition(0)
 
     def _show_table_context_menu(self, position) -> None:
         item = self.table.itemAt(position)
