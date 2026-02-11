@@ -56,6 +56,7 @@ from app.ui.prompt_variation_window import PromptVariationWindow
 from app.ui.social_copy_window import SocialCopyWindow
 from app.ui.prompt_dialog import PromptDetailDialog
 from app.ui.dollimages_prompt_window import DollimagesPromptWindow
+from app.ui.video_prompt_template_window import VideoPromptTemplateWindow
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
 
@@ -102,6 +103,7 @@ class MainWindow(QMainWindow):
         self.prompt_variation_window: PromptVariationWindow | None = None
         self.social_copy_window: SocialCopyWindow | None = None
         self.dollimages_prompt_window: DollimagesPromptWindow | None = None
+        self.video_prompt_template_window: VideoPromptTemplateWindow | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -117,6 +119,7 @@ class MainWindow(QMainWindow):
         self._cached_category_counts: list[tuple[str, int]] | None = None
         self._image2vid_source_options: list[dict[str, Any]] = []
         self._image2vid_filtered_source_options: list[dict[str, Any]] = []
+        self._image2vid_prompt_templates: list[dict[str, Any]] = []
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -167,6 +170,8 @@ class MainWindow(QMainWindow):
         self.open_social_copy_action.triggered.connect(self.open_social_copy_window)
         self.open_dollimages_prompt_action = maintenance_menu.addAction("Prompts Dollimages")
         self.open_dollimages_prompt_action.triggered.connect(self.open_dollimages_prompt_window)
+        self.open_video_prompt_templates_action = maintenance_menu.addAction("Prompts tipo video")
+        self.open_video_prompt_templates_action.triggered.connect(self.open_video_prompt_template_window)
         maintenance_menu.addSeparator()
         self.clear_category_images_action = maintenance_menu.addAction("Vaciar imágenes por categoría")
         self.clear_category_images_action.triggered.connect(self.open_clear_category_images_dialog)
@@ -614,7 +619,9 @@ class MainWindow(QMainWindow):
         self.image2vid_positive_input = QPlainTextEdit()
         self.image2vid_positive_input.setPlaceholderText("Prompt positivo")
         self.image2vid_positive_input.setFixedHeight(90)
-        image2vid_layout.addWidget(self.image2vid_positive_input, 3, 1, 1, 6)
+        image2vid_layout.addWidget(self.image2vid_positive_input, 3, 1, 1, 5)
+        self.image2vid_pick_prompt_btn = QPushButton("Usar prompt tipo...")
+        image2vid_layout.addWidget(self.image2vid_pick_prompt_btn, 3, 6)
 
         image2vid_layout.addWidget(QLabel("Prompt -:"), 4, 0)
         self.image2vid_negative_input = QPlainTextEdit()
@@ -682,6 +689,42 @@ class MainWindow(QMainWindow):
         source_picker_actions.addWidget(self.image2vid_source_cancel_btn)
         source_picker_actions.addWidget(self.image2vid_source_apply_btn)
         source_picker_layout.addLayout(source_picker_actions)
+
+        self.image2vid_prompt_picker_dialog = QDialog(self)
+        self.image2vid_prompt_picker_dialog.setWindowTitle("Seleccionar prompt tipo para video")
+        self.image2vid_prompt_picker_dialog.setModal(True)
+        self.image2vid_prompt_picker_dialog.resize(980, 620)
+        prompt_picker_layout = QVBoxLayout(self.image2vid_prompt_picker_dialog)
+
+        prompt_filter_row = QHBoxLayout()
+        prompt_filter_row.addWidget(QLabel("Buscar:"))
+        self.image2vid_prompt_search_input = QLineEdit()
+        self.image2vid_prompt_search_input.setPlaceholderText("Filtrar por título o texto del prompt")
+        prompt_filter_row.addWidget(self.image2vid_prompt_search_input)
+        prompt_filter_row.addWidget(QLabel("Total:"))
+        self.image2vid_prompt_count_label = QLabel("0")
+        prompt_filter_row.addWidget(self.image2vid_prompt_count_label)
+        prompt_filter_row.addStretch(1)
+        prompt_picker_layout.addLayout(prompt_filter_row)
+
+        self.image2vid_prompt_table = QTableWidget(0, 2)
+        self.image2vid_prompt_table.setHorizontalHeaderLabels(["Título", "Prompt tipo"])
+        self.image2vid_prompt_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.image2vid_prompt_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.image2vid_prompt_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.image2vid_prompt_table.verticalHeader().setVisible(False)
+        prompt_header = self.image2vid_prompt_table.horizontalHeader()
+        prompt_header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        prompt_header.setSectionResizeMode(1, QHeaderView.Stretch)
+        prompt_picker_layout.addWidget(self.image2vid_prompt_table, 1)
+
+        prompt_picker_actions = QHBoxLayout()
+        prompt_picker_actions.addStretch(1)
+        self.image2vid_prompt_cancel_btn = QPushButton("Cancelar")
+        self.image2vid_prompt_apply_btn = QPushButton("Usar prompt")
+        prompt_picker_actions.addWidget(self.image2vid_prompt_cancel_btn)
+        prompt_picker_actions.addWidget(self.image2vid_prompt_apply_btn)
+        prompt_picker_layout.addLayout(prompt_picker_actions)
 
         self.reel_dialog = QDialog(self)
         self.reel_dialog.setWindowTitle("Reel Instagram")
@@ -1017,7 +1060,14 @@ class MainWindow(QMainWindow):
         self.image2vid_seconds_spin.valueChanged.connect(self._update_image2vid_labels)
         self.image2vid_reload_sources_btn.clicked.connect(self._populate_image2vid_sources)
         self.image2vid_select_source_btn.clicked.connect(self.open_image2vid_source_picker)
+        self.image2vid_pick_prompt_btn.clicked.connect(self.open_image2vid_prompt_picker)
         self.image2vid_source_cancel_btn.clicked.connect(self.image2vid_source_picker_dialog.reject)
+        self.image2vid_prompt_cancel_btn.clicked.connect(self.image2vid_prompt_picker_dialog.reject)
+        self.image2vid_prompt_apply_btn.clicked.connect(self._apply_selected_image2vid_prompt_template)
+        self.image2vid_prompt_search_input.textChanged.connect(self._filter_image2vid_prompt_templates)
+        self.image2vid_prompt_table.itemDoubleClicked.connect(
+            lambda _item: self._apply_selected_image2vid_prompt_template()
+        )
         self.image2vid_source_apply_btn.clicked.connect(self._apply_selected_image2vid_source)
         self.image2vid_source_table.itemSelectionChanged.connect(self._update_image2vid_source_preview)
         self.image2vid_source_table.itemDoubleClicked.connect(
@@ -1056,6 +1106,7 @@ class MainWindow(QMainWindow):
         self._update_nsfw_controls()
         self._update_dollimages_workflow_controls()
         self._update_dollimages_manual_workflow_controls()
+        self._load_image2vid_prompt_templates()
 
         self._update_right_column_visibility()
         self.prompt_dialog: PromptDetailDialog | None = None
@@ -1337,6 +1388,21 @@ class MainWindow(QMainWindow):
 
     def _clear_dollimages_prompt_window(self) -> None:
         self.dollimages_prompt_window = None
+
+    def open_video_prompt_template_window(self) -> None:
+        if self.video_prompt_template_window and self.video_prompt_template_window.isVisible():
+            self.video_prompt_template_window.activateWindow()
+            self.video_prompt_template_window.raise_()
+            return
+        window = VideoPromptTemplateWindow()
+        window.setAttribute(Qt.WA_DeleteOnClose, True)
+        window.catalog_updated.connect(self._load_image2vid_prompt_templates)
+        window.destroyed.connect(self._clear_video_prompt_template_window)
+        self.video_prompt_template_window = window
+        window.show()
+
+    def _clear_video_prompt_template_window(self) -> None:
+        self.video_prompt_template_window = None
 
     def open_clear_category_images_dialog(self) -> None:
         filters = self.store.fetch_prompt_filters()
@@ -2106,6 +2172,50 @@ class MainWindow(QMainWindow):
         self.image2vid_selected_source = option
         self._update_image2vid_source_label()
         self.image2vid_source_picker_dialog.accept()
+
+    def _load_image2vid_prompt_templates(self) -> None:
+        rows = self.store.list_video_prompt_templates(include_disabled=False)
+        self._image2vid_prompt_templates = [
+            {"id": row.id, "title": row.title, "prompt_text": row.prompt_text}
+            for row in rows
+        ]
+
+    def open_image2vid_prompt_picker(self) -> None:
+        self._load_image2vid_prompt_templates()
+        self._filter_image2vid_prompt_templates()
+        self.image2vid_prompt_picker_dialog.exec()
+
+    def _filter_image2vid_prompt_templates(self) -> None:
+        query = self.image2vid_prompt_search_input.text().strip().lower()
+        self.image2vid_prompt_table.setRowCount(0)
+
+        for template in self._image2vid_prompt_templates:
+            haystack = f"{template['title']} {template['prompt_text']}".lower()
+            if query and query not in haystack:
+                continue
+            row = self.image2vid_prompt_table.rowCount()
+            self.image2vid_prompt_table.insertRow(row)
+            title_item = QTableWidgetItem(str(template["title"]))
+            title_item.setData(Qt.UserRole, int(template["id"]))
+            self.image2vid_prompt_table.setItem(row, 0, title_item)
+            self.image2vid_prompt_table.setItem(row, 1, QTableWidgetItem(str(template["prompt_text"])))
+
+        self.image2vid_prompt_count_label.setText(str(self.image2vid_prompt_table.rowCount()))
+        if self.image2vid_prompt_table.rowCount() > 0:
+            self.image2vid_prompt_table.selectRow(0)
+
+    def _apply_selected_image2vid_prompt_template(self) -> None:
+        selected_rows = self.image2vid_prompt_table.selectionModel().selectedRows()
+        if not selected_rows:
+            QMessageBox.warning(self, "Prompts tipo video", "Selecciona un prompt tipo.")
+            return
+
+        row = selected_rows[0].row()
+        prompt_item = self.image2vid_prompt_table.item(row, 1)
+        if not prompt_item:
+            return
+        self.image2vid_positive_input.setPlainText(prompt_item.text().strip())
+        self.image2vid_prompt_picker_dialog.accept()
 
     def generate_image2vid(self) -> None:
         source_info = self.image2vid_selected_source or {}

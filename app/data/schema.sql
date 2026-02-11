@@ -180,3 +180,24 @@ FOR EACH ROW
 BEGIN
   UPDATE dollimage_prompt SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
+
+
+-- 10) Templates de prompts para video (Image2Vid)
+CREATE TABLE IF NOT EXISTS video_prompt_template (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT NOT NULL,
+  prompt_text TEXT NOT NULL,
+  enabled     INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_video_prompt_template_enabled
+ON video_prompt_template(enabled, title);
+
+CREATE TRIGGER IF NOT EXISTS trg_video_prompt_template_updated_at
+AFTER UPDATE ON video_prompt_template
+FOR EACH ROW
+BEGIN
+  UPDATE video_prompt_template SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
