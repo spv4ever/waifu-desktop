@@ -16,6 +16,8 @@ from app.data.repositories import (
     PromptItemRepository,
     SocialCopyRepository,
     SocialCopyRow,
+    VideoPromptTemplateRepository,
+    VideoPromptTemplateRow,
     PromptVariationRow,
     PromptVariationRepository,
     QueueRepository,
@@ -391,6 +393,25 @@ class BaseStore:
     def import_dollimage_prompts(self, prompts: list[dict[str, Any]], *, replace: bool = False) -> int:
         raise NotImplementedError
 
+    def list_video_prompt_templates(self, *, include_disabled: bool = False) -> list[VideoPromptTemplateRow]:
+        raise NotImplementedError
+
+    def save_video_prompt_template(
+        self,
+        *,
+        template_id: int | None,
+        title: str,
+        prompt_text: str,
+        enabled: bool,
+    ) -> int:
+        raise NotImplementedError
+
+    def delete_video_prompt_template(self, *, template_id: int) -> None:
+        raise NotImplementedError
+
+    def ensure_video_prompt_templates_seeded(self, templates: list[dict[str, str]]) -> int:
+        raise NotImplementedError
+
 
 class SQLiteStore(BaseStore):
     def __init__(self) -> None:
@@ -402,6 +423,7 @@ class SQLiteStore(BaseStore):
         self._variations = PromptVariationRepository()
         self._social_copies = SocialCopyRepository()
         self._dollimage_prompts = DollimagePromptRepository()
+        self._video_prompt_templates = VideoPromptTemplateRepository()
         self._kv = KVStore()
 
     def fetch_prompt_filters(self) -> dict[str, list[str]]:
@@ -1400,3 +1422,35 @@ class SQLiteStore(BaseStore):
                     )
                     inserted += 1
         return inserted
+
+    def list_video_prompt_templates(self, *, include_disabled: bool = False) -> list[VideoPromptTemplateRow]:
+        with get_connection() as conn:
+            return self._video_prompt_templates.list(conn, include_disabled=include_disabled)
+
+    def save_video_prompt_template(
+        self,
+        *,
+        template_id: int | None,
+        title: str,
+        prompt_text: str,
+        enabled: bool,
+    ) -> int:
+        with get_connection() as conn:
+            with conn:
+                return self._video_prompt_templates.save(
+                    conn,
+                    template_id=template_id,
+                    title=title,
+                    prompt_text=prompt_text,
+                    enabled=enabled,
+                )
+
+    def delete_video_prompt_template(self, *, template_id: int) -> None:
+        with get_connection() as conn:
+            with conn:
+                self._video_prompt_templates.delete(conn, template_id=template_id)
+
+    def ensure_video_prompt_templates_seeded(self, templates: list[dict[str, str]]) -> int:
+        with get_connection() as conn:
+            with conn:
+                return self._video_prompt_templates.ensure_seeded(conn, templates)

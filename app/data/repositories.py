@@ -51,6 +51,14 @@ class DollimagePromptRow:
     enabled: bool
 
 
+@dataclass(frozen=True)
+class VideoPromptTemplateRow:
+    id: int
+    title: str
+    prompt_text: str
+    enabled: bool
+
+
 class PackRepository:
     def create(self, conn: sqlite3.Connection, *, category: str, variant: str, requested_n: int, notes: str) -> int:
         cur = conn.execute(
@@ -446,6 +454,89 @@ class DollimagePromptRepository:
 
     def delete(self, conn: sqlite3.Connection, *, prompt_id: int) -> None:
         conn.execute("DELETE FROM dollimage_prompt WHERE id = ?", (prompt_id,))
+
+
+class VideoPromptTemplateRepository:
+    def list(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        include_disabled: bool = False,
+    ) -> list[VideoPromptTemplateRow]:
+        rows = conn.execute(
+            """
+            SELECT id, title, prompt_text, enabled
+            FROM video_prompt_template
+            WHERE (? = 1) OR enabled = 1
+            ORDER BY title, id
+            """,
+            (1 if include_disabled else 0,),
+        ).fetchall()
+
+        return [
+            VideoPromptTemplateRow(
+                id=int(row["id"]),
+                title=str(row["title"]),
+                prompt_text=str(row["prompt_text"]),
+                enabled=bool(row["enabled"]),
+            )
+            for row in rows
+        ]
+
+    def save(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        template_id: int | None,
+        title: str,
+        prompt_text: str,
+        enabled: bool,
+    ) -> int:
+        if template_id:
+            conn.execute(
+                """
+                UPDATE video_prompt_template
+                SET title = ?, prompt_text = ?, enabled = ?, updated_at = datetime('now')
+                WHERE id = ?
+                """,
+                (title, prompt_text, 1 if enabled else 0, template_id),
+            )
+            return int(template_id)
+
+        cur = conn.execute(
+            """
+            INSERT INTO video_prompt_template (title, prompt_text, enabled)
+            VALUES (?, ?, ?)
+            """,
+            (title, prompt_text, 1 if enabled else 0),
+        )
+        return int(cur.lastrowid)
+
+    def delete(self, conn: sqlite3.Connection, *, template_id: int) -> None:
+        conn.execute("DELETE FROM video_prompt_template WHERE id = ?", (template_id,))
+
+    def ensure_seeded(self, conn: sqlite3.Connection, templates: list[dict[str, str]]) -> int:
+        row = conn.execute("SELECT COUNT(*) AS n FROM video_prompt_template").fetchone()
+        if row and int(row["n"]) > 0:
+            return 0
+
+        inserted = 0
+        for template in templates or []:
+            if not isinstance(template, dict):
+                continue
+            title = str(template.get("title", "") or "").strip()
+            prompt_text = str(template.get("prompt_text", "") or "").strip()
+            if not title or not prompt_text:
+                continue
+            conn.execute(
+                """
+                INSERT INTO video_prompt_template (title, prompt_text, enabled)
+                VALUES (?, ?, 1)
+                """,
+                (title, prompt_text),
+            )
+            inserted += 1
+        return inserted
 
 
 class PromptItemRepository:
