@@ -884,7 +884,8 @@ class MainWindow(QMainWindow):
 
         self.base_video_player = QMediaPlayer(self)
         self.base_video_audio = QAudioOutput(self)
-        self.base_video_audio.setVolume(0)
+        # Keep preview audio enabled so Cloudinary videos with music can be validated in-app.
+        self.base_video_audio.setVolume(1.0)
         self.base_video_player.setAudioOutput(self.base_video_audio)
         self.base_video_player.setVideoOutput(self.base_video_widget)
         self.base_video_player.mediaStatusChanged.connect(self._on_base_video_status_changed)
