@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import random
+import shutil
+import subprocess
 import time
 from datetime import datetime
 from pathlib import Path
@@ -156,6 +159,7 @@ class QueueWorker:
 
         try:
             video_path = build_output_path(video_json, workflow_key="image2vid")
+            video_path = self._add_reel_music_to_image2vid(video_path=video_path)
             if source_category == "dollimages":
                 payload = upload_dollimages_video(
                     video_path=video_path,
@@ -178,6 +182,126 @@ class QueueWorker:
             "image2vid_cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
         }
         self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
+
+    def _pick_reel_audio_for_duration(self, *, duration_seconds: float) -> tuple[Path, float, bool] | None:
+        repo_root = Path(__file__).resolve().parents[2]
+        audio_dir = repo_root / "resources" / "audio"
+        if not audio_dir.exists():
+            return None
+
+        audio_files = sorted(audio_dir.glob("*.mp3"))
+        if not audio_files:
+            return None
+
+        audio_path = random.choice(audio_files)
+        ffprobe_path = shutil.which("ffprobe")
+        start_time = 0.0
+        loop_audio = False
+
+        if ffprobe_path:
+            try:
+                probe = subprocess.run(
+                    [
+                        ffprobe_path,
+                        "-v",
+                        "error",
+                        "-show_entries",
+                        "format=duration",
+                        "-of",
+                        "default=noprint_wrappers=1:nokey=1",
+                        str(audio_path),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                audio_duration = float(probe.stdout.strip())
+                if audio_duration > duration_seconds:
+                    start_time = random.uniform(0.0, max(audio_duration - duration_seconds, 0.0))
+                else:
+                    loop_audio = True
+            except (ValueError, subprocess.CalledProcessError):
+                loop_audio = True
+        else:
+            loop_audio = True
+
+        return audio_path, start_time, loop_audio
+
+    def _probe_video_duration(self, *, video_path: Path) -> float | None:
+        ffprobe_path = shutil.which("ffprobe")
+        if not ffprobe_path:
+            return None
+        try:
+            probe = subprocess.run(
+                [
+                    ffprobe_path,
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    str(video_path),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            return float(probe.stdout.strip())
+        except (ValueError, subprocess.CalledProcessError):
+            return None
+
+    def _add_reel_music_to_image2vid(self, *, video_path: Path) -> Path:
+        if not video_path.exists():
+            return video_path
+
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            self._log("[WORKER] ffmpeg no disponible; se sube image2vid sin música.")
+            return video_path
+
+        duration_seconds = self._probe_video_duration(video_path=video_path)
+        if not duration_seconds or duration_seconds <= 0:
+            self._log("[WORKER] No se pudo medir duración de image2vid; se sube sin música.")
+            return video_path
+
+        audio_selection = self._pick_reel_audio_for_duration(duration_seconds=duration_seconds)
+        if not audio_selection:
+            return video_path
+
+        audio_path, start_time, loop_audio = audio_selection
+        output_path = video_path.with_name(f"{video_path.stem}_music{video_path.suffix}")
+
+        cmd = [ffmpeg_path, "-y", "-i", str(video_path)]
+        if loop_audio:
+            cmd += ["-stream_loop", "-1"]
+        cmd += [
+            "-ss",
+            f"{start_time}",
+            "-t",
+            f"{duration_seconds}",
+            "-i",
+            str(audio_path),
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            "-shortest",
+            str(output_path),
+        ]
+
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as exc:
+            self._log(f"[WORKER] No se pudo añadir música a image2vid: {exc}")
+            return video_path
+
+        self._log(f"[WORKER] Image2Vid con música aplicada: {audio_path.name}")
+        return output_path
 
     def recover_inflight_jobs(self, conn=None) -> tuple[int, int, int]:
         return self.store.recover_inflight_jobs()
