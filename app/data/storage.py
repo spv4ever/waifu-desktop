@@ -1454,6 +1454,74 @@ class SQLiteStore(BaseStore):
         with get_connection() as conn:
             with conn:
                 return self._video_prompt_templates.ensure_seeded(conn, templates)
+
+    def list_anime_character_lists(self, *, include_disabled: bool = False) -> dict[str, list[str]]:
+        with get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT list_name, name
+                FROM anime_character
+                WHERE (? = 1) OR enabled = 1
+                ORDER BY list_name, name
+                """,
+                (1 if include_disabled else 0,),
+            ).fetchall()
+        out: dict[str, list[str]] = {}
+        for row in rows:
+            out.setdefault(str(row["list_name"]), []).append(str(row["name"]))
+        return out
+
+    def list_anime_prompts(self, *, include_disabled: bool = False) -> list[dict[str, object]]:
+        with get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, title, prompt_text, enabled
+                FROM anime_prompt
+                WHERE (? = 1) OR enabled = 1
+                ORDER BY title, id
+                """,
+                (1 if include_disabled else 0,),
+            ).fetchall()
+        return [
+            {
+                "id": int(row["id"]),
+                "title": str(row["title"]),
+                "prompt_text": str(row["prompt_text"]),
+                "enabled": bool(row["enabled"]),
+            }
+            for row in rows
+        ]
+
+    def save_anime_character_list(self, *, list_name: str, characters: list[str]) -> int:
+        cleaned = []
+        seen = set()
+        for character in characters:
+            name = str(character).strip()
+            key = name.lower()
+            if name and key not in seen:
+                cleaned.append(name)
+                seen.add(key)
+        if not list_name.strip() or not cleaned:
+            return 0
+        with get_connection() as conn:
+            with conn:
+                conn.execute(
+                    "UPDATE anime_character SET enabled = 0, updated_at = datetime('now') WHERE list_name = ?",
+                    (list_name.strip(),),
+                )
+                for name in cleaned:
+                    conn.execute(
+                        """
+                        INSERT INTO anime_character (list_name, name, enabled)
+                        VALUES (?, ?, 1)
+                        ON CONFLICT(list_name, name) DO UPDATE SET
+                            enabled = 1,
+                            updated_at = datetime('now')
+                        """,
+                        (list_name.strip(), name),
+                    )
+        return len(cleaned)
+
     def save_anime_character(
         self,
         *,
