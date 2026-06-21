@@ -221,34 +221,60 @@ class QueueWorker:
         prompt_item_id: int,
         meta: dict[str, Any],
         checkpoint_base: str | None,
-        image_json: dict[str, Any] | None,
+        image_json: dict[str, Any] | None = None,
+        image_jsons: list[dict[str, Any]] | None = None,
         title: str,
     ) -> None:
-        if not image_json:
+        images = image_jsons if image_jsons is not None else ([image_json] if image_json else [])
+        images = [image for image in images if image]
+        if not images:
             self._log(f"[WORKER] Anime sin imagen para subir prompt_item_id={prompt_item_id}")
             return
-        if meta.get("anime_cloudinary_url"):
+
+        uploaded_images = meta.get("anime_cloudinary_images")
+        if isinstance(uploaded_images, list) and len(uploaded_images) >= len(images):
             return
-        created_at = str(meta.get("created_at") or "").strip() or datetime.now().isoformat(timespec="seconds")
-        try:
-            image_path = build_output_path(image_json, workflow_key="anime_v5")
-            payload = upload_anime_image(
-                image_path=image_path,
-                title=title or "Anime",
-                checkpoint=checkpoint_base,
-                version=settings.waifu_version or None,
-                created_at=created_at,
-            )
-        except (CloudinaryUploadError, OSError, ValueError) as exc:
-            self._log(f"[WORKER] Cloudinary anime error prompt_item_id={prompt_item_id}: {exc}")
+        if meta.get("anime_cloudinary_url") and len(images) == 1:
             return
 
+        created_at = str(meta.get("created_at") or "").strip() or datetime.now().isoformat(timespec="seconds")
+        successful_uploads: list[dict[str, Any]] = []
+        for index, current_image_json in enumerate(images, start=1):
+            try:
+                image_path = build_output_path(current_image_json, workflow_key="anime_v5")
+                payload = upload_anime_image(
+                    image_path=image_path,
+                    title=f"{title or 'Anime'} #{index}" if len(images) > 1 else title or "Anime",
+                    checkpoint=checkpoint_base,
+                    version=settings.waifu_version or None,
+                    created_at=created_at,
+                )
+            except (CloudinaryUploadError, OSError, ValueError) as exc:
+                self._log(
+                    f"[WORKER] Cloudinary anime error prompt_item_id={prompt_item_id} "
+                    f"imagen={index}/{len(images)}: {exc}"
+                )
+                continue
+
+            successful_uploads.append(
+                {
+                    "url": payload.get("secure_url") or payload.get("url"),
+                    "public_id": payload.get("public_id"),
+                    "image_json": current_image_json,
+                }
+            )
+
+        if not successful_uploads:
+            return
+
+        first_upload = successful_uploads[0]
         self.store.update_prompt_item_meta(
             prompt_id=prompt_item_id,
             updates={
-                "anime_cloudinary_url": payload.get("secure_url") or payload.get("url"),
-                "anime_cloudinary_public_id": payload.get("public_id"),
+                "anime_cloudinary_url": first_upload.get("url"),
+                "anime_cloudinary_public_id": first_upload.get("public_id"),
                 "anime_cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
+                "anime_cloudinary_images": successful_uploads,
             },
         )
 
@@ -835,6 +861,12 @@ class QueueWorker:
                         meta=meta,
                         checkpoint_base=checkpoint_base,
                         image_json=base_img or up_img,
+                        image_jsons=_select_dollimages_upload_images(
+                            base_images=base_images,
+                            up_images=up_images,
+                            base_img=base_img,
+                            up_img=up_img,
+                        ),
                         title=str(item.get("title") or ""),
                     )
                 else:
