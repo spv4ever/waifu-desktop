@@ -2195,19 +2195,26 @@ class MainWindow(QMainWindow):
             if not isinstance(meta, dict):
                 continue
 
+            waifu_urls = [
+                str(image.get("url") or "").strip()
+                for image in meta.get("waifu_cloudinary_images", [])
+                if isinstance(image, dict) and str(image.get("url") or "").strip()
+            ]
             waifu_url = str(meta.get("waifu_cloudinary_url") or "").strip()
+            if waifu_url and waifu_url not in waifu_urls:
+                waifu_urls.insert(0, waifu_url)
             doll_url = str(meta.get("cloudinary_url") or "").strip()
             prompt_id = int(row.get("id") or 0)
             title = str(row.get("title") or "").strip() or f"Prompt {prompt_id}"
-            if waifu_url:
+            for image_index, current_waifu_url in enumerate(waifu_urls, start=1):
                 options.append(
                     {
                         "prompt_id": prompt_id,
                         "source_category": "waifu",
                         "category": str(meta.get("category") or meta.get("workflow") or "waifu"),
                         "variant": str(meta.get("combo", {}).get("variant") or meta.get("dollimages_typology") or "?"),
-                        "url": waifu_url,
-                        "title": title,
+                        "url": current_waifu_url,
+                        "title": f"{title} #{image_index}" if len(waifu_urls) > 1 else title,
                     }
                 )
             if doll_url:
