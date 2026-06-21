@@ -38,6 +38,21 @@ from app.services.comfy_history_parser import (
 WorkerResult = Literal["PROCESSED", "PAUSED", "EMPTY"]
 
 
+def _select_dollimages_upload_images(
+    *,
+    base_images: list[dict[str, Any]],
+    up_images: list[dict[str, Any]],
+    base_img: dict[str, Any] | None,
+    up_img: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    """Prioriza todas las imágenes upscale y conserva el lote completo."""
+    selected_images = up_images or base_images
+    if selected_images:
+        return selected_images
+    fallback_image = up_img or base_img
+    return [fallback_image] if fallback_image else []
+
+
 class QueueWorker:
     def __init__(self, *, log_callback: Callable[[str], None] | None = None) -> None:
         self.store = get_store()
@@ -778,9 +793,12 @@ class QueueWorker:
                         prompt_item_id=prompt_item_id,
                         meta=meta,
                         checkpoint_base=checkpoint_base,
-                        image_json=base_img or up_img,
-                        image_jsons=(
-                            base_images or up_images or ([base_img or up_img] if (base_img or up_img) else [])
+                        image_json=up_img or base_img,
+                        image_jsons=_select_dollimages_upload_images(
+                            base_images=base_images,
+                            up_images=up_images,
+                            base_img=base_img,
+                            up_img=up_img,
                         ),
                         title=str(item.get("title") or ""),
                     )
