@@ -1454,3 +1454,69 @@ class SQLiteStore(BaseStore):
         with get_connection() as conn:
             with conn:
                 return self._video_prompt_templates.ensure_seeded(conn, templates)
+    def save_anime_character(
+        self,
+        *,
+        character_id: int | None,
+        list_name: str,
+        name: str,
+        enabled: bool,
+    ) -> int:
+        with get_connection() as conn:
+            with conn:
+                if character_id:
+                    conn.execute(
+                        """
+                        UPDATE anime_character
+                        SET list_name = ?, name = ?, enabled = ?, updated_at = datetime('now')
+                        WHERE id = ?
+                        """,
+                        (list_name, name, 1 if enabled else 0, character_id),
+                    )
+                    return int(character_id)
+                cur = conn.execute(
+                    """
+                    INSERT INTO anime_character (list_name, name, enabled)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(list_name, name) DO UPDATE SET
+                        enabled = excluded.enabled,
+                        updated_at = datetime('now')
+                    RETURNING id
+                    """,
+                    (list_name, name, 1 if enabled else 0),
+                )
+                return int(cur.fetchone()["id"])
+
+    def save_anime_prompt(
+        self,
+        *,
+        prompt_id: int | None,
+        title: str,
+        prompt_text: str,
+        enabled: bool,
+    ) -> int:
+        with get_connection() as conn:
+            with conn:
+                if prompt_id:
+                    conn.execute(
+                        """
+                        UPDATE anime_prompt
+                        SET title = ?, prompt_text = ?, enabled = ?, updated_at = datetime('now')
+                        WHERE id = ?
+                        """,
+                        (title, prompt_text, 1 if enabled else 0, prompt_id),
+                    )
+                    return int(prompt_id)
+                cur = conn.execute(
+                    """
+                    INSERT INTO anime_prompt (title, prompt_text, enabled)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(title, prompt_text) DO UPDATE SET
+                        enabled = excluded.enabled,
+                        updated_at = datetime('now')
+                    RETURNING id
+                    """,
+                    (title, prompt_text, 1 if enabled else 0),
+                )
+                return int(cur.fetchone()["id"])
+

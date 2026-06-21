@@ -42,6 +42,15 @@ class DollimagesManualPromptCreate:
 
 
 @dataclass(frozen=True)
+class AnimeGenerationCreate:
+    list_name: str
+    prompt_title: str
+    prompt_text: str
+    characters: list[str]
+    quantity_per_character: int
+
+
+@dataclass(frozen=True)
 class ManualPromptCreate:
     category: str
     variant: str

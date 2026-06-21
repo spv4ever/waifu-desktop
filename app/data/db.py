@@ -10,7 +10,7 @@ from app.config.settings import settings
 def ensure_data_dir() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-SCHEMA_VERSION = 9
+SCHEMA_VERSION = 10
 
 REQUIRED_COLUMNS: tuple[tuple[str, str], ...] = (
     ("prompt_base", "iteration_groups"),
@@ -18,6 +18,8 @@ REQUIRED_COLUMNS: tuple[tuple[str, str], ...] = (
 
 REQUIRED_TABLES: tuple[str, ...] = (
     "video_prompt_template",
+    "anime_character",
+    "anime_prompt",
 )
 
 

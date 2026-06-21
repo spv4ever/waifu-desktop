@@ -18,6 +18,7 @@ from app.services.cloudinary_uploader import (
     CloudinaryUploadError,
     upload_dollimages_image,
     upload_dollimages_video,
+    upload_anime_image,
     upload_waifu_image,
     upload_waifu_video,
 )
@@ -138,6 +139,44 @@ class QueueWorker:
             "waifu_cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
         }
         self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
+
+
+    def _upload_anime_to_cloudinary(
+        self,
+        *,
+        prompt_item_id: int,
+        meta: dict[str, Any],
+        checkpoint_base: str | None,
+        image_json: dict[str, Any] | None,
+        title: str,
+    ) -> None:
+        if not image_json:
+            self._log(f"[WORKER] Anime sin imagen para subir prompt_item_id={prompt_item_id}")
+            return
+        if meta.get("anime_cloudinary_url"):
+            return
+        created_at = str(meta.get("created_at") or "").strip() or datetime.now().isoformat(timespec="seconds")
+        try:
+            image_path = build_output_path(image_json, workflow_key="anime_v5")
+            payload = upload_anime_image(
+                image_path=image_path,
+                title=title or "Anime",
+                checkpoint=checkpoint_base,
+                version=settings.waifu_version or None,
+                created_at=created_at,
+            )
+        except (CloudinaryUploadError, OSError, ValueError) as exc:
+            self._log(f"[WORKER] Cloudinary anime error prompt_item_id={prompt_item_id}: {exc}")
+            return
+
+        self.store.update_prompt_item_meta(
+            prompt_id=prompt_item_id,
+            updates={
+                "anime_cloudinary_url": payload.get("secure_url") or payload.get("url"),
+                "anime_cloudinary_public_id": payload.get("public_id"),
+                "anime_cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
+            },
+        )
 
     def _upload_image2vid_to_cloudinary(
         self,
@@ -428,7 +467,7 @@ class QueueWorker:
         checkpoint_base = checkpoints.get("base")
         checkpoint_refiner = checkpoints.get("refiner")
         workflow_key = str(meta.get("workflow") or "waifu")
-        use_dollimages_comfy = workflow_key in {"dollimages", "dollimagesz"}
+        use_dollimages_comfy = workflow_key in {"dollimages", "dollimagesz", "anime_v5"}
         if workflow_key == "image2vid":
             use_dollimages_comfy = True
         comfy_client = self.dollimages_comfy if use_dollimages_comfy and self.dollimages_comfy else self.comfy
@@ -466,6 +505,17 @@ class QueueWorker:
                 if workflow_key == "dollimagesz"
                 else "comfyui_workflow_dollimages"
             )
+        elif workflow_key == "anime_v5":
+            list_name = sanitize_segment(meta.get("anime_character_list") or combo.get("variant") or "characters")
+            character = sanitize_segment(meta.get("anime_character") or item.get("title") or prompt_item_id)
+            folder = sanitize_relpath(f"anime/{list_name}/{character}")
+            base_name = sanitize_segment(f"{prompt_item_id}")
+            base_prefix = sanitize_relpath(f"{folder}/{base_name}")
+            upscale_prefix = base_prefix
+            width = int(meta.get("width") or combo.get("width") or 1024)
+            height = int(meta.get("height") or combo.get("height") or 1408)
+            seed = meta.get("seed")
+            mapping_key = "comfyui_workflow_anime_v5"
         elif workflow_key == "image2vid":
             source_category = str(meta.get("image2vid_source_category") or "waifu").strip().lower()
             folder = sanitize_relpath(f"image2vid/{'dollimages' if source_category == 'dollimages' else 'waifu'}")
@@ -689,6 +739,14 @@ class QueueWorker:
                     )
                 elif workflow_key in {"dollimages", "dollimagesz"}:
                     self._upload_dollimages_to_cloudinary(
+                        prompt_item_id=prompt_item_id,
+                        meta=meta,
+                        checkpoint_base=checkpoint_base,
+                        image_json=base_img or up_img,
+                        title=str(item.get("title") or ""),
+                    )
+                elif workflow_key == "anime_v5":
+                    self._upload_anime_to_cloudinary(
                         prompt_item_id=prompt_item_id,
                         meta=meta,
                         checkpoint_base=checkpoint_base,
