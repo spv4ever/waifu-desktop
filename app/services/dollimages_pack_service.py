@@ -12,6 +12,7 @@ from app.config.settings import settings
 from app.data.storage import get_store
 from app.domain.models import DollimagesPackCreate
 from app.services.image_validation import validate_image_file
+from app.services.path_utils import unique_suffixed_path
 
 
 @dataclass(frozen=True)
@@ -57,16 +58,7 @@ class DollimagesPackService:
         target = input_dir / src.name
         if src.resolve() == target.resolve():
             return src.name
-        if target.exists():
-            stem = src.stem
-            suffix = src.suffix
-            counter = 1
-            while True:
-                candidate = input_dir / f"{stem}_{counter}{suffix}"
-                if not candidate.exists():
-                    target = candidate
-                    break
-                counter += 1
+        target = unique_suffixed_path(target)
         shutil.copy2(src, target)
         return target.name
 
