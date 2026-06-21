@@ -581,9 +581,13 @@ class MainWindow(QMainWindow):
         anime_group = QGroupBox("Prompt reutilizable por personaje (anime-v5.json)")
         anime_grid = QGridLayout(anime_group)
         anime_grid.addWidget(QLabel("Lista:"), 0, 0)
-        self.anime_v5_list_input = QLineEdit()
-        self.anime_v5_list_input.setPlaceholderText("Ej: Personajes Dragon Ball")
-        anime_grid.addWidget(self.anime_v5_list_input, 0, 1, 1, 3)
+        self.anime_v5_list_combo = QComboBox()
+        self.anime_v5_list_combo.setEditable(True)
+        self.anime_v5_list_combo.setMinimumWidth(220)
+        self.anime_v5_list_combo.setPlaceholderText("Ej: Personajes Dragon Ball")
+        anime_grid.addWidget(self.anime_v5_list_combo, 0, 1, 1, 2)
+        self.anime_v5_save_list_btn = QPushButton("Guardar lista")
+        anime_grid.addWidget(self.anime_v5_save_list_btn, 0, 3)
         anime_grid.addWidget(QLabel("Imágenes por personaje:"), 0, 4)
         self.anime_v5_quantity_spin = QSpinBox()
         self.anime_v5_quantity_spin.setRange(1, 500)
@@ -592,7 +596,9 @@ class MainWindow(QMainWindow):
         anime_grid.addWidget(QLabel("Título prompt:"), 1, 0)
         self.anime_v5_prompt_title_input = QLineEdit()
         self.anime_v5_prompt_title_input.setPlaceholderText("Ej: Traje elegante penthouse")
-        anime_grid.addWidget(self.anime_v5_prompt_title_input, 1, 1, 1, 5)
+        anime_grid.addWidget(self.anime_v5_prompt_title_input, 1, 1, 1, 4)
+        self.anime_v5_pick_prompt_btn = QPushButton("Buscar prompt...")
+        anime_grid.addWidget(self.anime_v5_pick_prompt_btn, 1, 5)
         anime_grid.addWidget(QLabel("Personajes:"), 2, 0)
         self.anime_v5_characters_input = QPlainTextEdit()
         self.anime_v5_characters_input.setPlaceholderText("Un personaje por línea. Ej:\nGoku\nVegeta\nVidel")
@@ -606,6 +612,40 @@ class MainWindow(QMainWindow):
         self.anime_v5_generate_btn = QPushButton("Crear imágenes Anime V5")
         anime_grid.addWidget(self.anime_v5_generate_btn, 4, 4, 1, 2)
         anime_layout.addWidget(anime_group)
+
+        self.anime_v5_prompt_picker_dialog = QDialog(self)
+        self.anime_v5_prompt_picker_dialog.setWindowTitle("Seleccionar prompt Anime V5")
+        self.anime_v5_prompt_picker_dialog.setModal(True)
+        self.anime_v5_prompt_picker_dialog.resize(920, 560)
+        anime_prompt_picker_layout = QVBoxLayout(self.anime_v5_prompt_picker_dialog)
+        anime_prompt_filter_row = QHBoxLayout()
+        anime_prompt_filter_row.addWidget(QLabel("Buscar:"))
+        self.anime_v5_prompt_search_input = QLineEdit()
+        self.anime_v5_prompt_search_input.setPlaceholderText("Filtrar por título o prompt")
+        anime_prompt_filter_row.addWidget(self.anime_v5_prompt_search_input)
+        anime_prompt_filter_row.addWidget(QLabel("Total:"))
+        self.anime_v5_prompt_count_label = QLabel("0")
+        anime_prompt_filter_row.addWidget(self.anime_v5_prompt_count_label)
+        anime_prompt_picker_layout.addLayout(anime_prompt_filter_row)
+        self.anime_v5_prompt_table = QTableWidget(0, 2)
+        self.anime_v5_prompt_table.setHorizontalHeaderLabels(["Título", "Prompt"])
+        self.anime_v5_prompt_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.anime_v5_prompt_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.anime_v5_prompt_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.anime_v5_prompt_table.verticalHeader().setVisible(False)
+        anime_prompt_header = self.anime_v5_prompt_table.horizontalHeader()
+        anime_prompt_header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        anime_prompt_header.setSectionResizeMode(1, QHeaderView.Stretch)
+        anime_prompt_picker_layout.addWidget(self.anime_v5_prompt_table, 1)
+        anime_prompt_actions = QHBoxLayout()
+        anime_prompt_actions.addStretch(1)
+        self.anime_v5_prompt_cancel_btn = QPushButton("Cancelar")
+        self.anime_v5_prompt_apply_btn = QPushButton("Usar prompt")
+        anime_prompt_actions.addWidget(self.anime_v5_prompt_cancel_btn)
+        anime_prompt_actions.addWidget(self.anime_v5_prompt_apply_btn)
+        anime_prompt_picker_layout.addLayout(anime_prompt_actions)
+        self._anime_v5_prompt_templates: list[dict[str, object]] = []
+
         doll_manual_grid.setColumnStretch(7, 1)
 
         doll_manual_layout.addWidget(doll_manual_group)
@@ -1068,6 +1108,13 @@ class MainWindow(QMainWindow):
         self.open_image2vid_btn.clicked.connect(self.open_image2vid_dialog)
         self.open_anime_v5_btn.clicked.connect(self.anime_v5_dialog.show)
         self.anime_v5_generate_btn.clicked.connect(self.generate_anime_v5)
+        self.anime_v5_save_list_btn.clicked.connect(self.save_anime_v5_character_list)
+        self.anime_v5_list_combo.currentIndexChanged.connect(self._load_anime_v5_list_from_combo)
+        self.anime_v5_pick_prompt_btn.clicked.connect(self.open_anime_v5_prompt_picker)
+        self.anime_v5_prompt_cancel_btn.clicked.connect(self.anime_v5_prompt_picker_dialog.reject)
+        self.anime_v5_prompt_apply_btn.clicked.connect(self._apply_selected_anime_v5_prompt)
+        self.anime_v5_prompt_search_input.textChanged.connect(self._filter_anime_v5_prompts)
+        self.anime_v5_prompt_table.itemDoubleClicked.connect(lambda _item: self._apply_selected_anime_v5_prompt())
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
         self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
         self.dollimages_reference_btn.clicked.connect(self.select_dollimages_reference_image)
@@ -1147,6 +1194,8 @@ class MainWindow(QMainWindow):
         self._update_nsfw_controls()
         self._update_dollimages_workflow_controls()
         self._update_dollimages_manual_workflow_controls()
+        self._populate_anime_v5_lists()
+        self._load_anime_v5_prompts()
         self._load_image2vid_prompt_templates()
 
         self._update_right_column_visibility()
@@ -1782,8 +1831,91 @@ class MainWindow(QMainWindow):
         self._sync_manual_prompt_refiner_label()
 
 
+    def _populate_anime_v5_lists(self) -> None:
+        current = self.anime_v5_list_combo.currentText().strip()
+        self._anime_v5_character_lists = self.store.list_anime_character_lists()
+        self.anime_v5_list_combo.blockSignals(True)
+        self.anime_v5_list_combo.clear()
+        for list_name in sorted(self._anime_v5_character_lists):
+            self.anime_v5_list_combo.addItem(list_name, list_name)
+        if current:
+            idx = self.anime_v5_list_combo.findText(current)
+            if idx >= 0:
+                self.anime_v5_list_combo.setCurrentIndex(idx)
+            else:
+                self.anime_v5_list_combo.setEditText(current)
+        self.anime_v5_list_combo.blockSignals(False)
+        self._load_anime_v5_list_from_combo()
+
+    def _load_anime_v5_list_from_combo(self) -> None:
+        list_name = self.anime_v5_list_combo.currentText().strip()
+        characters = getattr(self, "_anime_v5_character_lists", {}).get(list_name)
+        if characters:
+            self.anime_v5_characters_input.setPlainText("\n".join(characters))
+
+    def save_anime_v5_character_list(self) -> None:
+        list_name = self.anime_v5_list_combo.currentText().strip()
+        characters = [line.strip() for line in self.anime_v5_characters_input.toPlainText().splitlines() if line.strip()]
+        if not list_name:
+            QMessageBox.warning(self, "Anime V5", "El nombre de la lista es obligatorio.")
+            return
+        if not characters:
+            QMessageBox.warning(self, "Anime V5", "Añade al menos un personaje a la lista.")
+            return
+        saved = self.store.save_anime_character_list(list_name=list_name, characters=characters)
+        self._populate_anime_v5_lists()
+        self.anime_v5_list_combo.setEditText(list_name)
+        QMessageBox.information(self, "Anime V5", f"Lista guardada con {saved} personajes.")
+
+    def _load_anime_v5_prompts(self) -> None:
+        self._anime_v5_prompt_templates = self.store.list_anime_prompts()
+        self._filter_anime_v5_prompts()
+
+    def open_anime_v5_prompt_picker(self) -> None:
+        self._load_anime_v5_prompts()
+        self.anime_v5_prompt_picker_dialog.show()
+        self.anime_v5_prompt_picker_dialog.raise_()
+        self.anime_v5_prompt_picker_dialog.activateWindow()
+
+    def _filter_anime_v5_prompts(self) -> None:
+        query = self.anime_v5_prompt_search_input.text().strip().lower()
+        rows = []
+        for prompt in getattr(self, "_anime_v5_prompt_templates", []):
+            haystack = f"{prompt.get('title', '')} {prompt.get('prompt_text', '')}".lower()
+            if query and query not in haystack:
+                continue
+            rows.append(prompt)
+        self.anime_v5_prompt_table.setRowCount(len(rows))
+        for row_idx, prompt in enumerate(rows):
+            title_item = QTableWidgetItem(str(prompt.get("title", "")))
+            title_item.setData(Qt.UserRole, prompt)
+            prompt_item = QTableWidgetItem(str(prompt.get("prompt_text", "")))
+            prompt_item.setData(Qt.UserRole, prompt)
+            self.anime_v5_prompt_table.setItem(row_idx, 0, title_item)
+            self.anime_v5_prompt_table.setItem(row_idx, 1, prompt_item)
+        self.anime_v5_prompt_count_label.setText(str(len(rows)))
+        if rows:
+            self.anime_v5_prompt_table.selectRow(0)
+
+    def _selected_anime_v5_prompt(self) -> dict[str, object] | None:
+        selected = self.anime_v5_prompt_table.selectionModel().selectedRows()
+        if not selected:
+            return None
+        item = self.anime_v5_prompt_table.item(selected[0].row(), 0)
+        data = item.data(Qt.UserRole) if item else None
+        return data if isinstance(data, dict) else None
+
+    def _apply_selected_anime_v5_prompt(self) -> None:
+        prompt = self._selected_anime_v5_prompt()
+        if not prompt:
+            QMessageBox.warning(self, "Anime V5", "Selecciona un prompt.")
+            return
+        self.anime_v5_prompt_title_input.setText(str(prompt.get("title", "")))
+        self.anime_v5_prompt_input.setPlainText(str(prompt.get("prompt_text", "")))
+        self.anime_v5_prompt_picker_dialog.accept()
+
     def generate_anime_v5(self) -> None:
-        list_name = self.anime_v5_list_input.text().strip()
+        list_name = self.anime_v5_list_combo.currentText().strip()
         prompt_title = self.anime_v5_prompt_title_input.text().strip()
         prompt_text = self.anime_v5_prompt_input.toPlainText().strip()
         characters = [line.strip() for line in self.anime_v5_characters_input.toPlainText().splitlines() if line.strip()]
