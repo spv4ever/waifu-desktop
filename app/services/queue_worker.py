@@ -156,34 +156,61 @@ class QueueWorker:
         prompt_item_id: int,
         meta: dict[str, Any],
         checkpoint_base: str | None,
-        image_json: dict[str, Any] | None,
+        image_json: dict[str, Any] | None = None,
+        image_jsons: list[dict[str, Any]] | None = None,
         title: str,
     ) -> None:
-        if not image_json:
+        images = image_jsons if image_jsons is not None else ([image_json] if image_json else [])
+        images = [image for image in images if image]
+        if not images:
             self._log(f"[WORKER] Waifu sin imagen para subir prompt_item_id={prompt_item_id}")
             return
-        if meta.get("waifu_cloudinary_url"):
+
+        uploaded_images = meta.get("waifu_cloudinary_images")
+        if isinstance(uploaded_images, list) and len(uploaded_images) >= len(images):
             return
+        if meta.get("waifu_cloudinary_url") and len(images) == 1:
+            return
+
         created_at = str(meta.get("created_at") or "").strip()
         if not created_at:
             created_at = datetime.now().isoformat(timespec="seconds")
-        try:
-            image_path = build_output_path(image_json, workflow_key="waifu")
-            payload = upload_waifu_image(
-                image_path=image_path,
-                title=title or "Waifu",
-                checkpoint=checkpoint_base,
-                version=settings.waifu_version or None,
-                created_at=created_at,
+
+        successful_uploads: list[dict[str, Any]] = []
+        for index, current_image_json in enumerate(images, start=1):
+            try:
+                image_path = build_output_path(current_image_json, workflow_key="waifu")
+                payload = upload_waifu_image(
+                    image_path=image_path,
+                    title=f"{title or 'Waifu'} #{index}" if len(images) > 1 else title or "Waifu",
+                    checkpoint=checkpoint_base,
+                    version=settings.waifu_version or None,
+                    created_at=created_at,
+                )
+            except (CloudinaryUploadError, OSError, ValueError) as exc:
+                self._log(
+                    f"[WORKER] Cloudinary error prompt_item_id={prompt_item_id} "
+                    f"imagen={index}/{len(images)}: {exc}"
+                )
+                continue
+
+            successful_uploads.append(
+                {
+                    "url": payload.get("secure_url") or payload.get("url"),
+                    "public_id": payload.get("public_id"),
+                    "image_json": current_image_json,
+                }
             )
-        except (CloudinaryUploadError, OSError, ValueError) as exc:
-            self._log(f"[WORKER] Cloudinary error prompt_item_id={prompt_item_id}: {exc}")
+
+        if not successful_uploads:
             return
 
+        first_upload = successful_uploads[0]
         updates = {
-            "waifu_cloudinary_url": payload.get("secure_url") or payload.get("url"),
-            "waifu_cloudinary_public_id": payload.get("public_id"),
+            "waifu_cloudinary_url": first_upload.get("url"),
+            "waifu_cloudinary_public_id": first_upload.get("public_id"),
             "waifu_cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
+            "waifu_cloudinary_images": successful_uploads,
         }
         self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
 
@@ -816,6 +843,12 @@ class QueueWorker:
                         meta=meta,
                         checkpoint_base=checkpoint_base,
                         image_json=base_img or up_img,
+                        image_jsons=_select_dollimages_upload_images(
+                            base_images=base_images,
+                            up_images=up_images,
+                            base_img=base_img,
+                            up_img=up_img,
+                        ),
                         title=str(item.get("title") or ""),
                     )
 
