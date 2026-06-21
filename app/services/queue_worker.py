@@ -27,7 +27,12 @@ from app.services.output_paths import build_output_path
 from app.services.workflow_service import WorkflowService
 from app.config.app_config import load_app_config
 from app.utils.path_sanitize import sanitize_segment, sanitize_relpath
-from app.services.comfy_history_parser import extract_base_and_upscale, extract_video_output, has_rendered_media
+from app.services.comfy_history_parser import (
+    extract_base_and_upscale,
+    extract_base_and_upscale_images,
+    extract_video_output,
+    has_rendered_media,
+)
 
 
 WorkerResult = Literal["PROCESSED", "PAUSED", "EMPTY"]
@@ -71,35 +76,62 @@ class QueueWorker:
         prompt_item_id: int,
         meta: dict[str, Any],
         checkpoint_base: str | None,
-        image_json: dict[str, Any] | None,
+        image_json: dict[str, Any] | None = None,
+        image_jsons: list[dict[str, Any]] | None = None,
         title: str,
     ) -> None:
-        if not image_json:
+        images = image_jsons if image_jsons is not None else ([image_json] if image_json else [])
+        images = [image for image in images if image]
+        if not images:
             self._log(f"[WORKER] Dollimages sin imagen para subir prompt_item_id={prompt_item_id}")
             return
-        if meta.get("cloudinary_url"):
+
+        uploaded_images = meta.get("cloudinary_images")
+        if isinstance(uploaded_images, list) and len(uploaded_images) >= len(images):
             return
+        if meta.get("cloudinary_url") and len(images) == 1:
+            return
+
         created_at = str(meta.get("created_at") or "").strip()
         if not created_at:
             created_at = datetime.now().isoformat(timespec="seconds")
-        try:
-            workflow_key = str(meta.get("workflow") or "dollimages")
-            image_path = build_output_path(image_json, workflow_key=workflow_key)
-            payload = upload_dollimages_image(
-                image_path=image_path,
-                title=title or "Dollimages",
-                checkpoint=checkpoint_base,
-                version=settings.dollimages_version or None,
-                created_at=created_at,
+
+        workflow_key = str(meta.get("workflow") or "dollimages")
+        successful_uploads: list[dict[str, Any]] = []
+        for index, current_image_json in enumerate(images, start=1):
+            try:
+                image_path = build_output_path(current_image_json, workflow_key=workflow_key)
+                payload = upload_dollimages_image(
+                    image_path=image_path,
+                    title=f"{title or 'Dollimages'} #{index}" if len(images) > 1 else title or "Dollimages",
+                    checkpoint=checkpoint_base,
+                    version=settings.dollimages_version or None,
+                    created_at=created_at,
+                )
+            except (CloudinaryUploadError, OSError, ValueError) as exc:
+                self._log(
+                    f"[WORKER] Cloudinary error prompt_item_id={prompt_item_id} "
+                    f"imagen={index}/{len(images)}: {exc}"
+                )
+                continue
+
+            successful_uploads.append(
+                {
+                    "url": payload.get("secure_url") or payload.get("url"),
+                    "public_id": payload.get("public_id"),
+                    "image_json": current_image_json,
+                }
             )
-        except (CloudinaryUploadError, OSError, ValueError) as exc:
-            self._log(f"[WORKER] Cloudinary error prompt_item_id={prompt_item_id}: {exc}")
+
+        if not successful_uploads:
             return
 
+        first_upload = successful_uploads[0]
         updates = {
-            "cloudinary_url": payload.get("secure_url") or payload.get("url"),
-            "cloudinary_public_id": payload.get("public_id"),
+            "cloudinary_url": first_upload.get("url"),
+            "cloudinary_public_id": first_upload.get("public_id"),
             "cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
+            "cloudinary_images": successful_uploads,
         }
         self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
 
@@ -710,7 +742,11 @@ class QueueWorker:
                     self._emit_progress()
 
             if finished and entry:
-                base_img, up_img = extract_base_and_upscale(entry, workflow_key=workflow_key)
+                base_images, up_images = extract_base_and_upscale_images(entry, workflow_key=workflow_key)
+                base_img = base_images[0] if base_images else None
+                up_img = up_images[0] if up_images else None
+                if not base_img and not up_img:
+                    base_img, up_img = extract_base_and_upscale(entry, workflow_key=workflow_key)
 
                 self.store.set_remote_status(job_id, "COMPLETED")
                 self.store.set_output_json(job_id, json.dumps(entry, ensure_ascii=False))
@@ -743,6 +779,9 @@ class QueueWorker:
                         meta=meta,
                         checkpoint_base=checkpoint_base,
                         image_json=base_img or up_img,
+                        image_jsons=(
+                            base_images or up_images or ([base_img or up_img] if (base_img or up_img) else [])
+                        ),
                         title=str(item.get("title") or ""),
                     )
                 elif workflow_key == "anime_v5":

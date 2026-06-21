@@ -8,15 +8,19 @@ SAVE_NODE_DOLLIMAGESZ_BASE = "9"
 SAVE_NODE_IMAGE2VID_VIDEO = "108"
 
 
-def _pick_first_image(output: dict[str, Any]) -> dict[str, Any] | None:
+def _pick_images(output: dict[str, Any]) -> list[dict[str, Any]]:
     """
     output típico: {"images":[{"filename":"...", "subfolder":"...", "type":"output"}, ...]}
     """
     images = output.get("images")
     if not images or not isinstance(images, list):
-        return None
-    first = images[0]
-    return first if isinstance(first, dict) else None
+        return []
+    return [image for image in images if isinstance(image, dict)]
+
+
+def _pick_first_image(output: dict[str, Any]) -> dict[str, Any] | None:
+    images = _pick_images(output)
+    return images[0] if images else None
 
 
 def _pick_first_media(output: dict[str, Any]) -> dict[str, Any] | None:
@@ -68,6 +72,36 @@ def extract_base_and_upscale(
                 return fallback, None
 
     return None, None
+
+
+def extract_base_and_upscale_images(
+    entry: dict[str, Any], *, workflow_key: str | None = None
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Devuelve todas las imágenes base/upscale publicadas por los nodos de guardado."""
+    outputs = entry.get("outputs") or {}
+
+    base_node = SAVE_NODE_BASE
+    upscale_node = SAVE_NODE_UPSCALE
+    if workflow_key == "dollimagesz":
+        base_node = SAVE_NODE_DOLLIMAGESZ_BASE
+        upscale_node = None
+
+    base_out = outputs.get(base_node) or {}
+    up_out = outputs.get(upscale_node) if upscale_node else None
+
+    base_images = _pick_images(base_out) if isinstance(base_out, dict) else []
+    up_images = _pick_images(up_out) if isinstance(up_out, dict) else []
+
+    if base_images or up_images:
+        return base_images, up_images
+
+    for out in outputs.values():
+        if isinstance(out, dict):
+            fallback = _pick_images(out)
+            if fallback:
+                return fallback, []
+
+    return [], []
 
 
 def extract_video_output(entry: dict[str, Any]) -> dict[str, Any] | None:
