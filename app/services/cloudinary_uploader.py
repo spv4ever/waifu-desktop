@@ -199,3 +199,32 @@ def upload_waifu_video(
         folder=folder,
         context=context,
     )
+
+
+def upload_anime_image(
+    *,
+    image_path: Path,
+    title: str,
+    checkpoint: str | None,
+    version: str | None,
+    created_at: str,
+) -> dict[str, Any]:
+    enabled, reason = _ensure_waifu_enabled()
+    if not enabled:
+        raise CloudinaryUploadError(reason or "Cloudinary no configurado")
+
+    context = "|".join([
+        f"title={title}",
+        f"checkpoint={checkpoint or ''}",
+        f"version={version or ''}",
+        f"created_at={created_at}",
+    ])
+    return _upload_media(
+        file_path=image_path,
+        resource_type="image",
+        cloud_name=settings.cloudinary_waifu_cloud_name,
+        api_key=settings.cloudinary_waifu_api_key,
+        api_secret=settings.cloudinary_waifu_api_secret,
+        folder="anime",
+        context=context,
+    )

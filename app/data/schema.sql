@@ -201,3 +201,44 @@ FOR EACH ROW
 BEGIN
   UPDATE video_prompt_template SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
+
+-- 11) Anime V5 character lists and reusable prompts
+CREATE TABLE IF NOT EXISTS anime_character (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  list_name   TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  enabled     INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(list_name, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_anime_character_list
+ON anime_character(list_name, enabled, name);
+
+CREATE TRIGGER IF NOT EXISTS trg_anime_character_updated_at
+AFTER UPDATE ON anime_character
+FOR EACH ROW
+BEGIN
+  UPDATE anime_character SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
+
+CREATE TABLE IF NOT EXISTS anime_prompt (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  title       TEXT NOT NULL,
+  prompt_text TEXT NOT NULL,
+  enabled     INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(title, prompt_text)
+);
+
+CREATE INDEX IF NOT EXISTS idx_anime_prompt_enabled
+ON anime_prompt(enabled, title);
+
+CREATE TRIGGER IF NOT EXISTS trg_anime_prompt_updated_at
+AFTER UPDATE ON anime_prompt
+FOR EACH ROW
+BEGIN
+  UPDATE anime_prompt SET updated_at = datetime('now') WHERE id = NEW.id;
+END;

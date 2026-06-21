@@ -31,12 +31,14 @@ from app.services.reel_service import ReelService
 from app.services.manual_prompt_service import ManualPromptService
 from app.services.dollimages_manual_prompt_service import DollimagesManualPromptService
 from app.services.image2vid_service import ImageToVideoService
+from app.services.anime_generation_service import AnimeGenerationService
 from app.domain.models import (
     PackCreate,
     DollimagesPackCreate,
     ManualPromptCreate,
     DollimagesManualPromptCreate,
     ImageToVideoCreate,
+    AnimeGenerationCreate,
 )
 from app.ui.data_source import (
     fetch_prompts,
@@ -97,6 +99,7 @@ class MainWindow(QMainWindow):
         self.reel_service = ReelService()
         self.manual_prompt_service = ManualPromptService()
         self.image2vid_service = ImageToVideoService()
+        self.anime_generation_service = AnimeGenerationService()
         self.waifu_catalog = load_waifu_catalog()
         self.app_config = load_app_config()
         self.prompt_base_window: PromptBaseWindow | None = None
@@ -196,6 +199,7 @@ class MainWindow(QMainWindow):
         self.open_dollimages_pack_btn = QPushButton("Crear Pack Dollimages")
         self.open_dollimages_manual_prompt_btn = QPushButton("Prompt Manual Dollimages")
         self.open_image2vid_btn = QPushButton("Image2Vid WAN 2.2")
+        self.open_anime_v5_btn = QPushButton("Anime V5")
         self.open_reel_btn = QPushButton("Reel Instagram")
         self.open_dollimages_reel_btn = QPushButton("Reel Dollimages")
         quick_actions.addWidget(self.open_filters_btn)
@@ -204,6 +208,7 @@ class MainWindow(QMainWindow):
         quick_actions.addWidget(self.open_dollimages_pack_btn)
         quick_actions.addWidget(self.open_dollimages_manual_prompt_btn)
         quick_actions.addWidget(self.open_image2vid_btn)
+        quick_actions.addWidget(self.open_anime_v5_btn)
         quick_actions.addWidget(self.open_reel_btn)
         quick_actions.addWidget(self.open_dollimages_reel_btn)
         quick_actions.addStretch(1)
@@ -567,6 +572,40 @@ class MainWindow(QMainWindow):
 
         self.dollimages_manual_generate_btn = QPushButton("Enviar a cola")
         doll_manual_grid.addWidget(self.dollimages_manual_generate_btn, 4, 6)
+
+        # Anime V5 generator
+        self.anime_v5_dialog = QDialog(self)
+        self.anime_v5_dialog.setWindowTitle("Generar Anime V5")
+        self.anime_v5_dialog.setModal(False)
+        anime_layout = QVBoxLayout(self.anime_v5_dialog)
+        anime_group = QGroupBox("Prompt reutilizable por personaje (anime-v5.json)")
+        anime_grid = QGridLayout(anime_group)
+        anime_grid.addWidget(QLabel("Lista:"), 0, 0)
+        self.anime_v5_list_input = QLineEdit()
+        self.anime_v5_list_input.setPlaceholderText("Ej: Personajes Dragon Ball")
+        anime_grid.addWidget(self.anime_v5_list_input, 0, 1, 1, 3)
+        anime_grid.addWidget(QLabel("Imágenes por personaje:"), 0, 4)
+        self.anime_v5_quantity_spin = QSpinBox()
+        self.anime_v5_quantity_spin.setRange(1, 500)
+        self.anime_v5_quantity_spin.setValue(1)
+        anime_grid.addWidget(self.anime_v5_quantity_spin, 0, 5)
+        anime_grid.addWidget(QLabel("Título prompt:"), 1, 0)
+        self.anime_v5_prompt_title_input = QLineEdit()
+        self.anime_v5_prompt_title_input.setPlaceholderText("Ej: Traje elegante penthouse")
+        anime_grid.addWidget(self.anime_v5_prompt_title_input, 1, 1, 1, 5)
+        anime_grid.addWidget(QLabel("Personajes:"), 2, 0)
+        self.anime_v5_characters_input = QPlainTextEdit()
+        self.anime_v5_characters_input.setPlaceholderText("Un personaje por línea. Ej:\nGoku\nVegeta\nVidel")
+        self.anime_v5_characters_input.setMinimumHeight(110)
+        anime_grid.addWidget(self.anime_v5_characters_input, 2, 1, 1, 5)
+        anime_grid.addWidget(QLabel("Prompt:"), 3, 0)
+        self.anime_v5_prompt_input = QPlainTextEdit()
+        self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje] donde deba insertarse cada nombre.")
+        self.anime_v5_prompt_input.setMinimumHeight(140)
+        anime_grid.addWidget(self.anime_v5_prompt_input, 3, 1, 1, 5)
+        self.anime_v5_generate_btn = QPushButton("Crear imágenes Anime V5")
+        anime_grid.addWidget(self.anime_v5_generate_btn, 4, 4, 1, 2)
+        anime_layout.addWidget(anime_group)
         doll_manual_grid.setColumnStretch(7, 1)
 
         doll_manual_layout.addWidget(doll_manual_group)
@@ -1027,6 +1066,8 @@ class MainWindow(QMainWindow):
         self.open_dollimages_pack_btn.clicked.connect(self.dollimages_dialog.show)
         self.open_dollimages_manual_prompt_btn.clicked.connect(self.dollimages_manual_dialog.show)
         self.open_image2vid_btn.clicked.connect(self.open_image2vid_dialog)
+        self.open_anime_v5_btn.clicked.connect(self.anime_v5_dialog.show)
+        self.anime_v5_generate_btn.clicked.connect(self.generate_anime_v5)
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
         self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
         self.dollimages_reference_btn.clicked.connect(self.select_dollimages_reference_image)
@@ -1739,6 +1780,35 @@ class MainWindow(QMainWindow):
         fill_combo(self.dollimages_manual_checkpoint_combo, default_base)
         fill_combo(self.manual_prompt_checkpoint_combo, default_base)
         self._sync_manual_prompt_refiner_label()
+
+
+    def generate_anime_v5(self) -> None:
+        list_name = self.anime_v5_list_input.text().strip()
+        prompt_title = self.anime_v5_prompt_title_input.text().strip()
+        prompt_text = self.anime_v5_prompt_input.toPlainText().strip()
+        characters = [line.strip() for line in self.anime_v5_characters_input.toPlainText().splitlines() if line.strip()]
+        quantity = int(self.anime_v5_quantity_spin.value())
+
+        try:
+            result = self.anime_generation_service.create_images_and_enqueue(
+                AnimeGenerationCreate(
+                    list_name=list_name,
+                    prompt_title=prompt_title,
+                    prompt_text=prompt_text,
+                    characters=characters,
+                    quantity_per_character=quantity,
+                )
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Anime V5", str(exc))
+            return
+
+        self.refresh()
+        QMessageBox.information(
+            self,
+            "Anime V5",
+            f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} imágenes en cola.",
+        )
 
     def generate_pack(self) -> None:
         category = self.pack_category_combo.currentData()
