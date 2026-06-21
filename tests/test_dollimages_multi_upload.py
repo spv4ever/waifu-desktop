@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.services.comfy_history_parser import extract_base_and_upscale, extract_base_and_upscale_images
-from app.services.queue_worker import QueueWorker
+from app.services.queue_worker import QueueWorker, _select_dollimages_upload_images
 
 
 class _Store:
@@ -88,3 +88,19 @@ def test_upload_dollimages_to_cloudinary_uploads_every_image(monkeypatch) -> Non
             {"url": "https://cdn.example/3.png", "public_id": "public-3", "image_json": images[2]},
         ],
     }
+
+
+def test_select_dollimages_upload_images_prefers_complete_upscale_batch() -> None:
+    base_images = [{"filename": "base_1.png", "subfolder": "batch", "type": "output"}]
+    up_images = [
+        {"filename": "up_1.png", "subfolder": "batch", "type": "output"},
+        {"filename": "up_2.png", "subfolder": "batch", "type": "output"},
+        {"filename": "up_3.png", "subfolder": "batch", "type": "output"},
+    ]
+
+    assert _select_dollimages_upload_images(
+        base_images=base_images,
+        up_images=up_images,
+        base_img=base_images[0],
+        up_img=up_images[0],
+    ) == up_images
