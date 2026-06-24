@@ -332,6 +332,15 @@ class BaseStore:
     ) -> list[dict[str, Any]]:
         raise NotImplementedError
 
+
+    def select_unused_anime_v5_reel_images(
+        self,
+        *,
+        list_name: str | None,
+        character: str | None,
+    ) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
     def mark_prompt_items_used_in_reel(self, prompt_item_ids: list[int]) -> None:
         raise NotImplementedError
 
@@ -1255,6 +1264,40 @@ class SQLiteStore(BaseStore):
                 params,
             ).fetchall()
 
+        return [dict(row) for row in rows]
+
+
+    def select_unused_anime_v5_reel_images(
+        self,
+        *,
+        list_name: str | None,
+        character: str | None,
+    ) -> list[dict[str, Any]]:
+        conditions = [
+            "status = 'DONE'",
+            "used_in_reel = 0",
+            "reel_discarded = 0",
+            "(base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)",
+            "json_extract(meta_json, '$.workflow') = 'anime_v5'",
+        ]
+        params: list[str] = []
+        if list_name:
+            conditions.append("json_extract(meta_json, '$.anime_character_list') = ?")
+            params.append(list_name)
+        if character:
+            conditions.append("json_extract(meta_json, '$.anime_character') = ?")
+            params.append(character)
+
+        with get_connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, base_image_json, upscale_image_json
+                FROM prompt_item
+                WHERE {' AND '.join(conditions)}
+                ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+                """,
+                params,
+            ).fetchall()
         return [dict(row) for row in rows]
 
     def mark_prompt_items_used_in_reel(self, prompt_item_ids: list[int]) -> None:
