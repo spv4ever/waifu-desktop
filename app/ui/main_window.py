@@ -202,6 +202,7 @@ class MainWindow(QMainWindow):
         self.open_anime_v5_btn = QPushButton("Anime V5")
         self.open_reel_btn = QPushButton("Reel Instagram")
         self.open_dollimages_reel_btn = QPushButton("Reel Dollimages")
+        self.open_anime_v5_reel_btn = QPushButton("Reel Anime V5")
         quick_actions.addWidget(self.open_filters_btn)
         quick_actions.addWidget(self.open_pack_btn)
         quick_actions.addWidget(self.open_manual_prompt_btn)
@@ -211,6 +212,7 @@ class MainWindow(QMainWindow):
         quick_actions.addWidget(self.open_anime_v5_btn)
         quick_actions.addWidget(self.open_reel_btn)
         quick_actions.addWidget(self.open_dollimages_reel_btn)
+        quick_actions.addWidget(self.open_anime_v5_reel_btn)
         quick_actions.addStretch(1)
         layout.addLayout(quick_actions)
 
@@ -909,6 +911,49 @@ class MainWindow(QMainWindow):
 
         doll_reel_layout.addWidget(doll_reel_group)
 
+
+        self.anime_v5_reel_dialog = QDialog(self)
+        self.anime_v5_reel_dialog.setWindowTitle("Reel Anime V5")
+        self.anime_v5_reel_dialog.setModal(False)
+        anime_reel_layout = QVBoxLayout(self.anime_v5_reel_dialog)
+        anime_reel_group = QGroupBox("Reel Anime V5 sin textos")
+        anime_reel_grid = QGridLayout(anime_reel_group)
+        anime_reel_grid.setHorizontalSpacing(10)
+        anime_reel_grid.setVerticalSpacing(8)
+        anime_reel_grid.addWidget(QLabel("Lista:"), 0, 0)
+        self.anime_v5_reel_list_combo = QComboBox()
+        self.anime_v5_reel_list_combo.addItem("Todas", None)
+        anime_reel_grid.addWidget(self.anime_v5_reel_list_combo, 0, 1)
+        anime_reel_grid.addWidget(QLabel("Personaje:"), 0, 2)
+        self.anime_v5_reel_character_combo = QComboBox()
+        self.anime_v5_reel_character_combo.addItem("Aleatorio / todos", None)
+        anime_reel_grid.addWidget(self.anime_v5_reel_character_combo, 0, 3)
+        anime_reel_grid.addWidget(QLabel("Cantidad (0 = aleatoria):"), 0, 4)
+        self.anime_v5_reel_quantity_spin = QSpinBox()
+        self.anime_v5_reel_quantity_spin.setRange(0, 100)
+        self.anime_v5_reel_quantity_spin.setValue(0)
+        anime_reel_grid.addWidget(self.anime_v5_reel_quantity_spin, 0, 5)
+        anime_reel_grid.addWidget(QLabel("Segundos imagen:"), 1, 0)
+        self.anime_v5_reel_seconds_spin = QDoubleSpinBox()
+        self.anime_v5_reel_seconds_spin.setRange(1.0, 10.0)
+        self.anime_v5_reel_seconds_spin.setSingleStep(0.5)
+        self.anime_v5_reel_seconds_spin.setValue(2.0)
+        anime_reel_grid.addWidget(self.anime_v5_reel_seconds_spin, 1, 1)
+        anime_reel_grid.addWidget(QLabel("Transición:"), 1, 2)
+        self.anime_v5_reel_transition_spin = QDoubleSpinBox()
+        self.anime_v5_reel_transition_spin.setRange(0.1, 5.0)
+        self.anime_v5_reel_transition_spin.setSingleStep(0.1)
+        self.anime_v5_reel_transition_spin.setValue(0.5)
+        anime_reel_grid.addWidget(self.anime_v5_reel_transition_spin, 1, 3)
+        anime_reel_grid.addWidget(QLabel("Fundido final:"), 1, 4)
+        self.anime_v5_reel_fade_out_checkbox = QCheckBox()
+        self.anime_v5_reel_fade_out_checkbox.setChecked(True)
+        anime_reel_grid.addWidget(self.anime_v5_reel_fade_out_checkbox, 1, 5)
+        self.anime_v5_reel_generate_btn = QPushButton("Crear Reel Anime V5")
+        anime_reel_grid.addWidget(self.anime_v5_reel_generate_btn, 2, 4, 1, 2)
+        anime_reel_grid.setColumnStretch(6, 1)
+        anime_reel_layout.addWidget(anime_reel_group)
+
         main_content = QHBoxLayout()
         layout.addLayout(main_content, 1)
         self.main_content_layout = main_content
@@ -1117,6 +1162,9 @@ class MainWindow(QMainWindow):
         self.anime_v5_prompt_table.itemDoubleClicked.connect(lambda _item: self._apply_selected_anime_v5_prompt())
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
         self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
+        self.open_anime_v5_reel_btn.clicked.connect(self.anime_v5_reel_dialog.show)
+        self.anime_v5_reel_generate_btn.clicked.connect(self.generate_anime_v5_reel)
+        self.anime_v5_reel_list_combo.currentIndexChanged.connect(self._populate_anime_v5_reel_characters)
         self.dollimages_reference_btn.clicked.connect(self.select_dollimages_reference_image)
         self.dollimages_manual_reference_btn.clicked.connect(
             self.select_dollimages_manual_reference_image
@@ -1195,6 +1243,7 @@ class MainWindow(QMainWindow):
         self._update_dollimages_workflow_controls()
         self._update_dollimages_manual_workflow_controls()
         self._populate_anime_v5_lists()
+        self._populate_anime_v5_reel_selectors()
         self._load_anime_v5_prompts()
         self._load_image2vid_prompt_templates()
 
@@ -1831,6 +1880,69 @@ class MainWindow(QMainWindow):
         self._sync_manual_prompt_refiner_label()
 
 
+
+    def _populate_anime_v5_reel_selectors(self) -> None:
+        lists = self.store.list_anime_character_lists()
+        current_list = self.anime_v5_reel_list_combo.currentData()
+        self.anime_v5_reel_list_combo.blockSignals(True)
+        self.anime_v5_reel_list_combo.clear()
+        self.anime_v5_reel_list_combo.addItem("Todas", None)
+        for list_name in sorted(lists):
+            self.anime_v5_reel_list_combo.addItem(list_name, list_name)
+        if current_list:
+            idx = self.anime_v5_reel_list_combo.findData(current_list)
+            if idx >= 0:
+                self.anime_v5_reel_list_combo.setCurrentIndex(idx)
+        self.anime_v5_reel_list_combo.blockSignals(False)
+        self._populate_anime_v5_reel_characters()
+
+    def _populate_anime_v5_reel_characters(self) -> None:
+        lists = self.store.list_anime_character_lists()
+        list_name = self.anime_v5_reel_list_combo.currentData()
+        characters = lists.get(str(list_name), []) if list_name else sorted({c for values in lists.values() for c in values})
+        current_character = self.anime_v5_reel_character_combo.currentData()
+        self.anime_v5_reel_character_combo.blockSignals(True)
+        self.anime_v5_reel_character_combo.clear()
+        self.anime_v5_reel_character_combo.addItem("Aleatorio / todos", None)
+        for character in characters:
+            self.anime_v5_reel_character_combo.addItem(character, character)
+        if current_character:
+            idx = self.anime_v5_reel_character_combo.findData(current_character)
+            if idx >= 0:
+                self.anime_v5_reel_character_combo.setCurrentIndex(idx)
+        self.anime_v5_reel_character_combo.blockSignals(False)
+
+    def generate_anime_v5_reel(self) -> None:
+        list_name = self.anime_v5_reel_list_combo.currentData()
+        character = self.anime_v5_reel_character_combo.currentData()
+        quantity_value = int(self.anime_v5_reel_quantity_spin.value())
+        image_count = quantity_value if quantity_value > 0 else None
+        seconds_per_image = float(self.anime_v5_reel_seconds_spin.value())
+        transition_seconds = float(self.anime_v5_reel_transition_spin.value())
+        fade_out = self.anime_v5_reel_fade_out_checkbox.isChecked()
+        try:
+            result = self.reel_service.create_anime_v5_reel(
+                list_name=list_name,
+                character=character,
+                image_count=image_count,
+                seconds_per_image=seconds_per_image,
+                transition_seconds=transition_seconds,
+                fade_out=fade_out,
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Reel Anime V5", str(exc))
+            return
+        self.refresh()
+        QMessageBox.information(
+            self,
+            "Reel Anime V5",
+            f"Reel creado con {result.image_count} imágenes.\n{result.video_path}",
+        )
+        try:
+            open_folder_and_select(result.video_path)
+        except Exception as exc:
+            QMessageBox.critical(self, "Reel Anime V5", f"No se pudo abrir la carpeta: {exc}")
+
     def _populate_anime_v5_lists(self) -> None:
         current = self.anime_v5_list_combo.currentText().strip()
         self._anime_v5_character_lists = self.store.list_anime_character_lists()
@@ -1864,6 +1976,7 @@ class MainWindow(QMainWindow):
             return
         saved = self.store.save_anime_character_list(list_name=list_name, characters=characters)
         self._populate_anime_v5_lists()
+        self._populate_anime_v5_reel_selectors()
         self.anime_v5_list_combo.setEditText(list_name)
         QMessageBox.information(self, "Anime V5", f"Lista guardada con {saved} personajes.")
 

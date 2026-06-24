@@ -341,6 +341,43 @@ class ReelService:
 
         return selected
 
+    def _select_unused_anime_v5_images(
+        self,
+        *,
+        list_name: str | None,
+        character: str | None,
+        image_count: int | None,
+    ) -> list[_ReelImage]:
+        store = get_store()
+        rows = store.select_unused_anime_v5_reel_images(list_name=list_name, character=character)
+        random.shuffle(rows)
+        selected: list[_ReelImage] = []
+        for row in rows:
+            image_json = None
+            if row.get("upscale_image_json"):
+                image_json = json.loads(row["upscale_image_json"])
+            elif row.get("base_image_json"):
+                image_json = json.loads(row["base_image_json"])
+            if not image_json:
+                continue
+
+            source_path = build_output_path(image_json, workflow_key="anime_v5")
+            if not source_path.exists():
+                continue
+
+            selected.append(
+                _ReelImage(
+                    prompt_item_id=int(row["id"]),
+                    source_path=source_path,
+                    image_json=image_json,
+                )
+            )
+            if image_count is not None and len(selected) >= image_count:
+                break
+        if image_count is None and selected:
+            selected = selected[: random.randint(1, len(selected))]
+        return selected
+
     def _select_unused_dollimages_images(
         self,
         *,
@@ -406,6 +443,15 @@ class ReelService:
             rel_folder = sanitize_relpath(f"anime/Waifu/{category_safe}/{variant_safe}/reels/reel_{timestamp}")
         else:
             rel_folder = sanitize_relpath(f"anime/Waifu/{category_safe}/reels/reel_{timestamp}")
+        folder = Path(settings.comfyui_output_dir) / rel_folder
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    def _create_anime_v5_reel_folder(self, *, list_name: str | None, character: str | None) -> Path:
+        list_safe = sanitize_segment(list_name or "todas")
+        character_safe = sanitize_segment(character or "aleatorio")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        rel_folder = sanitize_relpath(f"anime/anime_v5/reels/{list_safe}/{character_safe}/reel_{timestamp}")
         folder = Path(settings.comfyui_output_dir) / rel_folder
         folder.mkdir(parents=True, exist_ok=True)
         return folder
@@ -517,13 +563,16 @@ class ReelService:
         title: str | None,
         fade_out: bool = True,
         social_handle: str | None = None,
+        transition_seconds: float | None = None,
+        include_text_overlays: bool = True,
     ) -> tuple[Path, Path | None]:
         ffmpeg_path = shutil.which("ffmpeg")
         if not ffmpeg_path:
             raise RuntimeError("No se encontró ffmpeg en el sistema para renderizar el reel.")
 
         output_path = folder / "reel.mp4"
-        total_duration = (image_count * seconds_per_image) - ((image_count - 1) * self._TRANSITION_SECONDS)
+        transition_seconds = self._TRANSITION_SECONDS if transition_seconds is None else transition_seconds
+        total_duration = (image_count * seconds_per_image) - ((image_count - 1) * transition_seconds)
         total_duration = max(total_duration, seconds_per_image)
         fade_out_start = max(total_duration - self._FADE_OUT_SECONDS, 0.0) if fade_out else 0.0
 
@@ -548,33 +597,38 @@ class ReelService:
             cmd += ["-ss", f"{start_time}", "-t", f"{total_duration}", "-i", str(audio_path)]
 
         # ====== TEXTOS (formateo + archivos) ======
-        social_text = self._build_social_text(override_handle=social_handle)
-        social_text, social_font = self._format_reel_text(
-            social_text,
-            font_size=self._SOCIAL_FONT_SIZE,
-            reduce_by=8,
-        )
-        cta_text, cta_font = self._format_reel_text(
-            "Follow • Reply • Like",
-            font_size=self._CTA_FONT_SIZE,
-            reduce_by=16,
-        )
-
-        title_text = None
+        title_file = None
+        social_file = None
+        cta_file = None
+        social_font = self._SOCIAL_FONT_SIZE
+        cta_font = self._CTA_FONT_SIZE
         title_font = self._TITLE_FONT_SIZE
-        if title:
-            title_text, title_font = self._format_reel_text(
-                title,
-                font_size=self._TITLE_FONT_SIZE,
+        if include_text_overlays:
+            social_text = self._build_social_text(override_handle=social_handle)
+            social_text, social_font = self._format_reel_text(
+                social_text,
+                font_size=self._SOCIAL_FONT_SIZE,
                 reduce_by=8,
             )
+            cta_text, cta_font = self._format_reel_text(
+                "Follow • Reply • Like",
+                font_size=self._CTA_FONT_SIZE,
+                reduce_by=16,
+            )
 
-        title_file = None
-        if title_text:
-            title_file = self._write_overlay_file(folder=folder, filename="overlay_title.txt", text=title_text)
+            title_text = None
+            if title:
+                title_text, title_font = self._format_reel_text(
+                    title,
+                    font_size=self._TITLE_FONT_SIZE,
+                    reduce_by=8,
+                )
 
-        social_file = self._write_overlay_file(folder=folder, filename="overlay_social.txt", text=social_text)
-        cta_file = self._write_overlay_file(folder=folder, filename="overlay_cta.txt", text=cta_text)
+            if title_text:
+                title_file = self._write_overlay_file(folder=folder, filename="overlay_title.txt", text=title_text)
+
+            social_file = self._write_overlay_file(folder=folder, filename="overlay_social.txt", text=social_text)
+            cta_file = self._write_overlay_file(folder=folder, filename="overlay_cta.txt", text=cta_text)
 
         # ====== FILTER GRAPH ======
         filter_parts: list[str] = []
@@ -597,10 +651,10 @@ class ReelService:
 
             if title_file and idx < image_count - 2:
                 filters += f",{self._drawtext_filter_textfile(textfile=title_file, font_size=title_font, y_expr='h*0.12')}"
-            elif is_penultimate:
+            elif social_file and is_penultimate:
                 filters += f",{self._drawtext_filter_textfile(textfile=social_file, font_size=social_font, y_expr='h*0.12')}"
 
-            if is_last:
+            if social_file and cta_file and is_last:
                 filters += f",{self._drawtext_filter_textfile(textfile=social_file, font_size=social_font, y_expr='h*0.12')}"
                 filters += f",{self._drawtext_filter_textfile(textfile=cta_file, font_size=cta_font, y_expr='h*0.22')}"
 
@@ -608,19 +662,19 @@ class ReelService:
             filter_parts.append(f"{filters}[v{idx}]")
 
         current_label = "v0"
-        offset = seconds_per_image - self._TRANSITION_SECONDS
+        offset = seconds_per_image - transition_seconds
         for idx in range(1, image_count):
             next_label = f"v{idx}"
             out_label = f"vxf{idx}"
             filter_parts.append(
                 (
                     f"[{current_label}][{next_label}]"
-                    f"xfade=transition=fade:duration={self._TRANSITION_SECONDS}:offset={offset}"
+                    f"xfade=transition=fade:duration={transition_seconds}:offset={offset}"
                     f"[{out_label}]"
                 )
             )
             current_label = out_label
-            offset += seconds_per_image - self._TRANSITION_SECONDS
+            offset += seconds_per_image - transition_seconds
 
         video_label = "v"
         if fade_out:
@@ -759,6 +813,86 @@ class ReelService:
         return ReelCreateResult(
             category=category,
             variant=variant,
+            image_count=len(images),
+            folder=folder,
+            video_path=video_path,
+            prompt_item_ids=ids,
+        )
+
+
+    def create_anime_v5_reel(
+        self,
+        *,
+        list_name: str | None,
+        character: str | None,
+        image_count: int | None,
+        seconds_per_image: float,
+        transition_seconds: float,
+        fade_out: bool = True,
+    ) -> ReelCreateResult:
+        if image_count is not None and image_count <= 0:
+            raise ValueError("La cantidad de imágenes debe ser mayor a cero.")
+        if seconds_per_image <= 0:
+            raise ValueError("Los segundos por imagen deben ser mayores a cero.")
+        if transition_seconds < 0:
+            raise ValueError("La duración de la transición no puede ser negativa.")
+        if seconds_per_image <= transition_seconds:
+            raise ValueError("Los segundos por imagen deben ser mayores a la duración de la transición.")
+
+        images = self._select_unused_anime_v5_images(
+            list_name=list_name,
+            character=character,
+            image_count=image_count,
+        )
+        if not images:
+            raise RuntimeError("No hay imágenes Anime V5 disponibles para el reel.")
+        if image_count is not None and len(images) < image_count:
+            raise RuntimeError(
+                f"No hay suficientes imágenes disponibles para el reel. "
+                f"Disponibles: {len(images)}, solicitadas: {image_count}."
+            )
+
+        folder = self._create_anime_v5_reel_folder(list_name=list_name, character=character)
+        copied_paths = self._copy_images(images, folder=folder)
+        ext = copied_paths[0].suffix if copied_paths else ".png"
+        video_path, audio_path = self._render_video(
+            folder=folder,
+            ext=ext,
+            image_count=len(images),
+            seconds_per_image=seconds_per_image,
+            title=None,
+            fade_out=fade_out,
+            transition_seconds=transition_seconds,
+            include_text_overlays=False,
+        )
+
+        manifest = {
+            "category": "anime_v5",
+            "list": list_name,
+            "character": character,
+            "created_at": datetime.now().isoformat(timespec="seconds"),
+            "image_count": len(images),
+            "seconds_per_image": seconds_per_image,
+            "transition_seconds": transition_seconds,
+            "fade_out": fade_out,
+            "video": video_path.name,
+            "audio": audio_path.name if audio_path else None,
+            "items": [
+                {
+                    "prompt_item_id": image.prompt_item_id,
+                    "source": str(image.source_path),
+                    "frame": str(copied_path.name),
+                }
+                for image, copied_path in zip(images, copied_paths)
+            ],
+        }
+        (folder / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        ids = [image.prompt_item_id for image in images]
+        get_store().mark_prompt_items_used_in_reel(ids)
+        return ReelCreateResult(
+            category="anime_v5",
+            variant=list_name,
             image_count=len(images),
             folder=folder,
             video_path=video_path,
