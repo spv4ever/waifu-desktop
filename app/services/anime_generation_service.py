@@ -20,6 +20,14 @@ def _hash_signature(*values: object) -> str:
     return hashlib.sha1("|".join(str(v) for v in values).encode("utf-8")).hexdigest()
 
 
+def _render_anime_prompt(prompt_template: str, *, character: str, list_name: str) -> str:
+    return (
+        prompt_template.replace("[personaje]", character)
+        .replace("[anime]", list_name)
+        .replace("Dragon Ball", list_name)
+    )
+
+
 class AnimeGenerationService:
     def __init__(self) -> None:
         self.store = get_store()
@@ -64,7 +72,7 @@ class AnimeGenerationService:
         width, height = 1024, 1408
 
         for character_id, character in zip(character_ids, characters):
-            rendered_prompt = prompt_template.replace("[personaje]", character)
+            rendered_prompt = _render_anime_prompt(prompt_template, character=character, list_name=list_name)
             for repetition in range(quantity):
                 signature = None
                 seed = None
