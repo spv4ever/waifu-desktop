@@ -608,7 +608,7 @@ class MainWindow(QMainWindow):
         anime_grid.addWidget(self.anime_v5_characters_input, 2, 1, 1, 5)
         anime_grid.addWidget(QLabel("Prompt:"), 3, 0)
         self.anime_v5_prompt_input = QPlainTextEdit()
-        self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje] donde deba insertarse cada nombre.")
+        self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje] para el personaje y [anime] (o Dragon Ball) para la lista.")
         self.anime_v5_prompt_input.setMinimumHeight(140)
         anime_grid.addWidget(self.anime_v5_prompt_input, 3, 1, 1, 5)
         self.anime_v5_generate_btn = QPushButton("Crear imágenes Anime V5")
