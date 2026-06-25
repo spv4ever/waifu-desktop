@@ -84,19 +84,17 @@ class AnimeGenerationService:
         created_queue_job_ids: list[int] = []
         rng = random.Random()
         prompt_options = load_anime_v5_prompt_options() if _uses_anime_v5_generator(prompt_template) else None
+        prompt_selection = choose_anime_v5_prompt_selection(rng, prompt_options) if prompt_options is not None else None
+        selected_template = (
+            fill_anime_v5_option_tokens(prompt_template, prompt_selection)
+            if prompt_selection is not None
+            else prompt_template
+        )
         created_at = datetime.now().isoformat(timespec="seconds")
         width, height = 1024, 1408
 
         for character_id, character in zip(character_ids, characters):
             for repetition in range(quantity):
-                prompt_selection = (
-                    choose_anime_v5_prompt_selection(rng, prompt_options) if prompt_options is not None else None
-                )
-                selected_template = (
-                    fill_anime_v5_option_tokens(prompt_template, prompt_selection)
-                    if prompt_selection is not None
-                    else prompt_template
-                )
                 rendered_prompt = _render_anime_prompt(selected_template, character=character, list_name=list_name)
                 signature = None
                 seed = None

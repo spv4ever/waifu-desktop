@@ -1,6 +1,7 @@
 from app.domain.models import AnimeGenerationCreate
 from app.services import anime_generation_service
 from app.services.anime_generation_service import AnimeGenerationService
+from app.services.anime_v5_prompt_generator import AnimeV5PromptSelection
 
 
 class FakeAnimeStore:
@@ -95,3 +96,64 @@ def test_anime_v5_generator_combines_configurable_options(monkeypatch):
         "lighting": "test cinematic lighting",
         "shot": "test full body shot",
     }
+
+
+def test_anime_v5_generator_reuses_selected_options_for_all_characters(monkeypatch):
+    store = FakeAnimeStore()
+    selections = []
+    monkeypatch.setattr(anime_generation_service, "get_store", lambda: store)
+    monkeypatch.setattr(
+        anime_generation_service,
+        "load_anime_v5_prompt_options",
+        lambda: {
+            "locations": ["rooftop", "beach"],
+            "poses": ["standing", "sitting"],
+            "outfits": ["dress", "jacket"],
+            "expressions": ["smile", "serious"],
+            "lighting": ["sunset", "neon"],
+            "shots": ["full body", "portrait"],
+        },
+    )
+
+    def choose_once(rng, options):
+        selections.append(options)
+        return AnimeV5PromptSelection(
+            location="rooftop",
+            pose="standing",
+            outfit="dress",
+            expression="smile",
+            lighting="sunset",
+            shot="full body",
+        )
+
+    monkeypatch.setattr(anime_generation_service, "choose_anime_v5_prompt_selection", choose_once)
+
+    service = AnimeGenerationService()
+    service.create_images_and_enqueue(
+        AnimeGenerationCreate(
+            list_name="One Piece",
+            prompt_title="Generated",
+            prompt_text="[personaje] from [anime], [shot], [pose], [location], [outfit], [expression], [lighting]",
+            characters=["Nami", "Robin"],
+            quantity_per_character=2,
+        )
+    )
+
+    assert len(selections) == 1
+    assert [item["prompt_text"] for item in store.prompt_items] == [
+        "Nami from One Piece, full body, standing, rooftop, dress, smile, sunset",
+        "Nami from One Piece, full body, standing, rooftop, dress, smile, sunset",
+        "Robin from One Piece, full body, standing, rooftop, dress, smile, sunset",
+        "Robin from One Piece, full body, standing, rooftop, dress, smile, sunset",
+    ]
+    assert all(
+        item["meta"]["anime_v5_prompt_selection"] == {
+            "location": "rooftop",
+            "pose": "standing",
+            "outfit": "dress",
+            "expression": "smile",
+            "lighting": "sunset",
+            "shot": "full body",
+        }
+        for item in store.prompt_items
+    )
