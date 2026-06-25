@@ -3,6 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 
 
+try:
+    from PIL import Image, UnidentifiedImageError
+except ImportError:  # pragma: no cover - dependency guard for minimal environments
+    Image = None  # type: ignore[assignment]
+    UnidentifiedImageError = OSError  # type: ignore[assignment]
+
+
 def validate_image_file(path: Path) -> None:
     if not path.exists():
         raise ValueError(f"Imagen no encontrada: {path}")
@@ -13,10 +20,17 @@ def validate_image_file(path: Path) -> None:
     with path.open("rb") as handle:
         header = handle.read(16)
 
-    if _is_png(header) or _is_jpeg(header) or _is_gif(header) or _is_bmp(header) or _is_webp(header):
+    if not (_is_png(header) or _is_jpeg(header) or _is_gif(header) or _is_bmp(header) or _is_webp(header)):
+        raise ValueError(f"Formato de imagen no válido: {path.name}")
+
+    if Image is None:
         return
 
-    raise ValueError(f"Formato de imagen no válido: {path.name}")
+    try:
+        with Image.open(path) as image:
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError) as exc:
+        raise ValueError(f"Imagen inválida o corrupta: {path.name}") from exc
 
 
 def _is_png(header: bytes) -> bool:

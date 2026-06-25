@@ -628,6 +628,13 @@ class QueueWorker:
             reference_image = str(
                 meta.get("image2vid_source_image") or meta.get("image2vid_source_url") or ""
             ).strip()
+            if reference_image and not reference_image.startswith(("http://", "https://")):
+                input_path = Path(settings.comfyui_input_dir) / reference_image
+                try:
+                    validate_image_file(input_path)
+                except ValueError as exc:
+                    self.store.mark_failed(job_id, str(exc))
+                    return "PROCESSED"
             mapping_key = "comfyui_workflow_image2vid"
         else:
             # -------------------------
