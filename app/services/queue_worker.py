@@ -625,7 +625,9 @@ class QueueWorker:
             width = int(meta.get("width") or 480)
             height = int(meta.get("height") or 720)
             seed = meta.get("seed")
-            reference_image = str(meta.get("image2vid_source_url") or "").strip()
+            reference_image = str(
+                meta.get("image2vid_source_image") or meta.get("image2vid_source_url") or ""
+            ).strip()
             mapping_key = "comfyui_workflow_image2vid"
         else:
             # -------------------------

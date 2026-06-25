@@ -67,6 +67,7 @@ class ImageToVideoCreate:
     source_category: str
     source_prompt_id: int
     source_url: str
+    source_image: str
     title: str
     prompt_text: str
     negative_text: str

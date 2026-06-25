@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import hashlib
 import random
+import shutil
 from datetime import datetime
 from dataclasses import dataclass
+from pathlib import Path
 
+from app.config.settings import settings
 from app.data.storage import get_store
 from app.domain.models import ImageToVideoCreate
+from app.services.image_validation import validate_image_file
+from app.services.path_utils import unique_suffixed_path
 
 
 @dataclass(frozen=True)
@@ -25,6 +30,20 @@ class ImageToVideoService:
     def __init__(self) -> None:
         self.store = get_store()
 
+    def _prepare_source_image(self, source_path: str) -> str:
+        src = Path(source_path)
+        if not src.exists():
+            raise FileNotFoundError(f"Imagen de referencia no encontrada: {source_path}")
+        validate_image_file(src)
+        input_dir = Path(settings.comfyui_input_dir)
+        input_dir.mkdir(parents=True, exist_ok=True)
+        target = input_dir / src.name
+        if src.resolve() == target.resolve():
+            return src.name
+        target = unique_suffixed_path(target)
+        shutil.copy2(src, target)
+        return target.name
+
     def create_and_enqueue(self, req: ImageToVideoCreate) -> ImageToVideoResult:
         pack_id = self.store.create_pack(
             category="image2vid",
@@ -42,7 +61,7 @@ class ImageToVideoService:
                 "image2vid",
                 req.source_category,
                 req.source_prompt_id,
-                req.source_url,
+                req.source_image,
                 req.prompt_text,
                 req.negative_text,
                 req.ratio,
@@ -60,6 +79,8 @@ class ImageToVideoService:
                 break
         if signature is None or seed is None:
             raise RuntimeError("No se pudo registrar una combinación única para image2vid.")
+
+        source_image = self._prepare_source_image(req.source_image)
 
         ratio_tag = f"{req.width}x{req.height}"
         created_at = datetime.now().isoformat(timespec="seconds")
@@ -79,6 +100,7 @@ class ImageToVideoService:
             "image2vid_source_category": req.source_category,
             "image2vid_source_prompt_id": req.source_prompt_id,
             "image2vid_source_url": req.source_url,
+            "image2vid_source_image": source_image,
             "image2vid_ratio": req.ratio,
             "image2vid_seconds": req.seconds,
             "image2vid_fps": req.fps,
