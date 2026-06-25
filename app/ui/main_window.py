@@ -616,6 +616,7 @@ class MainWindow(QMainWindow):
         self.anime_v5_pick_prompt_btn = QPushButton("Buscar prompt...")
         anime_grid.addWidget(self.anime_v5_pick_prompt_btn, 1, 5)
         self.anime_v5_generator_btn = QPushButton("Generador Anime V5")
+        self.anime_v5_generator_btn.setMinimumWidth(140)
         anime_grid.addWidget(self.anime_v5_generator_btn, 2, 5)
         anime_grid.addWidget(QLabel("Personajes:"), 2, 0)
         self.anime_v5_characters_input = QPlainTextEdit()
@@ -624,7 +625,7 @@ class MainWindow(QMainWindow):
             '{"name": "Nami", "anime": "One Piece", "description": "beautiful anime woman with long bright orange hair, large brown eyes, slim curvy figure, recognizable anime-inspired appearance"}'
         )
         self.anime_v5_characters_input.setMinimumHeight(280)
-        anime_grid.addWidget(self.anime_v5_characters_input, 2, 1, 1, 5)
+        anime_grid.addWidget(self.anime_v5_characters_input, 2, 1, 1, 4)
         anime_grid.addWidget(QLabel("Prompt:"), 3, 0)
         self.anime_v5_prompt_input = QPlainTextEdit()
         self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje], [anime], [description] y opcionalmente [shot], [pose], [location], [outfit], [expression], [lighting].")
