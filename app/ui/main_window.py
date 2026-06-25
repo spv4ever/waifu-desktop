@@ -32,6 +32,7 @@ from app.services.manual_prompt_service import ManualPromptService
 from app.services.dollimages_manual_prompt_service import DollimagesManualPromptService
 from app.services.image2vid_service import ImageToVideoService
 from app.services.anime_generation_service import AnimeGenerationService
+from app.services.anime_v5_prompt_generator import DEFAULT_TEMPLATE, DEFAULT_OPTIONS_PATH
 from app.domain.models import (
     PackCreate,
     DollimagesPackCreate,
@@ -601,16 +602,21 @@ class MainWindow(QMainWindow):
         anime_grid.addWidget(self.anime_v5_prompt_title_input, 1, 1, 1, 4)
         self.anime_v5_pick_prompt_btn = QPushButton("Buscar prompt...")
         anime_grid.addWidget(self.anime_v5_pick_prompt_btn, 1, 5)
+        self.anime_v5_generator_btn = QPushButton("Generador Anime V5")
+        anime_grid.addWidget(self.anime_v5_generator_btn, 2, 5)
         anime_grid.addWidget(QLabel("Personajes:"), 2, 0)
         self.anime_v5_characters_input = QPlainTextEdit()
         self.anime_v5_characters_input.setPlaceholderText("Un personaje por línea. Ej:\nGoku\nVegeta\nVidel")
         self.anime_v5_characters_input.setMinimumHeight(110)
-        anime_grid.addWidget(self.anime_v5_characters_input, 2, 1, 1, 5)
+        anime_grid.addWidget(self.anime_v5_characters_input, 2, 1, 1, 4)
         anime_grid.addWidget(QLabel("Prompt:"), 3, 0)
         self.anime_v5_prompt_input = QPlainTextEdit()
-        self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje] para el personaje y [anime] (o Dragon Ball) para la lista.")
+        self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje], [anime] y opcionalmente [shot], [pose], [location], [outfit], [expression], [lighting].")
         self.anime_v5_prompt_input.setMinimumHeight(140)
         anime_grid.addWidget(self.anime_v5_prompt_input, 3, 1, 1, 5)
+        self.anime_v5_options_label = QLabel(f"Opciones editables: {DEFAULT_OPTIONS_PATH}")
+        self.anime_v5_options_label.setStyleSheet("color: #9aa0a6; font-size: 11px;")
+        anime_grid.addWidget(self.anime_v5_options_label, 4, 1, 1, 3)
         self.anime_v5_generate_btn = QPushButton("Crear imágenes Anime V5")
         anime_grid.addWidget(self.anime_v5_generate_btn, 4, 4, 1, 2)
         anime_layout.addWidget(anime_group)
@@ -1156,6 +1162,7 @@ class MainWindow(QMainWindow):
         self.anime_v5_save_list_btn.clicked.connect(self.save_anime_v5_character_list)
         self.anime_v5_list_combo.currentIndexChanged.connect(self._load_anime_v5_list_from_combo)
         self.anime_v5_pick_prompt_btn.clicked.connect(self.open_anime_v5_prompt_picker)
+        self.anime_v5_generator_btn.clicked.connect(self.apply_anime_v5_generator_template)
         self.anime_v5_prompt_cancel_btn.clicked.connect(self.anime_v5_prompt_picker_dialog.reject)
         self.anime_v5_prompt_apply_btn.clicked.connect(self._apply_selected_anime_v5_prompt)
         self.anime_v5_prompt_search_input.textChanged.connect(self._filter_anime_v5_prompts)
@@ -1979,6 +1986,11 @@ class MainWindow(QMainWindow):
         self._populate_anime_v5_reel_selectors()
         self.anime_v5_list_combo.setEditText(list_name)
         QMessageBox.information(self, "Anime V5", f"Lista guardada con {saved} personajes.")
+
+    def apply_anime_v5_generator_template(self) -> None:
+        if not self.anime_v5_prompt_title_input.text().strip():
+            self.anime_v5_prompt_title_input.setText("Generador Anime V5 SDXL")
+        self.anime_v5_prompt_input.setPlainText(DEFAULT_TEMPLATE)
 
     def _load_anime_v5_prompts(self) -> None:
         self._anime_v5_prompt_templates = self.store.list_anime_prompts()

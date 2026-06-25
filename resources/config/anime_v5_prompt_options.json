@@ -1,0 +1,54 @@
+{
+  "locations": [
+    "in a neon-lit modern city at night during heavy rain, inspired by Times Square, wet asphalt reflections, giant LED billboards, colorful neon signs",
+    "on a tropical beach during sunset, ocean waves, wet sand reflections, golden hour sky",
+    "beneath a majestic tropical waterfall at sunset, jungle mist, cinematic water droplets",
+    "inside a luxurious outdoor Japanese hot spring at sunset, steam, lanterns, traditional architecture",
+    "on the deck of a luxury superyacht during golden hour, ocean horizon, polished railing",
+    "on a luxury penthouse rooftop terrace overlooking a modern city skyline at sunset",
+    "in a wildflower meadow during golden hour, soft wind, colorful flowers",
+    "on a dramatic ocean cliff at sunset, wind moving hair, epic horizon"
+  ],
+  "poses": [
+    "standing confidently facing the camera",
+    "walking slowly toward the camera",
+    "gently brushing wet hair away from her face with one hand",
+    "leaning casually against a railing",
+    "looking over her shoulder toward the camera",
+    "sitting gracefully on a stone wall",
+    "standing with one hand resting on her hip",
+    "walking barefoot through shallow water"
+  ],
+  "outfits": [
+    "an elegant minimal string bikini",
+    "a soaked white button-up shirt and fitted black mini skirt, tastefully revealing the outline of a black bra underneath without nudity",
+    "a luxury evening gown",
+    "a futuristic fitted bodysuit",
+    "an elegant summer dress",
+    "a stylish business outfit",
+    "a fitted leather jacket and black mini skirt"
+  ],
+  "expressions": [
+    "subtle natural smile",
+    "soft confident smile",
+    "calm confident expression",
+    "gentle smile",
+    "determined look",
+    "playful smile"
+  ],
+  "lighting": [
+    "cinematic golden hour lighting",
+    "colorful neon reflections and cinematic rain lighting",
+    "soft moonlight with volumetric atmosphere",
+    "warm sunset backlighting",
+    "dramatic high contrast cinematic lighting",
+    "luxury fashion editorial lighting"
+  ],
+  "shots": [
+    "full body shot",
+    "medium full shot",
+    "cinematic portrait",
+    "low angle full body shot",
+    "centered editorial portrait"
+  ]
+}
