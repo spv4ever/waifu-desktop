@@ -48,6 +48,7 @@ class AnimeGenerationCreate:
     prompt_text: str
     characters: list[str]
     quantity_per_character: int
+    fixed_outfit: Optional[str] = None
 
 
 @dataclass(frozen=True)

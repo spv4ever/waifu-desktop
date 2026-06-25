@@ -126,7 +126,11 @@ class AnimeGenerationService:
         created_prompt_item_ids: list[int] = []
         created_queue_job_ids: list[int] = []
         prompt_options = load_anime_v5_prompt_options() if _uses_anime_v5_generator(prompt_template) else None
-        prompt_selection = choose_anime_v5_prompt_selection(self.rng, prompt_options) if prompt_options is not None else None
+        prompt_selection = (
+            choose_anime_v5_prompt_selection(self.rng, prompt_options, fixed_outfit=req.fixed_outfit)
+            if prompt_options is not None
+            else None
+        )
         selected_template = (
             fill_anime_v5_option_tokens(prompt_template, prompt_selection)
             if prompt_selection is not None
