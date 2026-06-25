@@ -198,8 +198,9 @@ class MainWindow(QMainWindow):
         header.addStretch(1)
         layout.addLayout(header)
 
-        quick_actions = QHBoxLayout()
-        quick_actions.setSpacing(10)
+        quick_actions = QGridLayout()
+        quick_actions.setHorizontalSpacing(10)
+        quick_actions.setVerticalSpacing(8)
         self.open_filters_btn = QPushButton("Filtros inteligentes")
         self.open_pack_btn = QPushButton("Generar Pack Waifu")
         self.open_manual_prompt_btn = QPushButton("Prompt Manual Waifu")
@@ -210,17 +211,21 @@ class MainWindow(QMainWindow):
         self.open_reel_btn = QPushButton("Reel Instagram")
         self.open_dollimages_reel_btn = QPushButton("Reel Dollimages")
         self.open_anime_v5_reel_btn = QPushButton("Reel Anime V5")
-        quick_actions.addWidget(self.open_filters_btn)
-        quick_actions.addWidget(self.open_pack_btn)
-        quick_actions.addWidget(self.open_manual_prompt_btn)
-        quick_actions.addWidget(self.open_dollimages_pack_btn)
-        quick_actions.addWidget(self.open_dollimages_manual_prompt_btn)
-        quick_actions.addWidget(self.open_image2vid_btn)
-        quick_actions.addWidget(self.open_anime_v5_btn)
-        quick_actions.addWidget(self.open_reel_btn)
-        quick_actions.addWidget(self.open_dollimages_reel_btn)
-        quick_actions.addWidget(self.open_anime_v5_reel_btn)
-        quick_actions.addStretch(1)
+        quick_action_buttons = (
+            self.open_filters_btn,
+            self.open_pack_btn,
+            self.open_manual_prompt_btn,
+            self.open_dollimages_pack_btn,
+            self.open_dollimages_manual_prompt_btn,
+            self.open_image2vid_btn,
+            self.open_anime_v5_btn,
+            self.open_reel_btn,
+            self.open_dollimages_reel_btn,
+            self.open_anime_v5_reel_btn,
+        )
+        for index, button in enumerate(quick_action_buttons):
+            quick_actions.addWidget(button, index // 5, index % 5)
+        quick_actions.setColumnStretch(5, 1)
         layout.addLayout(quick_actions)
 
         summary_group = QGroupBox("Resumen rápido")
