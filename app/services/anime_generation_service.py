@@ -7,6 +7,12 @@ from datetime import datetime
 
 from app.data.storage import get_store
 from app.domain.models import AnimeGenerationCreate
+from app.services.anime_v5_prompt_generator import (
+    DEFAULT_TEMPLATE,
+    choose_anime_v5_prompt_selection,
+    fill_anime_v5_option_tokens,
+    load_anime_v5_prompt_options,
+)
 
 
 @dataclass(frozen=True)
@@ -28,13 +34,20 @@ def _render_anime_prompt(prompt_template: str, *, character: str, list_name: str
     )
 
 
+def _uses_anime_v5_generator(prompt_template: str) -> bool:
+    return any(
+        token in prompt_template
+        for token in ("[shot]", "[pose]", "[location]", "[outfit]", "[expression]", "[lighting]")
+    )
+
+
 class AnimeGenerationService:
     def __init__(self) -> None:
         self.store = get_store()
 
     def create_images_and_enqueue(self, req: AnimeGenerationCreate) -> AnimeGenerationResult:
         list_name = req.list_name.strip()
-        prompt_template = req.prompt_text.strip()
+        prompt_template = req.prompt_text.strip() or DEFAULT_TEMPLATE
         characters = [c.strip() for c in req.characters if c.strip()]
         if not list_name:
             raise ValueError("El nombre de la lista de personajes es obligatorio.")
@@ -42,6 +55,8 @@ class AnimeGenerationService:
             raise ValueError("El prompt es obligatorio.")
         if "[personaje]" not in prompt_template:
             raise ValueError("El prompt debe incluir el marcador [personaje].")
+        if "[anime]" not in prompt_template and "Dragon Ball" not in prompt_template:
+            raise ValueError("El prompt debe incluir el marcador [anime] o el texto Dragon Ball.")
         if not characters:
             raise ValueError("Añade al menos un personaje.")
         quantity = max(1, int(req.quantity_per_character))
@@ -68,12 +83,21 @@ class AnimeGenerationService:
         created_prompt_item_ids: list[int] = []
         created_queue_job_ids: list[int] = []
         rng = random.Random()
+        prompt_options = load_anime_v5_prompt_options() if _uses_anime_v5_generator(prompt_template) else None
         created_at = datetime.now().isoformat(timespec="seconds")
         width, height = 1024, 1408
 
         for character_id, character in zip(character_ids, characters):
-            rendered_prompt = _render_anime_prompt(prompt_template, character=character, list_name=list_name)
             for repetition in range(quantity):
+                prompt_selection = (
+                    choose_anime_v5_prompt_selection(rng, prompt_options) if prompt_options is not None else None
+                )
+                selected_template = (
+                    fill_anime_v5_option_tokens(prompt_template, prompt_selection)
+                    if prompt_selection is not None
+                    else prompt_template
+                )
+                rendered_prompt = _render_anime_prompt(selected_template, character=character, list_name=list_name)
                 signature = None
                 seed = None
                 for _ in range(10):
@@ -103,6 +127,7 @@ class AnimeGenerationService:
                     "anime_character": character,
                     "anime_character_list": list_name,
                     "anime_prompt_template": prompt_template,
+                    "anime_v5_prompt_selection": prompt_selection.as_meta() if prompt_selection else None,
                     "created_at": created_at,
                 }
                 item_id = self.store.create_prompt_item(

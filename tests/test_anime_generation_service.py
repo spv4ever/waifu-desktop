@@ -48,3 +48,50 @@ def test_anime_v5_replaces_anime_marker_and_dragon_ball_with_list_name(monkeypat
     assert result.created_prompt_item_ids == [41]
     assert store.prompt_items[0]["prompt_text"] == "Hinata from Personajes Naruto, Personajes Naruto lighting"
     assert store.prompt_items[0]["meta"]["anime_prompt_template"] == "[personaje] from [anime], Dragon Ball lighting"
+
+
+def test_anime_v5_generator_combines_configurable_options(monkeypatch):
+    store = FakeAnimeStore()
+    monkeypatch.setattr(anime_generation_service, "get_store", lambda: store)
+    monkeypatch.setattr(
+        anime_generation_service,
+        "load_anime_v5_prompt_options",
+        lambda: {
+            "locations": ["on a test rooftop"],
+            "poses": ["standing in a test pose"],
+            "outfits": ["a test outfit"],
+            "expressions": ["a test smile"],
+            "lighting": ["test cinematic lighting"],
+            "shots": ["test full body shot"],
+        },
+    )
+
+    service = AnimeGenerationService()
+    service.create_images_and_enqueue(
+        AnimeGenerationCreate(
+            list_name="Sailor Moon",
+            prompt_title="Generated",
+            prompt_text=(
+                "Adult [personaje] from [anime], single female character, [shot], [pose], "
+                "[location], wearing [outfit], [expression], [lighting], SFW."
+            ),
+            characters=["Usagi"],
+            quantity_per_character=1,
+        )
+    )
+
+    prompt = store.prompt_items[0]["prompt_text"]
+    assert prompt == (
+        "Adult Usagi from Sailor Moon, single female character, test full body shot, "
+        "standing in a test pose, on a test rooftop, wearing a test outfit, a test smile, "
+        "test cinematic lighting, SFW."
+    )
+    assert store.saved_prompt["prompt_text"].startswith("Adult [personaje] from [anime]")
+    assert store.prompt_items[0]["meta"]["anime_v5_prompt_selection"] == {
+        "location": "on a test rooftop",
+        "pose": "standing in a test pose",
+        "outfit": "a test outfit",
+        "expression": "a test smile",
+        "lighting": "test cinematic lighting",
+        "shot": "test full body shot",
+    }
