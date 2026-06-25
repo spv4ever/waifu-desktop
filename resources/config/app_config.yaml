@@ -238,5 +238,5 @@ comfyui_workflow_image2vid:
     input: "filename_prefix"
 
   load_image:
-    node_id: "117"
+    node_id: "97"
     input: "image"
