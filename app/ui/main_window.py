@@ -32,7 +32,13 @@ from app.services.manual_prompt_service import ManualPromptService
 from app.services.dollimages_manual_prompt_service import DollimagesManualPromptService
 from app.services.image2vid_service import ImageToVideoService
 from app.services.anime_generation_service import AnimeGenerationService
-from app.services.anime_v5_prompt_generator import DEFAULT_TEMPLATE, DEFAULT_OPTIONS_PATH
+from app.services.anime_v5_prompt_generator import (
+    DEFAULT_TEMPLATE,
+    DEFAULT_OPTIONS_PATH,
+    choose_anime_v5_prompt_selection,
+    fill_anime_v5_option_tokens,
+    load_anime_v5_prompt_options,
+)
 from app.domain.models import (
     PackCreate,
     DollimagesPackCreate,
@@ -1990,7 +1996,14 @@ class MainWindow(QMainWindow):
     def apply_anime_v5_generator_template(self) -> None:
         if not self.anime_v5_prompt_title_input.text().strip():
             self.anime_v5_prompt_title_input.setText("Generador Anime V5 SDXL")
-        self.anime_v5_prompt_input.setPlainText(DEFAULT_TEMPLATE)
+        try:
+            prompt_options = load_anime_v5_prompt_options()
+            prompt_selection = choose_anime_v5_prompt_selection(self.anime_generation_service.rng, prompt_options)
+            prompt_text = fill_anime_v5_option_tokens(DEFAULT_TEMPLATE, prompt_selection)
+        except Exception as exc:
+            QMessageBox.critical(self, "Anime V5", str(exc))
+            return
+        self.anime_v5_prompt_input.setPlainText(prompt_text)
 
     def _load_anime_v5_prompts(self) -> None:
         self._anime_v5_prompt_templates = self.store.list_anime_prompts()

@@ -44,6 +44,7 @@ def _uses_anime_v5_generator(prompt_template: str) -> bool:
 class AnimeGenerationService:
     def __init__(self) -> None:
         self.store = get_store()
+        self.rng = random.Random()
 
     def create_images_and_enqueue(self, req: AnimeGenerationCreate) -> AnimeGenerationResult:
         list_name = req.list_name.strip()
@@ -82,9 +83,8 @@ class AnimeGenerationService:
 
         created_prompt_item_ids: list[int] = []
         created_queue_job_ids: list[int] = []
-        rng = random.Random()
         prompt_options = load_anime_v5_prompt_options() if _uses_anime_v5_generator(prompt_template) else None
-        prompt_selection = choose_anime_v5_prompt_selection(rng, prompt_options) if prompt_options is not None else None
+        prompt_selection = choose_anime_v5_prompt_selection(self.rng, prompt_options) if prompt_options is not None else None
         selected_template = (
             fill_anime_v5_option_tokens(prompt_template, prompt_selection)
             if prompt_selection is not None
@@ -99,7 +99,7 @@ class AnimeGenerationService:
                 signature = None
                 seed = None
                 for _ in range(10):
-                    seed = rng.randint(0, 2**31 - 1)
+                    seed = self.rng.randint(0, 2**31 - 1)
                     candidate = _hash_signature("anime_v5", list_name, character, repetition, seed, prompt_template)
                     if self.store.try_register_combo(combo_key=candidate, category="anime", variant=list_name):
                         signature = candidate
