@@ -67,12 +67,15 @@ def load_anime_v5_prompt_options(path: Path | None = None) -> dict[str, list[str
 def choose_anime_v5_prompt_selection(
     rng: random.Random,
     options: Mapping[str, list[str]] | None = None,
+    *,
+    fixed_outfit: str | None = None,
 ) -> AnimeV5PromptSelection:
     data = dict(options) if options is not None else load_anime_v5_prompt_options()
+    outfit = fixed_outfit.strip() if fixed_outfit else ""
     return AnimeV5PromptSelection(
         location=rng.choice(data["locations"]),
         pose=rng.choice(data["poses"]),
-        outfit=rng.choice(data["outfits"]),
+        outfit=outfit or rng.choice(data["outfits"]),
         expression=rng.choice(data["expressions"]),
         lighting=rng.choice(data["lighting"]),
         shot=rng.choice(data["shots"]),

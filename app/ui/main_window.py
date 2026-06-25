@@ -615,30 +615,35 @@ class MainWindow(QMainWindow):
         anime_grid.addWidget(self.anime_v5_prompt_title_input, 1, 1, 1, 4)
         self.anime_v5_pick_prompt_btn = QPushButton("Buscar prompt...")
         anime_grid.addWidget(self.anime_v5_pick_prompt_btn, 1, 5)
+        anime_grid.addWidget(QLabel("Outfit fijo:"), 2, 0)
+        self.anime_v5_fixed_outfit_combo = QComboBox()
+        self.anime_v5_fixed_outfit_combo.setEditable(True)
+        self.anime_v5_fixed_outfit_combo.setPlaceholderText("Aleatorio")
+        anime_grid.addWidget(self.anime_v5_fixed_outfit_combo, 2, 1, 1, 4)
         self.anime_v5_generator_btn = QPushButton("Generador Anime V5")
         self.anime_v5_generator_btn.setMinimumWidth(140)
         anime_grid.addWidget(self.anime_v5_generator_btn, 2, 5)
-        anime_grid.addWidget(QLabel("Personajes:"), 2, 0)
+        anime_grid.addWidget(QLabel("Personajes:"), 3, 0)
         self.anime_v5_characters_input = QPlainTextEdit()
         self.anime_v5_characters_input.setPlaceholderText(
             'Un personaje por línea o JSON. Ej:\n'
             '{"name": "Nami", "anime": "One Piece", "description": "beautiful anime woman with long bright orange hair, large brown eyes, slim curvy figure, recognizable anime-inspired appearance"}'
         )
         self.anime_v5_characters_input.setMinimumHeight(280)
-        anime_grid.addWidget(self.anime_v5_characters_input, 2, 1, 1, 4)
-        anime_grid.addWidget(QLabel("Prompt:"), 3, 0)
+        anime_grid.addWidget(self.anime_v5_characters_input, 3, 1, 1, 4)
+        anime_grid.addWidget(QLabel("Prompt:"), 4, 0)
         self.anime_v5_prompt_input = QPlainTextEdit()
         self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje], [anime], [description] y opcionalmente [shot], [pose], [location], [outfit], [expression], [lighting].")
         self.anime_v5_prompt_input.setMinimumHeight(180)
-        anime_grid.addWidget(self.anime_v5_prompt_input, 3, 1, 1, 5)
+        anime_grid.addWidget(self.anime_v5_prompt_input, 4, 1, 1, 5)
         anime_grid.setColumnStretch(1, 1)
-        anime_grid.setRowStretch(2, 3)
-        anime_grid.setRowStretch(3, 2)
+        anime_grid.setRowStretch(3, 3)
+        anime_grid.setRowStretch(4, 2)
         self.anime_v5_options_label = QLabel(f"Opciones editables: {DEFAULT_OPTIONS_PATH}")
         self.anime_v5_options_label.setStyleSheet("color: #9aa0a6; font-size: 11px;")
-        anime_grid.addWidget(self.anime_v5_options_label, 4, 1, 1, 3)
+        anime_grid.addWidget(self.anime_v5_options_label, 5, 1, 1, 3)
         self.anime_v5_generate_btn = QPushButton("Crear imágenes Anime V5")
-        anime_grid.addWidget(self.anime_v5_generate_btn, 4, 4, 1, 2)
+        anime_grid.addWidget(self.anime_v5_generate_btn, 5, 4, 1, 2)
         anime_layout.addWidget(anime_group)
 
         self.anime_v5_prompt_picker_dialog = QDialog(self)
@@ -1272,6 +1277,7 @@ class MainWindow(QMainWindow):
         self._populate_anime_v5_lists()
         self._populate_anime_v5_reel_selectors()
         self._load_anime_v5_prompts()
+        self._populate_anime_v5_fixed_outfits()
         self._load_image2vid_prompt_templates()
 
         self._update_right_column_visibility()
@@ -2007,12 +2013,42 @@ class MainWindow(QMainWindow):
         self.anime_v5_list_combo.setEditText(list_name)
         QMessageBox.information(self, "Anime V5", f"Lista guardada con {saved} personajes.")
 
+    def _populate_anime_v5_fixed_outfits(self) -> None:
+        current = self.anime_v5_fixed_outfit_combo.currentText().strip()
+        self.anime_v5_fixed_outfit_combo.blockSignals(True)
+        self.anime_v5_fixed_outfit_combo.clear()
+        self.anime_v5_fixed_outfit_combo.addItem("Aleatorio", "")
+        try:
+            outfits = load_anime_v5_prompt_options().get("outfits", [])
+        except Exception:
+            outfits = []
+        for outfit in outfits:
+            self.anime_v5_fixed_outfit_combo.addItem(outfit, outfit)
+        if current and current != "Aleatorio":
+            idx = self.anime_v5_fixed_outfit_combo.findText(current)
+            if idx >= 0:
+                self.anime_v5_fixed_outfit_combo.setCurrentIndex(idx)
+            else:
+                self.anime_v5_fixed_outfit_combo.setEditText(current)
+        self.anime_v5_fixed_outfit_combo.blockSignals(False)
+
+    def _selected_anime_v5_fixed_outfit(self) -> str | None:
+        outfit = self.anime_v5_fixed_outfit_combo.currentText().strip()
+        if not outfit or outfit == "Aleatorio":
+            data = self.anime_v5_fixed_outfit_combo.currentData()
+            outfit = str(data or "").strip()
+        return outfit or None
+
     def apply_anime_v5_generator_template(self) -> None:
         if not self.anime_v5_prompt_title_input.text().strip():
             self.anime_v5_prompt_title_input.setText("Generador Anime V5 SDXL")
         try:
             prompt_options = load_anime_v5_prompt_options()
-            prompt_selection = choose_anime_v5_prompt_selection(self.anime_generation_service.rng, prompt_options)
+            prompt_selection = choose_anime_v5_prompt_selection(
+                self.anime_generation_service.rng,
+                prompt_options,
+                fixed_outfit=self._selected_anime_v5_fixed_outfit(),
+            )
             prompt_text = fill_anime_v5_option_tokens(DEFAULT_TEMPLATE, prompt_selection)
         except Exception as exc:
             QMessageBox.critical(self, "Anime V5", str(exc))
@@ -2025,6 +2061,7 @@ class MainWindow(QMainWindow):
 
     def open_anime_v5_prompt_picker(self) -> None:
         self._load_anime_v5_prompts()
+        self._populate_anime_v5_fixed_outfits()
         self.anime_v5_prompt_picker_dialog.show()
         self.anime_v5_prompt_picker_dialog.raise_()
         self.anime_v5_prompt_picker_dialog.activateWindow()
@@ -2072,6 +2109,7 @@ class MainWindow(QMainWindow):
         prompt_text = self.anime_v5_prompt_input.toPlainText().strip()
         characters = [line.strip() for line in self.anime_v5_characters_input.toPlainText().splitlines() if line.strip()]
         quantity = int(self.anime_v5_quantity_spin.value())
+        fixed_outfit = self._selected_anime_v5_fixed_outfit()
 
         try:
             result = self.anime_generation_service.create_images_and_enqueue(
@@ -2081,6 +2119,7 @@ class MainWindow(QMainWindow):
                     prompt_text=prompt_text,
                     characters=characters,
                     quantity_per_character=quantity,
+                    fixed_outfit=fixed_outfit,
                 )
             )
         except Exception as exc:

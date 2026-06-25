@@ -98,6 +98,47 @@ def test_anime_v5_generator_combines_configurable_options(monkeypatch):
     }
 
 
+def test_anime_v5_generator_can_fix_outfit_and_randomize_other_options(monkeypatch):
+    store = FakeAnimeStore()
+    monkeypatch.setattr(anime_generation_service, "get_store", lambda: store)
+    monkeypatch.setattr(
+        anime_generation_service,
+        "load_anime_v5_prompt_options",
+        lambda: {
+            "locations": ["rooftop"],
+            "poses": ["standing"],
+            "outfits": ["dress"],
+            "expressions": ["smile"],
+            "lighting": ["sunset"],
+            "shots": ["full body"],
+        },
+    )
+
+    service = AnimeGenerationService()
+    service.create_images_and_enqueue(
+        AnimeGenerationCreate(
+            list_name="One Piece",
+            prompt_title="Generated",
+            prompt_text="[personaje] from [anime], [shot], [pose], [location], [outfit], [expression], [lighting]",
+            characters=["Nami"],
+            quantity_per_character=1,
+            fixed_outfit="custom battle outfit",
+        )
+    )
+
+    assert store.prompt_items[0]["prompt_text"] == (
+        "Nami from One Piece, full body, standing, rooftop, custom battle outfit, smile, sunset"
+    )
+    assert store.prompt_items[0]["meta"]["anime_v5_prompt_selection"] == {
+        "location": "rooftop",
+        "pose": "standing",
+        "outfit": "custom battle outfit",
+        "expression": "smile",
+        "lighting": "sunset",
+        "shot": "full body",
+    }
+
+
 def test_anime_v5_generator_reuses_selected_options_for_all_characters(monkeypatch):
     store = FakeAnimeStore()
     selections = []
@@ -115,7 +156,7 @@ def test_anime_v5_generator_reuses_selected_options_for_all_characters(monkeypat
         },
     )
 
-    def choose_once(rng, options):
+    def choose_once(rng, options, *, fixed_outfit=None):
         selections.append(options)
         return AnimeV5PromptSelection(
             location="rooftop",
