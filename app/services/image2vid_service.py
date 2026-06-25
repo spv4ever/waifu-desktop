@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import random
-import shutil
 from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +11,13 @@ from app.data.storage import get_store
 from app.domain.models import ImageToVideoCreate
 from app.services.image_validation import validate_image_file
 from app.services.path_utils import unique_suffixed_path
+
+
+try:
+    from PIL import Image, ImageOps
+except ImportError:  # pragma: no cover - dependency guard for minimal environments
+    Image = None  # type: ignore[assignment]
+    ImageOps = None  # type: ignore[assignment]
 
 
 @dataclass(frozen=True)
@@ -35,13 +41,29 @@ class ImageToVideoService:
         if not src.exists():
             raise FileNotFoundError(f"Imagen de referencia no encontrada: {source_path}")
         validate_image_file(src)
+
         input_dir = Path(settings.comfyui_input_dir)
         input_dir.mkdir(parents=True, exist_ok=True)
-        target = input_dir / src.name
-        if src.resolve() == target.resolve():
-            return src.name
-        target = unique_suffixed_path(target)
-        shutil.copy2(src, target)
+
+        if Image is None or ImageOps is None:
+            target = input_dir / src.name
+            if src.resolve() == target.resolve():
+                return src.name
+            target = unique_suffixed_path(target)
+            target.write_bytes(src.read_bytes())
+            return target.name
+
+        target = unique_suffixed_path(input_dir / f"{src.stem}_image2vid.png")
+        try:
+            with Image.open(src) as image:
+                normalized = ImageOps.exif_transpose(image)
+                if normalized.mode not in {"RGB", "RGBA"}:
+                    normalized = normalized.convert("RGBA" if "A" in normalized.getbands() else "RGB")
+                normalized.save(target, format="PNG")
+        except (OSError, ValueError) as exc:
+            raise ValueError(f"No se pudo preparar la imagen para Image2Vid: {src.name}") from exc
+
+        validate_image_file(target)
         return target.name
 
     def create_and_enqueue(self, req: ImageToVideoCreate) -> ImageToVideoResult:
