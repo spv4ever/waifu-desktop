@@ -32,6 +32,15 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
     )
     _add_column_if_missing(conn, "dollimage_prompt", "group_name", "TEXT NOT NULL DEFAULT ''")
     _add_column_if_missing(conn, "prompt_base", "iteration_groups", "TEXT")
+    _add_column_if_missing(conn, "anime_character", "description", "TEXT NOT NULL DEFAULT ''")
+
+    conn.execute(
+        """
+        UPDATE anime_character
+        SET description = 'recognizable anime-inspired appearance'
+        WHERE description IS NULL OR trim(description) = ''
+        """
+    )
 
     conn.execute(
         """
@@ -269,6 +278,7 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
           id          INTEGER PRIMARY KEY AUTOINCREMENT,
           list_name   TEXT NOT NULL,
           name        TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
           enabled     INTEGER NOT NULL DEFAULT 1,
           created_at  TEXT NOT NULL DEFAULT (datetime('now')),
           updated_at  TEXT NOT NULL DEFAULT (datetime('now')),

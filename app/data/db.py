@@ -10,10 +10,11 @@ from app.config.settings import settings
 def ensure_data_dir() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-SCHEMA_VERSION = 10
+SCHEMA_VERSION = 11
 
 REQUIRED_COLUMNS: tuple[tuple[str, str], ...] = (
     ("prompt_base", "iteration_groups"),
+    ("anime_character", "description"),
 )
 
 REQUIRED_TABLES: tuple[str, ...] = (

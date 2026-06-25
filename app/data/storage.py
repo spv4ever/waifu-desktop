@@ -1498,11 +1498,11 @@ class SQLiteStore(BaseStore):
             with conn:
                 return self._video_prompt_templates.ensure_seeded(conn, templates)
 
-    def list_anime_character_lists(self, *, include_disabled: bool = False) -> dict[str, list[str]]:
+    def list_anime_character_lists(self, *, include_disabled: bool = False, include_descriptions: bool = False) -> dict[str, list[str]]:
         with get_connection() as conn:
             rows = conn.execute(
                 """
-                SELECT list_name, name
+                SELECT list_name, name, description
                 FROM anime_character
                 WHERE (? = 1) OR enabled = 1
                 ORDER BY list_name, name
@@ -1511,7 +1511,15 @@ class SQLiteStore(BaseStore):
             ).fetchall()
         out: dict[str, list[str]] = {}
         for row in rows:
-            out.setdefault(str(row["list_name"]), []).append(str(row["name"]))
+            description = str(row["description"] or "").strip()
+            if include_descriptions and description:
+                value = json.dumps(
+                    {"name": str(row["name"]), "anime": str(row["list_name"]), "description": description},
+                    ensure_ascii=False,
+                )
+            else:
+                value = str(row["name"])
+            out.setdefault(str(row["list_name"]), []).append(value)
         return out
 
     def list_anime_prompts(self, *, include_disabled: bool = False) -> list[dict[str, object]]:
@@ -1539,10 +1547,20 @@ class SQLiteStore(BaseStore):
         cleaned = []
         seen = set()
         for character in characters:
-            name = str(character).strip()
+            raw = str(character).strip()
+            name = raw
+            description = ""
+            if raw.startswith("{"):
+                try:
+                    data = json.loads(raw)
+                except json.JSONDecodeError:
+                    data = None
+                if isinstance(data, dict):
+                    name = str(data.get("name") or "").strip()
+                    description = str(data.get("description") or "").strip()
             key = name.lower()
             if name and key not in seen:
-                cleaned.append(name)
+                cleaned.append((name, description))
                 seen.add(key)
         if not list_name.strip() or not cleaned:
             return 0
@@ -1552,16 +1570,17 @@ class SQLiteStore(BaseStore):
                     "UPDATE anime_character SET enabled = 0, updated_at = datetime('now') WHERE list_name = ?",
                     (list_name.strip(),),
                 )
-                for name in cleaned:
+                for name, description in cleaned:
                     conn.execute(
                         """
-                        INSERT INTO anime_character (list_name, name, enabled)
-                        VALUES (?, ?, 1)
+                        INSERT INTO anime_character (list_name, name, description, enabled)
+                        VALUES (?, ?, ?, 1)
                         ON CONFLICT(list_name, name) DO UPDATE SET
+                            description = excluded.description,
                             enabled = 1,
                             updated_at = datetime('now')
                         """,
-                        (list_name.strip(), name),
+                        (list_name.strip(), name, description),
                     )
         return len(cleaned)
 
@@ -1571,7 +1590,8 @@ class SQLiteStore(BaseStore):
         character_id: int | None,
         list_name: str,
         name: str,
-        enabled: bool,
+        description: str = "",
+        enabled: bool = True,
     ) -> int:
         with get_connection() as conn:
             with conn:
@@ -1579,22 +1599,23 @@ class SQLiteStore(BaseStore):
                     conn.execute(
                         """
                         UPDATE anime_character
-                        SET list_name = ?, name = ?, enabled = ?, updated_at = datetime('now')
+                        SET list_name = ?, name = ?, description = ?, enabled = ?, updated_at = datetime('now')
                         WHERE id = ?
                         """,
-                        (list_name, name, 1 if enabled else 0, character_id),
+                        (list_name, name, description, 1 if enabled else 0, character_id),
                     )
                     return int(character_id)
                 cur = conn.execute(
                     """
-                    INSERT INTO anime_character (list_name, name, enabled)
-                    VALUES (?, ?, ?)
+                    INSERT INTO anime_character (list_name, name, description, enabled)
+                    VALUES (?, ?, ?, ?)
                     ON CONFLICT(list_name, name) DO UPDATE SET
+                        description = excluded.description,
                         enabled = excluded.enabled,
                         updated_at = datetime('now')
                     RETURNING id
                     """,
-                    (list_name, name, 1 if enabled else 0),
+                    (list_name, name, description, 1 if enabled else 0),
                 )
                 return int(cur.fetchone()["id"])
 
