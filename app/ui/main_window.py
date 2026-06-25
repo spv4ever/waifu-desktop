@@ -656,7 +656,7 @@ class MainWindow(QMainWindow):
         self.image2vid_dialog.setWindowTitle("Image2Vid WAN 2.2")
         self.image2vid_dialog.setModal(False)
         image2vid_dialog_layout = QVBoxLayout(self.image2vid_dialog)
-        image2vid_group = QGroupBox("Generar video desde imagen Cloudinary")
+        image2vid_group = QGroupBox("Generar video desde la imagen seleccionada")
         image2vid_layout = QGridLayout(image2vid_group)
         image2vid_layout.setHorizontalSpacing(10)
         image2vid_layout.setVerticalSpacing(8)
@@ -666,9 +666,9 @@ class MainWindow(QMainWindow):
         self.image2vid_source_label = QLabel("Sin imagen seleccionada")
         self.image2vid_source_label.setStyleSheet("color: #9aa0a6;")
         image2vid_layout.addWidget(self.image2vid_source_label, 0, 1, 1, 4)
-        self.image2vid_select_source_btn = QPushButton("Seleccionar imagen...")
+        self.image2vid_select_source_btn = QPushButton("Usar selección actual")
         image2vid_layout.addWidget(self.image2vid_select_source_btn, 0, 5)
-        self.image2vid_reload_sources_btn = QPushButton("Recargar")
+        self.image2vid_reload_sources_btn = QPushButton("Actualizar")
         image2vid_layout.addWidget(self.image2vid_reload_sources_btn, 0, 6)
 
         image2vid_layout.addWidget(QLabel("Ratio:"), 1, 0)
@@ -1194,8 +1194,8 @@ class MainWindow(QMainWindow):
         self.reel_category_combo.currentIndexChanged.connect(self._populate_reel_variants)
         self.image2vid_ratio_combo.currentIndexChanged.connect(self._update_image2vid_labels)
         self.image2vid_seconds_spin.valueChanged.connect(self._update_image2vid_labels)
-        self.image2vid_reload_sources_btn.clicked.connect(self._populate_image2vid_sources)
-        self.image2vid_select_source_btn.clicked.connect(self.open_image2vid_source_picker)
+        self.image2vid_reload_sources_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
+        self.image2vid_select_source_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_pick_prompt_btn.clicked.connect(self.open_image2vid_prompt_picker)
         self.image2vid_source_cancel_btn.clicked.connect(self.image2vid_source_picker_dialog.reject)
         self.image2vid_prompt_cancel_btn.clicked.connect(self.image2vid_prompt_picker_dialog.reject)
@@ -2265,8 +2265,7 @@ class MainWindow(QMainWindow):
         )
 
     def open_image2vid_dialog(self) -> None:
-        if not self._image2vid_source_options:
-            self._populate_image2vid_sources()
+        self._set_image2vid_source_from_current_selection(show_warning=False)
         self._update_image2vid_labels()
         self.image2vid_dialog.show()
 
@@ -2290,6 +2289,64 @@ class MainWindow(QMainWindow):
         length_frames = self._compute_image2vid_length(seconds=seconds)
         self.image2vid_size_label.setText(f"Tamaño: {width}x{height}")
         self.image2vid_frames_label.setText(f"Frames Wan: {length_frames}")
+
+
+    def _selected_image2vid_source_from_browser(self) -> dict[str, Any] | None:
+        pid = self._selected_prompt_id()
+        if pid is None:
+            return None
+
+        media = self.store.get_prompt_item_media(pid)
+        if not media:
+            return None
+
+        base = json.loads(media["base_image_json"]) if media.get("base_image_json") else None
+        upscale = json.loads(media["upscale_image_json"]) if media.get("upscale_image_json") else None
+        image_json = upscale or base
+        if not image_json:
+            return None
+
+        workflow_key = self._workflow_key_from_row(media)
+        image_path = build_output_path(image_json, workflow_key=workflow_key)
+        if not image_path.exists():
+            return None
+
+        meta = {}
+        if media.get("meta_json"):
+            try:
+                decoded_meta = json.loads(media["meta_json"])
+            except json.JSONDecodeError:
+                decoded_meta = {}
+            if isinstance(decoded_meta, dict):
+                meta = decoded_meta
+
+        title = str(media.get("title") or "").strip() or f"Prompt {pid}"
+        source_category = str(meta.get("category") or meta.get("workflow") or workflow_key or "waifu")
+        return {
+            "prompt_id": pid,
+            "source_category": source_category,
+            "category": source_category,
+            "variant": str(meta.get("combo", {}).get("variant") or meta.get("dollimages_typology") or "?"),
+            "url": "",
+            "local_path": str(image_path),
+            "title": title,
+        }
+
+    def _set_image2vid_source_from_current_selection(self, show_warning: bool = True) -> None:
+        option = self._selected_image2vid_source_from_browser()
+        if not option:
+            if show_warning:
+                QMessageBox.warning(
+                    self,
+                    "Image2Vid",
+                    "Selecciona en el browse principal un prompt con imagen generada disponible.",
+                )
+            self.image2vid_selected_source = None
+            self._update_image2vid_source_label()
+            return
+
+        self.image2vid_selected_source = option
+        self._update_image2vid_source_label()
 
     def _populate_image2vid_sources(self) -> None:
         current = self.image2vid_selected_source or {}
@@ -2541,8 +2598,8 @@ class MainWindow(QMainWindow):
 
     def generate_image2vid(self) -> None:
         source_info = self.image2vid_selected_source or {}
-        if not isinstance(source_info, dict) or not source_info.get("url"):
-            QMessageBox.warning(self, "Image2Vid", "Debes seleccionar una imagen de origen subida a Cloudinary.")
+        if not isinstance(source_info, dict) or not source_info.get("local_path"):
+            QMessageBox.warning(self, "Image2Vid", "Debes seleccionar en el browse principal una imagen de origen local.")
             return
 
         positive = self.image2vid_positive_input.toPlainText().strip()
@@ -2562,12 +2619,14 @@ class MainWindow(QMainWindow):
         source_category = str(source_info.get("source_category") or "waifu")
         source_prompt_id = int(source_info.get("prompt_id") or 0)
         source_url = str(source_info.get("url") or "").strip()
+        source_image = str(source_info.get("local_path") or "").strip()
         title = self.image2vid_title_input.text().strip() or f"Image2Vid {source_category} #{source_prompt_id}"
 
         req = ImageToVideoCreate(
             source_category=source_category,
             source_prompt_id=source_prompt_id,
             source_url=source_url,
+            source_image=source_image,
             title=title,
             prompt_text=positive,
             negative_text=negative,
