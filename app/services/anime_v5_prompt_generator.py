@@ -9,7 +9,7 @@ from typing import Mapping
 DEFAULT_OPTIONS_PATH = Path("resources/config/anime_v5_prompt_options.json")
 REQUIRED_GROUPS = ("locations", "poses", "outfits", "expressions", "lighting", "shots")
 DEFAULT_TEMPLATE = (
-    "Adult [personaje] from [anime], single female character, [shot], [pose], [location], "
+    "Adult [personaje] from [anime], [description], single female character, [shot], [pose], [location], "
     "wearing [outfit], [expression], [lighting], fashion editorial photography, cinematic composition, "
     "centered composition, single subject, SFW, ultra realistic, photorealistic, masterpiece, HDR, "
     "volumetric lighting, depth of field, ultra detailed, sharp focus, realistic anatomy, symmetrical face, "

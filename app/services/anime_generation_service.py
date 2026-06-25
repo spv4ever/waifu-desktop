@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import random
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,6 +17,33 @@ from app.services.anime_v5_prompt_generator import (
 
 
 @dataclass(frozen=True)
+class AnimeCharacterRequest:
+    name: str
+    description: str = ""
+
+
+def _default_character_description(character: str) -> str:
+    return f"recognizable anime-inspired appearance of {character}"
+
+
+def _parse_character_request(value: str) -> AnimeCharacterRequest | None:
+    raw = str(value).strip()
+    if not raw:
+        return None
+    if raw.startswith("{"):
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            data = None
+        if isinstance(data, dict):
+            name = str(data.get("name") or "").strip()
+            description = str(data.get("description") or "").strip()
+            if name:
+                return AnimeCharacterRequest(name=name, description=description)
+    return AnimeCharacterRequest(name=raw)
+
+
+@dataclass(frozen=True)
 class AnimeGenerationResult:
     pack_id: int
     created_prompt_item_ids: list[int]
@@ -26,10 +54,18 @@ def _hash_signature(*values: object) -> str:
     return hashlib.sha1("|".join(str(v) for v in values).encode("utf-8")).hexdigest()
 
 
-def _render_anime_prompt(prompt_template: str, *, character: str, list_name: str) -> str:
+def _render_anime_prompt(
+    prompt_template: str,
+    *,
+    character: str,
+    list_name: str,
+    description: str,
+) -> str:
+    character_description = description.strip() or _default_character_description(character)
     return (
         prompt_template.replace("[personaje]", character)
         .replace("[anime]", list_name)
+        .replace("[description]", character_description)
         .replace("Dragon Ball", list_name)
     )
 
@@ -49,7 +85,7 @@ class AnimeGenerationService:
     def create_images_and_enqueue(self, req: AnimeGenerationCreate) -> AnimeGenerationResult:
         list_name = req.list_name.strip()
         prompt_template = req.prompt_text.strip() or DEFAULT_TEMPLATE
-        characters = [c.strip() for c in req.characters if c.strip()]
+        characters = [parsed for raw in req.characters if (parsed := _parse_character_request(raw)) is not None]
         if not list_name:
             raise ValueError("El nombre de la lista de personajes es obligatorio.")
         if not prompt_template:
@@ -69,8 +105,14 @@ class AnimeGenerationService:
             enabled=True,
         )
         character_ids = [
-            self.store.save_anime_character(character_id=None, list_name=list_name, name=name, enabled=True)
-            for name in characters
+            self.store.save_anime_character(
+                character_id=None,
+                list_name=list_name,
+                name=character.name,
+                description=character.description,
+                enabled=True,
+            )
+            for character in characters
         ]
 
         requested = len(characters) * quantity
@@ -94,13 +136,19 @@ class AnimeGenerationService:
         width, height = 1024, 1408
 
         for character_id, character in zip(character_ids, characters):
+            character_description = character.description or _default_character_description(character.name)
             for repetition in range(quantity):
-                rendered_prompt = _render_anime_prompt(selected_template, character=character, list_name=list_name)
+                rendered_prompt = _render_anime_prompt(
+                    selected_template,
+                    character=character.name,
+                    list_name=list_name,
+                    description=character_description,
+                )
                 signature = None
                 seed = None
                 for _ in range(10):
                     seed = self.rng.randint(0, 2**31 - 1)
-                    candidate = _hash_signature("anime_v5", list_name, character, repetition, seed, prompt_template)
+                    candidate = _hash_signature("anime_v5", list_name, character.name, character_description, repetition, seed, prompt_template)
                     if self.store.try_register_combo(combo_key=candidate, category="anime", variant=list_name):
                         signature = candidate
                         break
@@ -122,7 +170,8 @@ class AnimeGenerationService:
                     "height": height,
                     "anime_prompt_id": prompt_id,
                     "anime_character_id": character_id,
-                    "anime_character": character,
+                    "anime_character": character.name,
+                    "anime_character_description": character_description,
                     "anime_character_list": list_name,
                     "anime_prompt_template": prompt_template,
                     "anime_v5_prompt_selection": prompt_selection.as_meta() if prompt_selection else None,
@@ -130,7 +179,7 @@ class AnimeGenerationService:
                 }
                 item_id = self.store.create_prompt_item(
                     pack_id=pack_id,
-                    title=f"{list_name} - {character}",
+                    title=f"{list_name} - {character.name}",
                     prompt_text=rendered_prompt,
                     negative_text="bad quality,worst quality,worst detail,sketch,censor, watermark, logo, text",
                     meta=meta,

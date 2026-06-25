@@ -157,3 +157,28 @@ def test_anime_v5_generator_reuses_selected_options_for_all_characters(monkeypat
         }
         for item in store.prompt_items
     )
+
+
+def test_anime_v5_injects_character_description_from_json(monkeypatch):
+    store = FakeAnimeStore()
+    monkeypatch.setattr(anime_generation_service, "get_store", lambda: store)
+
+    service = AnimeGenerationService()
+    service.create_images_and_enqueue(
+        AnimeGenerationCreate(
+            list_name="One Piece",
+            prompt_title="Prompt",
+            prompt_text="Adult [personaje] from [anime], [description], cinematic portrait",
+            characters=[
+                '{"name": "Nami", "anime": "One Piece", "description": "beautiful anime woman with long bright orange hair, large brown eyes, slim curvy figure, recognizable anime-inspired appearance"}'
+            ],
+            quantity_per_character=1,
+        )
+    )
+
+    assert store.prompt_items[0]["prompt_text"] == (
+        "Adult Nami from One Piece, beautiful anime woman with long bright orange hair, "
+        "large brown eyes, slim curvy figure, recognizable anime-inspired appearance, cinematic portrait"
+    )
+    assert store.prompt_items[0]["meta"]["anime_character"] == "Nami"
+    assert store.prompt_items[0]["meta"]["anime_character_description"].startswith("beautiful anime woman")

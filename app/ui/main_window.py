@@ -612,12 +612,15 @@ class MainWindow(QMainWindow):
         anime_grid.addWidget(self.anime_v5_generator_btn, 2, 5)
         anime_grid.addWidget(QLabel("Personajes:"), 2, 0)
         self.anime_v5_characters_input = QPlainTextEdit()
-        self.anime_v5_characters_input.setPlaceholderText("Un personaje por línea. Ej:\nGoku\nVegeta\nVidel")
+        self.anime_v5_characters_input.setPlaceholderText(
+            'Un personaje por línea o JSON. Ej:\n'
+            '{"name": "Nami", "anime": "One Piece", "description": "beautiful anime woman with long bright orange hair, large brown eyes, slim curvy figure, recognizable anime-inspired appearance"}'
+        )
         self.anime_v5_characters_input.setMinimumHeight(110)
         anime_grid.addWidget(self.anime_v5_characters_input, 2, 1, 1, 4)
         anime_grid.addWidget(QLabel("Prompt:"), 3, 0)
         self.anime_v5_prompt_input = QPlainTextEdit()
-        self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje], [anime] y opcionalmente [shot], [pose], [location], [outfit], [expression], [lighting].")
+        self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje], [anime], [description] y opcionalmente [shot], [pose], [location], [outfit], [expression], [lighting].")
         self.anime_v5_prompt_input.setMinimumHeight(140)
         anime_grid.addWidget(self.anime_v5_prompt_input, 3, 1, 1, 5)
         self.anime_v5_options_label = QLabel(f"Opciones editables: {DEFAULT_OPTIONS_PATH}")
@@ -1958,7 +1961,7 @@ class MainWindow(QMainWindow):
 
     def _populate_anime_v5_lists(self) -> None:
         current = self.anime_v5_list_combo.currentText().strip()
-        self._anime_v5_character_lists = self.store.list_anime_character_lists()
+        self._anime_v5_character_lists = self.store.list_anime_character_lists(include_descriptions=True)
         self.anime_v5_list_combo.blockSignals(True)
         self.anime_v5_list_combo.clear()
         for list_name in sorted(self._anime_v5_character_lists):
