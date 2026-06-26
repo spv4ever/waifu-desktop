@@ -223,3 +223,26 @@ def test_anime_v5_injects_character_description_from_json(monkeypatch):
     )
     assert store.prompt_items[0]["meta"]["anime_character"] == "Nami"
     assert store.prompt_items[0]["meta"]["anime_character_description"].startswith("beautiful anime woman")
+
+
+def test_anime_v5_saves_selected_checkpoints_in_meta(monkeypatch):
+    store = FakeAnimeStore()
+    monkeypatch.setattr(anime_generation_service, "get_store", lambda: store)
+
+    service = AnimeGenerationService()
+    service.create_images_and_enqueue(
+        AnimeGenerationCreate(
+            list_name="Bleach",
+            prompt_title="Prompt",
+            prompt_text="[personaje] from [anime], cinematic portrait",
+            characters=["Rukia"],
+            quantity_per_character=1,
+            checkpoint_base="base-model.safetensors",
+            checkpoint_refiner="refiner-model.safetensors",
+        )
+    )
+
+    assert store.prompt_items[0]["meta"]["checkpoints"] == {
+        "base": "base-model.safetensors",
+        "refiner": "refiner-model.safetensors",
+    }

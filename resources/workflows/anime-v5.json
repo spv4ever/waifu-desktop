@@ -200,7 +200,7 @@
       "scheduler": "ddim_uniform",
       "denoise": 0.35,
       "model": [
-        "1",
+        "23",
         0
       ],
       "positive": [
@@ -238,6 +238,15 @@
     "class_type": "AcademiaSD_MultiLora",
     "_meta": {
       "title": "Academia SD Multi-LoRA 💊"
+    }
+  },
+  "23": {
+    "inputs": {
+      "ckpt_name": "waiNSFWIllustrious_v130.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Refiner Checkpoint"
     }
   }
 }

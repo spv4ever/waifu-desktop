@@ -27,9 +27,9 @@ class CheckpointService:
         ]
         return sorted(items, key=str.casefold)
 
-    def get_default_checkpoints(self) -> tuple[str | None, str | None]:
-        workflow = WorkflowService().load_template()
-        mapping = load_app_config().raw.get("comfyui_workflow", {})
+    def get_default_checkpoints(self, *, workflow_key: str = "waifu", mapping_key: str = "comfyui_workflow") -> tuple[str | None, str | None]:
+        workflow = WorkflowService().load_template(workflow_key=workflow_key)
+        mapping = load_app_config().raw.get(mapping_key, {})
 
         def read_input(node_id: str | None, input_name: str | None) -> str | None:
             if not node_id or not input_name:
