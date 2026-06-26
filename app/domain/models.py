@@ -49,6 +49,8 @@ class AnimeGenerationCreate:
     characters: list[str]
     quantity_per_character: int
     fixed_outfit: Optional[str] = None
+    checkpoint_base: Optional[str] = None
+    checkpoint_refiner: Optional[str] = None
 
 
 @dataclass(frozen=True)
