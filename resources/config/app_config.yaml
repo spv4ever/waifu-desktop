@@ -212,6 +212,10 @@ comfyui_workflow_anime_v5:
     node_id: "1"
     input: "ckpt_name"
 
+  checkpoint_refiner:
+    node_id: "23"
+    input: "ckpt_name"
+
 comfyui_workflow_image2vid:
   prompt_pos:
     node_id: "93"

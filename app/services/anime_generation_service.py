@@ -181,6 +181,12 @@ class AnimeGenerationService:
                     "anime_v5_prompt_selection": prompt_selection.as_meta() if prompt_selection else None,
                     "created_at": created_at,
                 }
+                if req.checkpoint_base or req.checkpoint_refiner:
+                    meta["checkpoints"] = {
+                        "base": req.checkpoint_base,
+                        "refiner": req.checkpoint_refiner,
+                    }
+
                 item_id = self.store.create_prompt_item(
                     pack_id=pack_id,
                     title=f"{list_name} - {character.name}",
