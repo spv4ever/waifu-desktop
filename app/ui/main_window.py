@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
     QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QMenu, QStackedWidget,
-    QHeaderView,
+    QHeaderView, QListWidget,
 )
 
 from app.config.app_config import load_app_config
@@ -602,6 +602,16 @@ class MainWindow(QMainWindow):
         self.anime_v5_list_combo.setMinimumWidth(220)
         self.anime_v5_list_combo.setPlaceholderText("Ej: Personajes Dragon Ball")
         anime_grid.addWidget(self.anime_v5_list_combo, 0, 1, 1, 2)
+        self.anime_v5_list_selection = QListWidget()
+        self.anime_v5_list_selection.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.anime_v5_list_selection.setMinimumWidth(220)
+        self.anime_v5_list_selection.setMaximumHeight(130)
+        self.anime_v5_list_selection.setToolTip("Selecciona una o varias listas antes de generar. Si no seleccionas ninguna, se usará la lista activa.")
+        anime_grid.addWidget(self.anime_v5_list_selection, 1, 1, 2, 2)
+        self.anime_v5_select_all_lists_btn = QPushButton("Todas")
+        anime_grid.addWidget(self.anime_v5_select_all_lists_btn, 1, 3)
+        self.anime_v5_clear_lists_btn = QPushButton("Limpiar")
+        anime_grid.addWidget(self.anime_v5_clear_lists_btn, 2, 3)
         self.anime_v5_save_list_btn = QPushButton("Guardar lista")
         anime_grid.addWidget(self.anime_v5_save_list_btn, 0, 3)
         anime_grid.addWidget(QLabel("Imágenes por personaje:"), 0, 4)
@@ -609,49 +619,50 @@ class MainWindow(QMainWindow):
         self.anime_v5_quantity_spin.setRange(1, 500)
         self.anime_v5_quantity_spin.setValue(1)
         anime_grid.addWidget(self.anime_v5_quantity_spin, 0, 5)
-        anime_grid.addWidget(QLabel("Título prompt:"), 1, 0)
+        anime_grid.addWidget(QLabel("Listas a generar:"), 1, 0)
+        anime_grid.addWidget(QLabel("Título prompt:"), 3, 0)
         self.anime_v5_prompt_title_input = QLineEdit()
         self.anime_v5_prompt_title_input.setPlaceholderText("Ej: Traje elegante penthouse")
-        anime_grid.addWidget(self.anime_v5_prompt_title_input, 1, 1, 1, 4)
+        anime_grid.addWidget(self.anime_v5_prompt_title_input, 3, 1, 1, 4)
         self.anime_v5_pick_prompt_btn = QPushButton("Buscar prompt...")
-        anime_grid.addWidget(self.anime_v5_pick_prompt_btn, 1, 5)
-        anime_grid.addWidget(QLabel("Outfit fijo:"), 2, 0)
+        anime_grid.addWidget(self.anime_v5_pick_prompt_btn, 3, 5)
+        anime_grid.addWidget(QLabel("Outfit fijo:"), 4, 0)
         self.anime_v5_fixed_outfit_combo = QComboBox()
         self.anime_v5_fixed_outfit_combo.setEditable(True)
         self.anime_v5_fixed_outfit_combo.setPlaceholderText("Aleatorio")
-        anime_grid.addWidget(self.anime_v5_fixed_outfit_combo, 2, 1, 1, 4)
+        anime_grid.addWidget(self.anime_v5_fixed_outfit_combo, 4, 1, 1, 4)
         self.anime_v5_generator_btn = QPushButton("Generador Anime V5")
         self.anime_v5_generator_btn.setMinimumWidth(140)
-        anime_grid.addWidget(self.anime_v5_generator_btn, 2, 5)
-        anime_grid.addWidget(QLabel("Modelo principal:"), 3, 0)
+        anime_grid.addWidget(self.anime_v5_generator_btn, 4, 5)
+        anime_grid.addWidget(QLabel("Modelo principal:"), 5, 0)
         self.anime_v5_checkpoint_base_combo = QComboBox()
         self.anime_v5_checkpoint_base_combo.setMinimumWidth(220)
-        anime_grid.addWidget(self.anime_v5_checkpoint_base_combo, 3, 1, 1, 2)
-        anime_grid.addWidget(QLabel("Modelo refined:"), 3, 3)
+        anime_grid.addWidget(self.anime_v5_checkpoint_base_combo, 5, 1, 1, 2)
+        anime_grid.addWidget(QLabel("Modelo refined:"), 5, 3)
         self.anime_v5_checkpoint_refiner_combo = QComboBox()
         self.anime_v5_checkpoint_refiner_combo.setMinimumWidth(220)
-        anime_grid.addWidget(self.anime_v5_checkpoint_refiner_combo, 3, 4, 1, 2)
-        anime_grid.addWidget(QLabel("Personajes:"), 4, 0)
+        anime_grid.addWidget(self.anime_v5_checkpoint_refiner_combo, 5, 4, 1, 2)
+        anime_grid.addWidget(QLabel("Personajes:"), 6, 0)
         self.anime_v5_characters_input = QPlainTextEdit()
         self.anime_v5_characters_input.setPlaceholderText(
             'Un personaje por línea o JSON. Ej:\n'
             '{"name": "Nami", "anime": "One Piece", "description": "beautiful anime woman with long bright orange hair, large brown eyes, slim curvy figure, recognizable anime-inspired appearance"}'
         )
         self.anime_v5_characters_input.setMinimumHeight(280)
-        anime_grid.addWidget(self.anime_v5_characters_input, 4, 1, 1, 4)
-        anime_grid.addWidget(QLabel("Prompt:"), 5, 0)
+        anime_grid.addWidget(self.anime_v5_characters_input, 6, 1, 1, 4)
+        anime_grid.addWidget(QLabel("Prompt:"), 7, 0)
         self.anime_v5_prompt_input = QPlainTextEdit()
         self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje], [anime], [description] y opcionalmente [shot], [pose], [location], [outfit], [expression], [lighting].")
         self.anime_v5_prompt_input.setMinimumHeight(180)
-        anime_grid.addWidget(self.anime_v5_prompt_input, 5, 1, 1, 5)
+        anime_grid.addWidget(self.anime_v5_prompt_input, 7, 1, 1, 5)
         anime_grid.setColumnStretch(1, 1)
-        anime_grid.setRowStretch(4, 3)
-        anime_grid.setRowStretch(5, 2)
+        anime_grid.setRowStretch(6, 3)
+        anime_grid.setRowStretch(7, 2)
         self.anime_v5_options_label = QLabel(f"Opciones editables: {DEFAULT_OPTIONS_PATH}")
         self.anime_v5_options_label.setStyleSheet("color: #9aa0a6; font-size: 11px;")
-        anime_grid.addWidget(self.anime_v5_options_label, 6, 1, 1, 3)
+        anime_grid.addWidget(self.anime_v5_options_label, 8, 1, 1, 3)
         self.anime_v5_generate_btn = QPushButton("Crear imágenes Anime V5")
-        anime_grid.addWidget(self.anime_v5_generate_btn, 6, 4, 1, 2)
+        anime_grid.addWidget(self.anime_v5_generate_btn, 8, 4, 1, 2)
         anime_layout.addWidget(anime_group)
 
         self.anime_v5_prompt_picker_dialog = QDialog(self)
@@ -1193,6 +1204,8 @@ class MainWindow(QMainWindow):
         self.open_anime_v5_btn.clicked.connect(self.anime_v5_dialog.show)
         self.anime_v5_generate_btn.clicked.connect(self.generate_anime_v5)
         self.anime_v5_save_list_btn.clicked.connect(self.save_anime_v5_character_list)
+        self.anime_v5_select_all_lists_btn.clicked.connect(self._select_all_anime_v5_lists)
+        self.anime_v5_clear_lists_btn.clicked.connect(self.anime_v5_list_selection.clearSelection)
         self.anime_v5_list_combo.currentIndexChanged.connect(self._load_anime_v5_list_from_combo)
         self.anime_v5_pick_prompt_btn.clicked.connect(self.open_anime_v5_prompt_picker)
         self.anime_v5_generator_btn.clicked.connect(self.apply_anime_v5_generator_template)
@@ -1991,11 +2004,23 @@ class MainWindow(QMainWindow):
 
     def _populate_anime_v5_lists(self) -> None:
         current = self.anime_v5_list_combo.currentText().strip()
+        selected_lists = {
+            item.data(Qt.UserRole)
+            for item in self.anime_v5_list_selection.selectedItems()
+            if item.data(Qt.UserRole)
+        }
         self._anime_v5_character_lists = self.store.list_anime_character_lists(include_descriptions=True)
         self.anime_v5_list_combo.blockSignals(True)
+        self.anime_v5_list_selection.blockSignals(True)
         self.anime_v5_list_combo.clear()
+        self.anime_v5_list_selection.clear()
         for list_name in sorted(self._anime_v5_character_lists):
             self.anime_v5_list_combo.addItem(list_name, list_name)
+            self.anime_v5_list_selection.addItem(list_name)
+            item = self.anime_v5_list_selection.item(self.anime_v5_list_selection.count() - 1)
+            item.setData(Qt.UserRole, list_name)
+            if list_name in selected_lists:
+                item.setSelected(True)
         if current:
             idx = self.anime_v5_list_combo.findText(current)
             if idx >= 0:
@@ -2003,6 +2028,7 @@ class MainWindow(QMainWindow):
             else:
                 self.anime_v5_list_combo.setEditText(current)
         self.anime_v5_list_combo.blockSignals(False)
+        self.anime_v5_list_selection.blockSignals(False)
         self._load_anime_v5_list_from_combo()
 
     def _load_anime_v5_list_from_combo(self) -> None:
@@ -2010,6 +2036,21 @@ class MainWindow(QMainWindow):
         characters = getattr(self, "_anime_v5_character_lists", {}).get(list_name)
         if characters:
             self.anime_v5_characters_input.setPlainText("\n".join(characters))
+
+    def _selected_anime_v5_generation_lists(self) -> list[str]:
+        selected = [
+            str(item.data(Qt.UserRole) or item.text()).strip()
+            for item in self.anime_v5_list_selection.selectedItems()
+            if str(item.data(Qt.UserRole) or item.text()).strip()
+        ]
+        if selected:
+            return selected
+        current = self.anime_v5_list_combo.currentText().strip()
+        return [current] if current else []
+
+    def _select_all_anime_v5_lists(self) -> None:
+        for row in range(self.anime_v5_list_selection.count()):
+            self.anime_v5_list_selection.item(row).setSelected(True)
 
     def save_anime_v5_character_list(self) -> None:
         list_name = self.anime_v5_list_combo.currentText().strip()
@@ -2118,13 +2159,16 @@ class MainWindow(QMainWindow):
 
     def generate_anime_v5(self) -> None:
         list_name = self.anime_v5_list_combo.currentText().strip()
+        list_names = self._selected_anime_v5_generation_lists()
         prompt_title = self.anime_v5_prompt_title_input.text().strip()
         prompt_text = self.anime_v5_prompt_input.toPlainText().strip()
-        characters = [line.strip() for line in self.anime_v5_characters_input.toPlainText().splitlines() if line.strip()]
         quantity = int(self.anime_v5_quantity_spin.value())
         fixed_outfit = self._selected_anime_v5_fixed_outfit()
         checkpoint_base = self.anime_v5_checkpoint_base_combo.currentData()
         checkpoint_refiner = self.anime_v5_checkpoint_refiner_combo.currentData()
+        if not list_names:
+            QMessageBox.warning(self, "Anime V5", "Selecciona al menos una lista de anime.")
+            return
         if not checkpoint_base:
             QMessageBox.warning(self, "Anime V5", "Selecciona un modelo principal.")
             return
@@ -2133,27 +2177,41 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            result = self.anime_generation_service.create_images_and_enqueue(
-                AnimeGenerationCreate(
-                    list_name=list_name,
-                    prompt_title=prompt_title,
-                    prompt_text=prompt_text,
-                    characters=characters,
-                    quantity_per_character=quantity,
-                    fixed_outfit=fixed_outfit,
-                    checkpoint_base=str(checkpoint_base),
-                    checkpoint_refiner=str(checkpoint_refiner),
+            results = []
+            for selected_list_name in list_names:
+                if selected_list_name == list_name:
+                    characters = [
+                        line.strip()
+                        for line in self.anime_v5_characters_input.toPlainText().splitlines()
+                        if line.strip()
+                    ]
+                else:
+                    characters = list(getattr(self, "_anime_v5_character_lists", {}).get(selected_list_name, []))
+                results.append(
+                    self.anime_generation_service.create_images_and_enqueue(
+                        AnimeGenerationCreate(
+                            list_name=selected_list_name,
+                            prompt_title=prompt_title,
+                            prompt_text=prompt_text,
+                            characters=characters,
+                            quantity_per_character=quantity,
+                            fixed_outfit=fixed_outfit,
+                            checkpoint_base=str(checkpoint_base),
+                            checkpoint_refiner=str(checkpoint_refiner),
+                        )
+                    )
                 )
-            )
         except Exception as exc:
             QMessageBox.critical(self, "Anime V5", str(exc))
             return
 
         self.refresh()
+        pack_ids = ", ".join(str(result.pack_id) for result in results)
+        created_count = sum(len(result.created_prompt_item_ids) for result in results)
         QMessageBox.information(
             self,
             "Anime V5",
-            f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} imágenes en cola.",
+            f"Packs {pack_ids} creados con {created_count} imágenes en cola.",
         )
 
     def generate_pack(self) -> None:
