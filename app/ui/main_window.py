@@ -66,6 +66,7 @@ from app.ui.social_copy_window import SocialCopyWindow
 from app.ui.prompt_dialog import PromptDetailDialog
 from app.ui.dollimages_prompt_window import DollimagesPromptWindow
 from app.ui.video_prompt_template_window import VideoPromptTemplateWindow
+from app.ui.anime_v5_maintenance_window import AnimeV5MaintenanceWindow
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
 
@@ -114,6 +115,7 @@ class MainWindow(QMainWindow):
         self.social_copy_window: SocialCopyWindow | None = None
         self.dollimages_prompt_window: DollimagesPromptWindow | None = None
         self.video_prompt_template_window: VideoPromptTemplateWindow | None = None
+        self.anime_v5_maintenance_window: AnimeV5MaintenanceWindow | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -182,6 +184,8 @@ class MainWindow(QMainWindow):
         self.open_dollimages_prompt_action.triggered.connect(self.open_dollimages_prompt_window)
         self.open_video_prompt_templates_action = maintenance_menu.addAction("Prompts tipo video")
         self.open_video_prompt_templates_action.triggered.connect(self.open_video_prompt_template_window)
+        self.open_anime_v5_maintenance_action = maintenance_menu.addAction("Anime V5: personajes y prompts")
+        self.open_anime_v5_maintenance_action.triggered.connect(self.open_anime_v5_maintenance_window)
         maintenance_menu.addSeparator()
         self.clear_category_images_action = maintenance_menu.addAction("Vaciar imágenes por categoría")
         self.clear_category_images_action.triggered.connect(self.open_clear_category_images_dialog)
@@ -612,8 +616,8 @@ class MainWindow(QMainWindow):
         anime_grid.addWidget(self.anime_v5_select_all_lists_btn, 1, 3)
         self.anime_v5_clear_lists_btn = QPushButton("Limpiar")
         anime_grid.addWidget(self.anime_v5_clear_lists_btn, 2, 3)
-        self.anime_v5_save_list_btn = QPushButton("Guardar lista")
-        anime_grid.addWidget(self.anime_v5_save_list_btn, 0, 3)
+        self.anime_v5_maintenance_btn = QPushButton("Mantenimiento...")
+        anime_grid.addWidget(self.anime_v5_maintenance_btn, 0, 3)
         anime_grid.addWidget(QLabel("Imágenes por personaje:"), 0, 4)
         self.anime_v5_quantity_spin = QSpinBox()
         self.anime_v5_quantity_spin.setRange(1, 500)
@@ -1203,7 +1207,7 @@ class MainWindow(QMainWindow):
         self.open_image2vid_btn.clicked.connect(self.open_image2vid_dialog)
         self.open_anime_v5_btn.clicked.connect(self.anime_v5_dialog.show)
         self.anime_v5_generate_btn.clicked.connect(self.generate_anime_v5)
-        self.anime_v5_save_list_btn.clicked.connect(self.save_anime_v5_character_list)
+        self.anime_v5_maintenance_btn.clicked.connect(self.open_anime_v5_maintenance_window)
         self.anime_v5_select_all_lists_btn.clicked.connect(self._select_all_anime_v5_lists)
         self.anime_v5_clear_lists_btn.clicked.connect(self.anime_v5_list_selection.clearSelection)
         self.anime_v5_list_combo.currentIndexChanged.connect(self._load_anime_v5_list_from_combo)
@@ -1596,6 +1600,28 @@ class MainWindow(QMainWindow):
 
     def _clear_video_prompt_template_window(self) -> None:
         self.video_prompt_template_window = None
+
+    def open_anime_v5_maintenance_window(self) -> None:
+        if self.anime_v5_maintenance_window and self.anime_v5_maintenance_window.isVisible():
+            self.anime_v5_maintenance_window.refresh_all()
+            self.anime_v5_maintenance_window.activateWindow()
+            self.anime_v5_maintenance_window.raise_()
+            return
+        window = AnimeV5MaintenanceWindow()
+        window.setAttribute(Qt.WA_DeleteOnClose, True)
+        window.catalog_updated.connect(self._refresh_anime_v5_catalog)
+        window.destroyed.connect(self._clear_anime_v5_maintenance_window)
+        self.anime_v5_maintenance_window = window
+        window.show()
+
+    def _clear_anime_v5_maintenance_window(self) -> None:
+        self.anime_v5_maintenance_window = None
+
+    def _refresh_anime_v5_catalog(self) -> None:
+        self._populate_anime_v5_lists()
+        self._populate_anime_v5_reel_selectors()
+        self._load_anime_v5_prompts()
+        self._populate_anime_v5_fixed_outfits()
 
     def open_clear_category_images_dialog(self) -> None:
         filters = self.store.fetch_prompt_filters()

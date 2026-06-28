@@ -1543,6 +1543,48 @@ class SQLiteStore(BaseStore):
             for row in rows
         ]
 
+    def list_anime_characters(self, *, list_name: str | None = None, include_disabled: bool = False) -> list[dict[str, object]]:
+        conditions = ["(? = 1 OR enabled = 1)"]
+        params: list[object] = [1 if include_disabled else 0]
+        if list_name:
+            conditions.append("list_name = ?")
+            params.append(list_name)
+        with get_connection() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, list_name, name, description, enabled
+                FROM anime_character
+                WHERE {' AND '.join(conditions)}
+                ORDER BY list_name, name, id
+                """,
+                params,
+            ).fetchall()
+        return [
+            {
+                "id": int(row["id"]),
+                "list_name": str(row["list_name"]),
+                "name": str(row["name"]),
+                "description": str(row["description"] or ""),
+                "enabled": bool(row["enabled"]),
+            }
+            for row in rows
+        ]
+
+    def delete_anime_character(self, *, character_id: int) -> None:
+        with get_connection() as conn:
+            with conn:
+                conn.execute("DELETE FROM anime_character WHERE id = ?", (character_id,))
+
+    def delete_anime_character_list(self, *, list_name: str) -> None:
+        with get_connection() as conn:
+            with conn:
+                conn.execute("DELETE FROM anime_character WHERE list_name = ?", (list_name,))
+
+    def delete_anime_prompt(self, *, prompt_id: int) -> None:
+        with get_connection() as conn:
+            with conn:
+                conn.execute("DELETE FROM anime_prompt WHERE id = ?", (prompt_id,))
+
     def save_anime_character_list(self, *, list_name: str, characters: list[str]) -> int:
         cleaned = []
         seen = set()
