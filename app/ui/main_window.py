@@ -2063,6 +2063,23 @@ class MainWindow(QMainWindow):
         if characters:
             self.anime_v5_characters_input.setPlainText("\n".join(characters))
 
+    def _anime_v5_characters_from_editor(self) -> list[str]:
+        return [
+            line.strip()
+            for line in self.anime_v5_characters_input.toPlainText().splitlines()
+            if line.strip()
+        ]
+
+    def _anime_v5_characters_for_generation(self, list_name: str, active_list_name: str) -> list[str]:
+        catalog_lists = self.store.list_anime_character_lists(include_descriptions=True)
+        self._anime_v5_character_lists = catalog_lists
+        catalog_characters = list(catalog_lists.get(list_name, []))
+        if catalog_characters:
+            return catalog_characters
+        if list_name == active_list_name:
+            return self._anime_v5_characters_from_editor()
+        return []
+
     def _selected_anime_v5_generation_lists(self) -> list[str]:
         selected = [
             str(item.data(Qt.UserRole) or item.text()).strip()
@@ -2205,14 +2222,7 @@ class MainWindow(QMainWindow):
         try:
             results = []
             for selected_list_name in list_names:
-                if selected_list_name == list_name:
-                    characters = [
-                        line.strip()
-                        for line in self.anime_v5_characters_input.toPlainText().splitlines()
-                        if line.strip()
-                    ]
-                else:
-                    characters = list(getattr(self, "_anime_v5_character_lists", {}).get(selected_list_name, []))
+                characters = self._anime_v5_characters_for_generation(selected_list_name, list_name)
                 results.append(
                     self.anime_generation_service.create_images_and_enqueue(
                         AnimeGenerationCreate(
