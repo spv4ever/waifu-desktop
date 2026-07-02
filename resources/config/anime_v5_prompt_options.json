@@ -31,10 +31,7 @@
     "inside an exclusive wine cellar, warm lighting, luxury architecture, sophisticated atmosphere",
     "inside a modern art gallery, minimalist architecture, dramatic lighting, elegant atmosphere"
   ],
-<<<<<<< HEAD
 
-=======
->>>>>>> ec0b2697c336c7164c51f88e8dbb99d39f9b3e97
   "poses": [
     "standing confidently facing the camera",
     "walking slowly toward the camera",
@@ -57,7 +54,6 @@
     "kneeling elegantly with upright posture",
     "seated gracefully on a luxury chair facing the camera"
   ],
-<<<<<<< HEAD
 
   "outfits": [
     "a minimal string bikini",
@@ -145,91 +141,6 @@
     "runway-inspired styling"
   ],
 
-=======
-  "fits": [
-    "elegant minimal",
-    "sophisticated fitted",
-    "luxury tailored",
-    "sleek form-fitting",
-    "relaxed resort-style",
-    "glamorous high-fashion",
-    "sporty premium",
-    "futuristic fitted"
-  ],
-  "outfits": [
-    "an elegant minimal string bikini",
-    "a triangle bikini with luxury resort styling",
-    "a sophisticated black monokini",
-    "a white designer monokini with elegant cutouts",
-    "a lace bodysuit, fashion editorial style, tasteful and elegant",
-    "a satin bodysuit with luxury fashion styling",
-    "a black mesh bodysuit over opaque lining, fashion editorial style",
-    "a fitted velvet bodysuit with elegant long sleeves",
-    "an elegant lace teddy bodysuit, luxury boudoir-inspired fashion",
-    "a silk camisole with matching satin shorts",
-    "a luxury satin lingerie set, fashion editorial, tasteful and fully covered where appropriate",
-    "a delicate lace lingerie set, elegant fashion photography",
-    "a silk babydoll with matching robe, luxury editorial styling",
-    "a sheer chiffon babydoll over coordinated lingerie, tasteful fashion editorial",
-    "a satin slip dress with delicate lace trim",
-    "an elegant silk slip dress with a deep V neckline, fully covered",
-    "a fitted corset-style top with a satin mini skirt",
-    "a luxury corset dress with elegant tailoring",
-    "a modern bustier paired with a high-waisted skirt",
-    "a fitted off-the-shoulder knit dress",
-    "a backless evening dress with sophisticated luxury styling",
-    "a glamorous sequined mini dress",
-    "a sleek black cocktail dress",
-    "a fitted red evening gown with an elegant thigh-high slit",
-    "a white oversized shirt styled as luxury fashion, partially unbuttoned",
-    "a soaked white button-up shirt and fitted black mini skirt, tastefully revealing the outline of a black bra underneath without nudity",
-    "a fitted black mini skirt with a partially unbuttoned white shirt, elegant fashion editorial style",
-    "a cropped leather jacket over a fitted crop top and mini skirt",
-    "a stylish crop top with low-rise shorts",
-    "a luxury resort outfit with an open linen shirt over designer swimwear",
-    "a silk robe over elegant designer lingerie",
-    "a silk robe over luxury swimwear",
-    "a fashionable blazer dress with luxury tailoring",
-    "a stylish business outfit with fitted blazer and pencil skirt",
-    "a futuristic fitted bodysuit with luxury sci-fi styling",
-    "a futuristic astronaut suit with elegant fitted design",
-    "a futuristic cyberpunk jacket with fitted shorts",
-    "a glossy raincoat over an elegant fitted outfit",
-    "a premium designer jumpsuit with elegant fitted silhouette",
-    "a sporty luxury tennis outfit with pleated skirt",
-    "a premium golf outfit with elegant fitted skirt"
-  ],
-  "fabrics": [
-    "silk and satin textures with realistic folds",
-    "delicate lace details with premium fabric texture",
-    "soft chiffon layers with translucent movement",
-    "velvet fabric with rich light-catching texture",
-    "glossy leather accents with crisp stitching",
-    "breathable linen with natural wrinkles",
-    "sequined fabric with reflective highlights",
-    "technical sci-fi material with subtle panel seams"
-  ],
-  "conditions": [
-    "pristine and freshly styled",
-    "slightly wind-swept but elegant",
-    "tastefully rain-kissed with realistic fabric tension",
-    "softly draped with natural movement",
-    "neatly pressed with clean tailoring",
-    "gently tousled from motion",
-    "subtly glossy under cinematic lighting",
-    "perfectly fitted with realistic stretch"
-  ],
-  "stylings": [
-    "luxury fashion editorial styling",
-    "elegant resort styling",
-    "cinematic high-fashion styling",
-    "minimal designer styling with subtle accessories",
-    "glamorous evening styling",
-    "modern street-luxury styling",
-    "sophisticated boutique styling",
-    "premium sci-fi fashion styling"
-  ],
->>>>>>> ec0b2697c336c7164c51f88e8dbb99d39f9b3e97
   "expressions": [
     "subtle natural smile",
     "soft confident smile",
