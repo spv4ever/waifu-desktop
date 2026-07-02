@@ -73,7 +73,18 @@ def _render_anime_prompt(
 def _uses_anime_v5_generator(prompt_template: str) -> bool:
     return any(
         token in prompt_template
-        for token in ("[shot]", "[pose]", "[location]", "[outfit]", "[expression]", "[lighting]")
+        for token in (
+            "[shot]",
+            "[pose]",
+            "[location]",
+            "[fit]",
+            "[outfit]",
+            "[fabric]",
+            "[condition]",
+            "[styling]",
+            "[expression]",
+            "[lighting]",
+        )
     )
 
 
