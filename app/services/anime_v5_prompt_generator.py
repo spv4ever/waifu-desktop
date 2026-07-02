@@ -7,10 +7,22 @@ from pathlib import Path
 from typing import Mapping
 
 DEFAULT_OPTIONS_PATH = Path("resources/config/anime_v5_prompt_options.json")
-REQUIRED_GROUPS = ("locations", "poses", "outfits", "expressions", "lighting", "shots")
+REQUIRED_GROUPS = (
+    "locations",
+    "poses",
+    "fits",
+    "outfits",
+    "fabrics",
+    "conditions",
+    "stylings",
+    "expressions",
+    "lighting",
+    "shots",
+)
 DEFAULT_TEMPLATE = (
     "Adult [personaje] from [anime], [description], single female character, [shot], [pose], [location], "
-    "wearing [outfit], [expression], [lighting], fashion editorial photography, cinematic composition, "
+    "wearing [fit] [outfit], [fabric], [condition], [styling], [expression], [lighting], "
+    "fashion editorial photography, cinematic composition, "
     "centered composition, single subject, SFW, ultra realistic, photorealistic, masterpiece, HDR, "
     "volumetric lighting, depth of field, ultra detailed, sharp focus, realistic anatomy, symmetrical face, "
     "detailed eyes, 8k."
@@ -19,7 +31,11 @@ DEFAULT_TEMPLATE = (
 TOKEN_BY_GROUP = {
     "locations": "[location]",
     "poses": "[pose]",
+    "fits": "[fit]",
     "outfits": "[outfit]",
+    "fabrics": "[fabric]",
+    "conditions": "[condition]",
+    "stylings": "[styling]",
     "expressions": "[expression]",
     "lighting": "[lighting]",
     "shots": "[shot]",
@@ -30,7 +46,11 @@ TOKEN_BY_GROUP = {
 class AnimeV5PromptSelection:
     location: str
     pose: str
+    fit: str
     outfit: str
+    fabric: str
+    condition: str
+    styling: str
     expression: str
     lighting: str
     shot: str
@@ -39,7 +59,11 @@ class AnimeV5PromptSelection:
         return {
             "location": self.location,
             "pose": self.pose,
+            "fit": self.fit,
             "outfit": self.outfit,
+            "fabric": self.fabric,
+            "condition": self.condition,
+            "styling": self.styling,
             "expression": self.expression,
             "lighting": self.lighting,
             "shot": self.shot,
@@ -75,7 +99,11 @@ def choose_anime_v5_prompt_selection(
     return AnimeV5PromptSelection(
         location=rng.choice(data["locations"]),
         pose=rng.choice(data["poses"]),
+        fit=rng.choice(data["fits"]),
         outfit=outfit or rng.choice(data["outfits"]),
+        fabric=rng.choice(data["fabrics"]),
+        condition=rng.choice(data["conditions"]),
+        styling=rng.choice(data["stylings"]),
         expression=rng.choice(data["expressions"]),
         lighting=rng.choice(data["lighting"]),
         shot=rng.choice(data["shots"]),
@@ -86,7 +114,11 @@ def fill_anime_v5_option_tokens(prompt_template: str, selection: AnimeV5PromptSe
     replacements = {
         "[location]": selection.location,
         "[pose]": selection.pose,
+        "[fit]": selection.fit,
         "[outfit]": selection.outfit,
+        "[fabric]": selection.fabric,
+        "[condition]": selection.condition,
+        "[styling]": selection.styling,
         "[expression]": selection.expression,
         "[lighting]": selection.lighting,
         "[shot]": selection.shot,

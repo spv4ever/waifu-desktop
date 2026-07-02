@@ -656,7 +656,7 @@ class MainWindow(QMainWindow):
         anime_grid.addWidget(self.anime_v5_characters_input, 6, 1, 1, 4)
         anime_grid.addWidget(QLabel("Prompt:"), 7, 0)
         self.anime_v5_prompt_input = QPlainTextEdit()
-        self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje], [anime], [description] y opcionalmente [shot], [pose], [location], [outfit], [expression], [lighting].")
+        self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje], [anime], [description] y opcionalmente [shot], [pose], [location], [fit], [outfit], [fabric], [condition], [styling], [expression], [lighting].")
         self.anime_v5_prompt_input.setMinimumHeight(180)
         anime_grid.addWidget(self.anime_v5_prompt_input, 7, 1, 1, 5)
         anime_grid.setColumnStretch(1, 1)

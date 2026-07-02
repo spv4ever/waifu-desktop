@@ -60,7 +60,11 @@ def test_anime_v5_generator_combines_configurable_options(monkeypatch):
         lambda: {
             "locations": ["on a test rooftop"],
             "poses": ["standing in a test pose"],
+            "fits": ["elegant"],
             "outfits": ["a test outfit"],
+            "fabrics": ["silk fabric"],
+            "conditions": ["pristine"],
+            "stylings": ["editorial styling"],
             "expressions": ["a test smile"],
             "lighting": ["test cinematic lighting"],
             "shots": ["test full body shot"],
@@ -74,7 +78,7 @@ def test_anime_v5_generator_combines_configurable_options(monkeypatch):
             prompt_title="Generated",
             prompt_text=(
                 "Adult [personaje] from [anime], single female character, [shot], [pose], "
-                "[location], wearing [outfit], [expression], [lighting], SFW."
+                "[location], wearing [fit] [outfit], [fabric], [condition], [styling], [expression], [lighting], SFW."
             ),
             characters=["Usagi"],
             quantity_per_character=1,
@@ -84,14 +88,18 @@ def test_anime_v5_generator_combines_configurable_options(monkeypatch):
     prompt = store.prompt_items[0]["prompt_text"]
     assert prompt == (
         "Adult Usagi from Sailor Moon, single female character, test full body shot, "
-        "standing in a test pose, on a test rooftop, wearing a test outfit, a test smile, "
+        "standing in a test pose, on a test rooftop, wearing elegant a test outfit, silk fabric, pristine, editorial styling, a test smile, "
         "test cinematic lighting, SFW."
     )
     assert store.saved_prompt["prompt_text"].startswith("Adult [personaje] from [anime]")
     assert store.prompt_items[0]["meta"]["anime_v5_prompt_selection"] == {
         "location": "on a test rooftop",
         "pose": "standing in a test pose",
+        "fit": "elegant",
         "outfit": "a test outfit",
+        "fabric": "silk fabric",
+        "condition": "pristine",
+        "styling": "editorial styling",
         "expression": "a test smile",
         "lighting": "test cinematic lighting",
         "shot": "test full body shot",
@@ -107,7 +115,11 @@ def test_anime_v5_generator_can_fix_outfit_and_randomize_other_options(monkeypat
         lambda: {
             "locations": ["rooftop"],
             "poses": ["standing"],
+            "fits": ["fitted"],
             "outfits": ["dress"],
+            "fabrics": ["satin"],
+            "conditions": ["pressed"],
+            "stylings": ["luxury styling"],
             "expressions": ["smile"],
             "lighting": ["sunset"],
             "shots": ["full body"],
@@ -119,7 +131,7 @@ def test_anime_v5_generator_can_fix_outfit_and_randomize_other_options(monkeypat
         AnimeGenerationCreate(
             list_name="One Piece",
             prompt_title="Generated",
-            prompt_text="[personaje] from [anime], [shot], [pose], [location], [outfit], [expression], [lighting]",
+            prompt_text="[personaje] from [anime], [shot], [pose], [location], [fit] [outfit], [fabric], [condition], [styling], [expression], [lighting]",
             characters=["Nami"],
             quantity_per_character=1,
             fixed_outfit="custom battle outfit",
@@ -127,12 +139,16 @@ def test_anime_v5_generator_can_fix_outfit_and_randomize_other_options(monkeypat
     )
 
     assert store.prompt_items[0]["prompt_text"] == (
-        "Nami from One Piece, full body, standing, rooftop, custom battle outfit, smile, sunset"
+        "Nami from One Piece, full body, standing, rooftop, fitted custom battle outfit, satin, pressed, luxury styling, smile, sunset"
     )
     assert store.prompt_items[0]["meta"]["anime_v5_prompt_selection"] == {
         "location": "rooftop",
         "pose": "standing",
+        "fit": "fitted",
         "outfit": "custom battle outfit",
+        "fabric": "satin",
+        "condition": "pressed",
+        "styling": "luxury styling",
         "expression": "smile",
         "lighting": "sunset",
         "shot": "full body",
@@ -149,7 +165,11 @@ def test_anime_v5_generator_reuses_selected_options_for_all_characters(monkeypat
         lambda: {
             "locations": ["rooftop", "beach"],
             "poses": ["standing", "sitting"],
+            "fits": ["fitted", "relaxed"],
             "outfits": ["dress", "jacket"],
+            "fabrics": ["satin", "linen"],
+            "conditions": ["pressed", "wind-swept"],
+            "stylings": ["luxury styling", "resort styling"],
             "expressions": ["smile", "serious"],
             "lighting": ["sunset", "neon"],
             "shots": ["full body", "portrait"],
@@ -161,7 +181,11 @@ def test_anime_v5_generator_reuses_selected_options_for_all_characters(monkeypat
         return AnimeV5PromptSelection(
             location="rooftop",
             pose="standing",
+            fit="fitted",
             outfit="dress",
+            fabric="satin",
+            condition="pressed",
+            styling="luxury styling",
             expression="smile",
             lighting="sunset",
             shot="full body",
@@ -174,7 +198,7 @@ def test_anime_v5_generator_reuses_selected_options_for_all_characters(monkeypat
         AnimeGenerationCreate(
             list_name="One Piece",
             prompt_title="Generated",
-            prompt_text="[personaje] from [anime], [shot], [pose], [location], [outfit], [expression], [lighting]",
+            prompt_text="[personaje] from [anime], [shot], [pose], [location], [fit] [outfit], [fabric], [condition], [styling], [expression], [lighting]",
             characters=["Nami", "Robin"],
             quantity_per_character=2,
         )
@@ -182,16 +206,20 @@ def test_anime_v5_generator_reuses_selected_options_for_all_characters(monkeypat
 
     assert len(selections) == 1
     assert [item["prompt_text"] for item in store.prompt_items] == [
-        "Nami from One Piece, full body, standing, rooftop, dress, smile, sunset",
-        "Nami from One Piece, full body, standing, rooftop, dress, smile, sunset",
-        "Robin from One Piece, full body, standing, rooftop, dress, smile, sunset",
-        "Robin from One Piece, full body, standing, rooftop, dress, smile, sunset",
+        "Nami from One Piece, full body, standing, rooftop, fitted dress, satin, pressed, luxury styling, smile, sunset",
+        "Nami from One Piece, full body, standing, rooftop, fitted dress, satin, pressed, luxury styling, smile, sunset",
+        "Robin from One Piece, full body, standing, rooftop, fitted dress, satin, pressed, luxury styling, smile, sunset",
+        "Robin from One Piece, full body, standing, rooftop, fitted dress, satin, pressed, luxury styling, smile, sunset",
     ]
     assert all(
         item["meta"]["anime_v5_prompt_selection"] == {
             "location": "rooftop",
             "pose": "standing",
+            "fit": "fitted",
             "outfit": "dress",
+            "fabric": "satin",
+            "condition": "pressed",
+            "styling": "luxury styling",
             "expression": "smile",
             "lighting": "sunset",
             "shot": "full body",
