@@ -49,6 +49,7 @@ class AnimeGenerationCreate:
     characters: list[str]
     quantity_per_character: int
     fixed_outfit: Optional[str] = None
+    manual_outfit_text: str = ""
     checkpoint_base: Optional[str] = None
     checkpoint_refiner: Optional[str] = None
 

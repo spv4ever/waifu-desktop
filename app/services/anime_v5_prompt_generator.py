@@ -88,19 +88,31 @@ def load_anime_v5_prompt_options(path: Path | None = None) -> dict[str, list[str
     return options
 
 
+def append_manual_outfit_text(outfit: str, manual_text: str | None) -> str:
+    base = str(outfit or "").strip()
+    extra = str(manual_text or "").strip()
+    if not extra:
+        return base
+    if not base:
+        return extra
+    return f"{base}, {extra}"
+
+
 def choose_anime_v5_prompt_selection(
     rng: random.Random,
     options: Mapping[str, list[str]] | None = None,
     *,
     fixed_outfit: str | None = None,
+    manual_outfit_text: str | None = None,
 ) -> AnimeV5PromptSelection:
     data = dict(options) if options is not None else load_anime_v5_prompt_options()
     outfit = fixed_outfit.strip() if fixed_outfit else ""
+    outfit = append_manual_outfit_text(outfit or rng.choice(data["outfits"]), manual_outfit_text)
     return AnimeV5PromptSelection(
         location=rng.choice(data["locations"]),
         pose=rng.choice(data["poses"]),
         fit=rng.choice(data["fits"]),
-        outfit=outfit or rng.choice(data["outfits"]),
+        outfit=outfit,
         fabric=rng.choice(data["fabrics"]),
         condition=rng.choice(data["conditions"]),
         styling=rng.choice(data["stylings"]),
