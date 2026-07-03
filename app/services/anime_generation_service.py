@@ -138,7 +138,12 @@ class AnimeGenerationService:
         created_queue_job_ids: list[int] = []
         prompt_options = load_anime_v5_prompt_options() if _uses_anime_v5_generator(prompt_template) else None
         prompt_selection = (
-            choose_anime_v5_prompt_selection(self.rng, prompt_options, fixed_outfit=req.fixed_outfit)
+            choose_anime_v5_prompt_selection(
+                self.rng,
+                prompt_options,
+                fixed_outfit=req.fixed_outfit,
+                manual_outfit_text=req.manual_outfit_text,
+            )
             if prompt_options is not None
             else None
         )
@@ -190,6 +195,7 @@ class AnimeGenerationService:
                     "anime_character_list": list_name,
                     "anime_prompt_template": prompt_template,
                     "anime_v5_prompt_selection": prompt_selection.as_meta() if prompt_selection else None,
+                    "anime_v5_manual_outfit_text": req.manual_outfit_text.strip(),
                     "created_at": created_at,
                 }
                 if req.checkpoint_base or req.checkpoint_refiner:

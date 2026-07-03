@@ -638,35 +638,39 @@ class MainWindow(QMainWindow):
         self.anime_v5_generator_btn = QPushButton("Generador Anime V5")
         self.anime_v5_generator_btn.setMinimumWidth(140)
         anime_grid.addWidget(self.anime_v5_generator_btn, 4, 5)
-        anime_grid.addWidget(QLabel("Modelo principal:"), 5, 0)
+        anime_grid.addWidget(QLabel("Texto extra outfit:"), 5, 0)
+        self.anime_v5_manual_outfit_input = QLineEdit()
+        self.anime_v5_manual_outfit_input.setPlaceholderText("Opcional: se añade al outfit antes de generar el prompt")
+        anime_grid.addWidget(self.anime_v5_manual_outfit_input, 5, 1, 1, 5)
+        anime_grid.addWidget(QLabel("Modelo principal:"), 6, 0)
         self.anime_v5_checkpoint_base_combo = QComboBox()
         self.anime_v5_checkpoint_base_combo.setMinimumWidth(220)
-        anime_grid.addWidget(self.anime_v5_checkpoint_base_combo, 5, 1, 1, 2)
-        anime_grid.addWidget(QLabel("Modelo refined:"), 5, 3)
+        anime_grid.addWidget(self.anime_v5_checkpoint_base_combo, 6, 1, 1, 2)
+        anime_grid.addWidget(QLabel("Modelo refined:"), 6, 3)
         self.anime_v5_checkpoint_refiner_combo = QComboBox()
         self.anime_v5_checkpoint_refiner_combo.setMinimumWidth(220)
-        anime_grid.addWidget(self.anime_v5_checkpoint_refiner_combo, 5, 4, 1, 2)
-        anime_grid.addWidget(QLabel("Personajes:"), 6, 0)
+        anime_grid.addWidget(self.anime_v5_checkpoint_refiner_combo, 6, 4, 1, 2)
+        anime_grid.addWidget(QLabel("Personajes:"), 7, 0)
         self.anime_v5_characters_input = QPlainTextEdit()
         self.anime_v5_characters_input.setPlaceholderText(
             'Un personaje por línea o JSON. Ej:\n'
             '{"name": "Nami", "anime": "One Piece", "description": "beautiful anime woman with long bright orange hair, large brown eyes, slim curvy figure, recognizable anime-inspired appearance"}'
         )
         self.anime_v5_characters_input.setMinimumHeight(280)
-        anime_grid.addWidget(self.anime_v5_characters_input, 6, 1, 1, 4)
-        anime_grid.addWidget(QLabel("Prompt:"), 7, 0)
+        anime_grid.addWidget(self.anime_v5_characters_input, 7, 1, 1, 4)
+        anime_grid.addWidget(QLabel("Prompt:"), 8, 0)
         self.anime_v5_prompt_input = QPlainTextEdit()
         self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje], [anime], [description] y opcionalmente [shot], [pose], [location], [fit], [outfit], [fabric], [condition], [styling], [expression], [lighting].")
         self.anime_v5_prompt_input.setMinimumHeight(180)
-        anime_grid.addWidget(self.anime_v5_prompt_input, 7, 1, 1, 5)
+        anime_grid.addWidget(self.anime_v5_prompt_input, 8, 1, 1, 5)
         anime_grid.setColumnStretch(1, 1)
-        anime_grid.setRowStretch(6, 3)
-        anime_grid.setRowStretch(7, 2)
+        anime_grid.setRowStretch(7, 3)
+        anime_grid.setRowStretch(8, 2)
         self.anime_v5_options_label = QLabel(f"Opciones editables: {DEFAULT_OPTIONS_PATH}")
         self.anime_v5_options_label.setStyleSheet("color: #9aa0a6; font-size: 11px;")
-        anime_grid.addWidget(self.anime_v5_options_label, 8, 1, 1, 3)
+        anime_grid.addWidget(self.anime_v5_options_label, 9, 1, 1, 3)
         self.anime_v5_generate_btn = QPushButton("Crear imágenes Anime V5")
-        anime_grid.addWidget(self.anime_v5_generate_btn, 8, 4, 1, 2)
+        anime_grid.addWidget(self.anime_v5_generate_btn, 9, 4, 1, 2)
         anime_layout.addWidget(anime_group)
 
         self.anime_v5_prompt_picker_dialog = QDialog(self)
@@ -2145,6 +2149,7 @@ class MainWindow(QMainWindow):
                 self.anime_generation_service.rng,
                 prompt_options,
                 fixed_outfit=self._selected_anime_v5_fixed_outfit(),
+                manual_outfit_text=self.anime_v5_manual_outfit_input.text().strip(),
             )
             prompt_text = fill_anime_v5_option_tokens(DEFAULT_TEMPLATE, prompt_selection)
         except Exception as exc:
@@ -2207,6 +2212,7 @@ class MainWindow(QMainWindow):
         prompt_text = self.anime_v5_prompt_input.toPlainText().strip()
         quantity = int(self.anime_v5_quantity_spin.value())
         fixed_outfit = self._selected_anime_v5_fixed_outfit()
+        manual_outfit_text = self.anime_v5_manual_outfit_input.text().strip()
         checkpoint_base = self.anime_v5_checkpoint_base_combo.currentData()
         checkpoint_refiner = self.anime_v5_checkpoint_refiner_combo.currentData()
         if not list_names:
@@ -2232,6 +2238,7 @@ class MainWindow(QMainWindow):
                             characters=characters,
                             quantity_per_character=quantity,
                             fixed_outfit=fixed_outfit,
+                            manual_outfit_text=manual_outfit_text,
                             checkpoint_base=str(checkpoint_base),
                             checkpoint_refiner=str(checkpoint_refiner),
                         )
