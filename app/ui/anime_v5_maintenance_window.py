@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -22,6 +27,79 @@ from PySide6.QtWidgets import (
 )
 
 from app.data.storage import get_store
+
+
+CHARACTER_JSON_EXAMPLE = """{
+  "name": "Launch (Blonde)",
+  "anime": "Dragon Ball",
+  "description": "beautiful adult anime woman with long golden blonde hair, vivid blue eyes, fair skin, slim curvy figure"
+}"""
+
+
+class AnimeCharacterJsonDialog(QDialog):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Importar personaje desde JSON")
+        self.resize(640, 420)
+
+        self._character_data: dict[str, str] | None = None
+
+        layout = QVBoxLayout(self)
+        help_label = QLabel(
+            "Pega un JSON de un único personaje. Se usarán los campos "
+            "name, anime y description para completar el formulario."
+        )
+        help_label.setWordWrap(True)
+        layout.addWidget(help_label)
+
+        self.json_input = QPlainTextEdit()
+        self.json_input.setPlaceholderText(CHARACTER_JSON_EXAMPLE)
+        self.json_input.setMinimumHeight(260)
+        layout.addWidget(self.json_input, 1)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText("Completar datos")
+        buttons.button(QDialogButtonBox.Cancel).setText("Cancelar")
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def accept(self) -> None:
+        try:
+            self._character_data = self.character_data()
+        except ValueError as exc:
+            QMessageBox.warning(self, "Anime V5", str(exc))
+            return
+        super().accept()
+
+    def accepted_character_data(self) -> dict[str, str]:
+        if self._character_data is None:
+            raise ValueError("No se ha validado ningún personaje.")
+        return self._character_data
+
+    def character_data(self) -> dict[str, str]:
+        raw_text = self.json_input.toPlainText().strip()
+        if not raw_text:
+            raise ValueError("Pega el JSON del personaje antes de continuar.")
+
+        try:
+            raw_data: Any = json.loads(raw_text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"JSON inválido: {exc.msg} (línea {exc.lineno}, columna {exc.colno}).") from exc
+
+        if not isinstance(raw_data, dict):
+            raise ValueError("El JSON debe ser un objeto con name, anime y description.")
+
+        data = {
+            "name": str(raw_data.get("name") or "").strip(),
+            "anime": str(raw_data.get("anime") or raw_data.get("list_name") or "").strip(),
+            "description": str(raw_data.get("description") or "").strip(),
+        }
+        required_fields = (("name", "name"), ("anime", "anime"), ("description", "description"))
+        missing = [label for key, label in required_fields if not data[key]]
+        if missing:
+            raise ValueError("Faltan campos obligatorios en el JSON: " + ", ".join(missing) + ".")
+        return data
 
 
 class AnimeV5MaintenanceWindow(QMainWindow):
@@ -56,6 +134,7 @@ class AnimeV5MaintenanceWindow(QMainWindow):
         self.character_save_btn.clicked.connect(self.save_character)
         self.character_new_btn.clicked.connect(self.reset_character_form)
         self.character_delete_btn.clicked.connect(self.delete_character)
+        self.character_json_btn.clicked.connect(self.open_character_json_dialog)
         self.list_delete_btn.clicked.connect(self.delete_character_list)
         self.prompt_table.itemSelectionChanged.connect(self._load_selected_prompt)
         self.prompt_save_btn.clicked.connect(self.save_prompt)
@@ -111,9 +190,11 @@ class AnimeV5MaintenanceWindow(QMainWindow):
         self.character_save_btn = QPushButton("Guardar personaje")
         self.character_new_btn = QPushButton("Nuevo")
         self.character_delete_btn = QPushButton("Eliminar personaje")
+        self.character_json_btn = QPushButton("Completar desde JSON...")
         actions.addWidget(self.character_save_btn)
         actions.addWidget(self.character_new_btn)
         actions.addWidget(self.character_delete_btn)
+        actions.addWidget(self.character_json_btn)
         actions.addStretch(1)
         grid.addLayout(actions, 4, 1, 1, 3)
         layout.addWidget(form)
@@ -224,6 +305,19 @@ class AnimeV5MaintenanceWindow(QMainWindow):
         self.character_name_input.clear()
         self.character_description_input.clear()
         self.character_enabled_checkbox.setChecked(True)
+
+    def open_character_json_dialog(self) -> None:
+        dialog = AnimeCharacterJsonDialog(self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        data = dialog.accepted_character_data()
+
+        self.character_id_label.setText("—")
+        self.character_list_input.setText(data["anime"])
+        self.character_name_input.setText(data["name"])
+        self.character_description_input.setPlainText(data["description"])
+        self.character_enabled_checkbox.setChecked(True)
+        self.character_table.clearSelection()
 
     def save_character(self) -> None:
         list_name = self.character_list_input.text().strip()
