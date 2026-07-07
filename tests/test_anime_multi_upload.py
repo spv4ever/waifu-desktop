@@ -30,12 +30,14 @@ def test_upload_anime_to_cloudinary_uploads_every_image(monkeypatch) -> None:
         {"filename": "anime_3.png", "subfolder": "batch", "type": "output"},
     ]
     uploaded_paths: list[str] = []
+    uploaded_versions: list[str | None] = []
 
     def fake_build_output_path(image_json, *, workflow_key=None):
         return f"/outputs/{workflow_key}/{image_json['filename']}"
 
     def fake_upload_anime_image(*, image_path, title, checkpoint, version, created_at):
         uploaded_paths.append(str(image_path))
+        uploaded_versions.append(version)
         index = len(uploaded_paths)
         return {"secure_url": f"https://anime-cdn.example/{index}.png", "public_id": f"anime-public-{index}"}
 
@@ -44,7 +46,7 @@ def test_upload_anime_to_cloudinary_uploads_every_image(monkeypatch) -> None:
 
     worker._upload_anime_to_cloudinary(
         prompt_item_id=30,
-        meta={"workflow": "anime_v5", "created_at": "2026-06-21T00:00:00"},
+        meta={"workflow": "anime_v5", "created_at": "2026-06-21T00:00:00", "anime_v5_content_rating": "nsfw"},
         checkpoint_base="checkpoint.safetensors",
         image_jsons=images,
         title="Anime Batch",
@@ -55,6 +57,7 @@ def test_upload_anime_to_cloudinary_uploads_every_image(monkeypatch) -> None:
         "/outputs/anime_v5/anime_2.png",
         "/outputs/anime_v5/anime_3.png",
     ]
+    assert uploaded_versions == ["anime nsfw", "anime nsfw", "anime nsfw"]
     assert worker.store.updates == {
         "anime_cloudinary_url": "https://anime-cdn.example/1.png",
         "anime_cloudinary_public_id": "anime-public-1",

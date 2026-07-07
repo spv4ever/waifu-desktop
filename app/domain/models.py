@@ -52,6 +52,7 @@ class AnimeGenerationCreate:
     manual_outfit_text: str = ""
     checkpoint_base: Optional[str] = None
     checkpoint_refiner: Optional[str] = None
+    content_rating: str = "sfw"
 
 
 @dataclass(frozen=True)

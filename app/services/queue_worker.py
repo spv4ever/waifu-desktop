@@ -238,6 +238,11 @@ class QueueWorker:
             return
 
         created_at = str(meta.get("created_at") or "").strip() or datetime.now().isoformat(timespec="seconds")
+        content_rating = str(meta.get("anime_v5_content_rating") or "sfw").strip().lower()
+        if content_rating not in {"sfw", "nsfw"}:
+            content_rating = "sfw"
+        version_base = str(settings.waifu_version or "anime").strip() or "anime"
+        upload_version = f"{version_base} {content_rating}"
         successful_uploads: list[dict[str, Any]] = []
         for index, current_image_json in enumerate(images, start=1):
             try:
@@ -246,7 +251,7 @@ class QueueWorker:
                     image_path=image_path,
                     title=f"{title or 'Anime'} #{index}" if len(images) > 1 else title or "Anime",
                     checkpoint=checkpoint_base,
-                    version=settings.waifu_version or None,
+                    version=upload_version,
                     created_at=created_at,
                 )
             except (CloudinaryUploadError, OSError, ValueError) as exc:
@@ -606,9 +611,11 @@ class QueueWorker:
                 else "comfyui_workflow_dollimages"
             )
         elif workflow_key == "anime_v5":
+            content_rating = str(meta.get("anime_v5_content_rating") or "sfw").strip().lower()
             list_name = sanitize_segment(meta.get("anime_character_list") or combo.get("variant") or "characters")
             character = sanitize_segment(meta.get("anime_character") or item.get("title") or prompt_item_id)
-            folder = sanitize_relpath(f"anime/{list_name}/{character}")
+            folder_prefix = "anime/nsfw" if content_rating == "nsfw" else "anime"
+            folder = sanitize_relpath(f"{folder_prefix}/{list_name}/{character}")
             base_name = sanitize_segment(f"{prompt_item_id}")
             base_prefix = sanitize_relpath(f"{folder}/{base_name}")
             upscale_prefix = base_prefix

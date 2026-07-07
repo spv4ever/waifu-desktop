@@ -70,6 +70,13 @@ def _render_anime_prompt(
     )
 
 
+def _normalize_content_rating(value: str | None) -> str:
+    rating = str(value or "sfw").strip().lower()
+    if rating not in {"sfw", "nsfw"}:
+        raise ValueError("La clasificación Anime V5 debe ser SFW o NSFW.")
+    return rating
+
+
 def _uses_anime_v5_generator(prompt_template: str) -> bool:
     return any(
         token in prompt_template
@@ -95,6 +102,7 @@ class AnimeGenerationService:
 
     def create_images_and_enqueue(self, req: AnimeGenerationCreate) -> AnimeGenerationResult:
         list_name = req.list_name.strip()
+        content_rating = _normalize_content_rating(req.content_rating)
         prompt_template = req.prompt_text.strip() or DEFAULT_TEMPLATE
         characters = [parsed for raw in req.characters if (parsed := _parse_character_request(raw)) is not None]
         if not list_name:
@@ -129,7 +137,7 @@ class AnimeGenerationService:
         requested = len(characters) * quantity
         pack_id = self.store.create_pack(
             category="anime",
-            variant=list_name,
+            variant=f"{list_name} {content_rating}",
             requested_n=requested,
             notes=req.prompt_title.strip() or prompt_template,
         )
@@ -169,7 +177,7 @@ class AnimeGenerationService:
                 for _ in range(10):
                     seed = self.rng.randint(0, 2**31 - 1)
                     candidate = _hash_signature("anime_v5", list_name, character.name, character_description, repetition, seed, prompt_template)
-                    if self.store.try_register_combo(combo_key=candidate, category="anime", variant=list_name):
+                    if self.store.try_register_combo(combo_key=candidate, category="anime", variant=f"{list_name} {content_rating}"):
                         signature = candidate
                         break
                 if signature is None or seed is None:
@@ -178,7 +186,7 @@ class AnimeGenerationService:
                 meta = {
                     "combo": {
                         "category": "anime",
-                        "variant": list_name,
+                        "variant": f"{list_name} {content_rating}",
                         "ratio_tag": f"{width}x{height}",
                         "ratio": f"{width}x{height}",
                         "width": width,
@@ -193,6 +201,7 @@ class AnimeGenerationService:
                     "anime_character": character.name,
                     "anime_character_description": character_description,
                     "anime_character_list": list_name,
+                    "anime_v5_content_rating": content_rating,
                     "anime_prompt_template": prompt_template,
                     "anime_v5_prompt_selection": prompt_selection.as_meta() if prompt_selection else None,
                     "anime_v5_manual_outfit_text": req.manual_outfit_text.strip(),
