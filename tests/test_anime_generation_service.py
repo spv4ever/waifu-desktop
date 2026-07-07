@@ -176,7 +176,7 @@ def test_anime_v5_generator_reuses_selected_options_for_all_characters(monkeypat
         },
     )
 
-    def choose_once(rng, options, *, fixed_outfit=None):
+    def choose_once(rng, options, *, fixed_outfit=None, manual_outfit_text=""):
         selections.append(options)
         return AnimeV5PromptSelection(
             location="rooftop",
@@ -274,3 +274,24 @@ def test_anime_v5_saves_selected_checkpoints_in_meta(monkeypatch):
         "base": "base-model.safetensors",
         "refiner": "refiner-model.safetensors",
     }
+
+
+def test_anime_v5_nsfw_content_rating_updates_variant_and_meta(monkeypatch):
+    store = FakeAnimeStore()
+    monkeypatch.setattr(anime_generation_service, "get_store", lambda: store)
+
+    service = AnimeGenerationService()
+    service.create_images_and_enqueue(
+        AnimeGenerationCreate(
+            list_name="One Piece",
+            prompt_title="Prompt",
+            prompt_text="[personaje] from [anime], cinematic portrait",
+            characters=["Nami"],
+            quantity_per_character=1,
+            content_rating="nsfw",
+        )
+    )
+
+    assert store.pack["variant"] == "One Piece nsfw"
+    assert store.prompt_items[0]["meta"]["combo"]["variant"] == "One Piece nsfw"
+    assert store.prompt_items[0]["meta"]["anime_v5_content_rating"] == "nsfw"

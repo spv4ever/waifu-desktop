@@ -618,11 +618,16 @@ class MainWindow(QMainWindow):
         anime_grid.addWidget(self.anime_v5_clear_lists_btn, 2, 3)
         self.anime_v5_maintenance_btn = QPushButton("Mantenimiento...")
         anime_grid.addWidget(self.anime_v5_maintenance_btn, 0, 3)
-        anime_grid.addWidget(QLabel("Imágenes por personaje:"), 0, 4)
+        anime_grid.addWidget(QLabel("Clasificación:"), 0, 4)
+        self.anime_v5_content_rating_combo = QComboBox()
+        self.anime_v5_content_rating_combo.addItem("SFW", "sfw")
+        self.anime_v5_content_rating_combo.addItem("NSFW", "nsfw")
+        anime_grid.addWidget(self.anime_v5_content_rating_combo, 0, 5)
+        anime_grid.addWidget(QLabel("Imágenes por personaje:"), 1, 4)
         self.anime_v5_quantity_spin = QSpinBox()
         self.anime_v5_quantity_spin.setRange(1, 500)
         self.anime_v5_quantity_spin.setValue(1)
-        anime_grid.addWidget(self.anime_v5_quantity_spin, 0, 5)
+        anime_grid.addWidget(self.anime_v5_quantity_spin, 1, 5)
         anime_grid.addWidget(QLabel("Listas a generar:"), 1, 0)
         anime_grid.addWidget(QLabel("Título prompt:"), 3, 0)
         self.anime_v5_prompt_title_input = QLineEdit()
@@ -2215,6 +2220,7 @@ class MainWindow(QMainWindow):
         manual_outfit_text = self.anime_v5_manual_outfit_input.text().strip()
         checkpoint_base = self.anime_v5_checkpoint_base_combo.currentData()
         checkpoint_refiner = self.anime_v5_checkpoint_refiner_combo.currentData()
+        content_rating = str(self.anime_v5_content_rating_combo.currentData() or "sfw")
         if not list_names:
             QMessageBox.warning(self, "Anime V5", "Selecciona al menos una lista de anime.")
             return
@@ -2241,6 +2247,7 @@ class MainWindow(QMainWindow):
                             manual_outfit_text=manual_outfit_text,
                             checkpoint_base=str(checkpoint_base),
                             checkpoint_refiner=str(checkpoint_refiner),
+                            content_rating=content_rating,
                         )
                     )
                 )
