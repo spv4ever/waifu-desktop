@@ -338,6 +338,7 @@ class BaseStore:
         *,
         list_name: str | None,
         character: str | None,
+        include_nsfw: bool = True,
     ) -> list[dict[str, Any]]:
         raise NotImplementedError
 
@@ -1272,6 +1273,7 @@ class SQLiteStore(BaseStore):
         *,
         list_name: str | None,
         character: str | None,
+        include_nsfw: bool = True,
     ) -> list[dict[str, Any]]:
         conditions = [
             "status = 'DONE'",
@@ -1287,6 +1289,8 @@ class SQLiteStore(BaseStore):
         if character:
             conditions.append("json_extract(meta_json, '$.anime_character') = ?")
             params.append(character)
+        if not include_nsfw:
+            conditions.append("COALESCE(json_extract(meta_json, '$.anime_v5_content_rating'), 'sfw') != 'nsfw'")
 
         with get_connection() as conn:
             rows = conn.execute(

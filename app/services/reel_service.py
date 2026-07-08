@@ -347,9 +347,14 @@ class ReelService:
         list_name: str | None,
         character: str | None,
         image_count: int | None,
+        include_nsfw: bool = True,
     ) -> list[_ReelImage]:
         store = get_store()
-        rows = store.select_unused_anime_v5_reel_images(list_name=list_name, character=character)
+        rows = store.select_unused_anime_v5_reel_images(
+            list_name=list_name,
+            character=character,
+            include_nsfw=include_nsfw,
+        )
         random.shuffle(rows)
         selected: list[_ReelImage] = []
         for row in rows:
@@ -829,6 +834,7 @@ class ReelService:
         seconds_per_image: float,
         transition_seconds: float,
         fade_out: bool = True,
+        include_nsfw: bool = True,
     ) -> ReelCreateResult:
         if image_count is not None and image_count <= 0:
             raise ValueError("La cantidad de imágenes debe ser mayor a cero.")
@@ -843,6 +849,7 @@ class ReelService:
             list_name=list_name,
             character=character,
             image_count=image_count,
+            include_nsfw=include_nsfw,
         )
         if not images:
             raise RuntimeError("No hay imágenes Anime V5 disponibles para el reel.")
@@ -875,6 +882,7 @@ class ReelService:
             "seconds_per_image": seconds_per_image,
             "transition_seconds": transition_seconds,
             "fade_out": fade_out,
+            "include_nsfw": include_nsfw,
             "video": video_path.name,
             "audio": audio_path.name if audio_path else None,
             "items": [

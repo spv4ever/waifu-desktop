@@ -1012,6 +1012,11 @@ class MainWindow(QMainWindow):
         self.anime_v5_reel_fade_out_checkbox = QCheckBox()
         self.anime_v5_reel_fade_out_checkbox.setChecked(True)
         anime_reel_grid.addWidget(self.anime_v5_reel_fade_out_checkbox, 1, 5)
+        anime_reel_grid.addWidget(QLabel("Incluir NSFW:"), 2, 0)
+        self.anime_v5_reel_include_nsfw_checkbox = QCheckBox()
+        self.anime_v5_reel_include_nsfw_checkbox.setChecked(True)
+        self.anime_v5_reel_include_nsfw_checkbox.setToolTip("Desactiva esta opción para crear el reel solo con imágenes Anime V5 SFW.")
+        anime_reel_grid.addWidget(self.anime_v5_reel_include_nsfw_checkbox, 2, 1)
         self.anime_v5_reel_generate_btn = QPushButton("Crear Reel Anime V5")
         anime_reel_grid.addWidget(self.anime_v5_reel_generate_btn, 2, 4, 1, 2)
         anime_reel_grid.setColumnStretch(6, 1)
@@ -2014,6 +2019,7 @@ class MainWindow(QMainWindow):
         seconds_per_image = float(self.anime_v5_reel_seconds_spin.value())
         transition_seconds = float(self.anime_v5_reel_transition_spin.value())
         fade_out = self.anime_v5_reel_fade_out_checkbox.isChecked()
+        include_nsfw = self.anime_v5_reel_include_nsfw_checkbox.isChecked()
         try:
             result = self.reel_service.create_anime_v5_reel(
                 list_name=list_name,
@@ -2022,6 +2028,7 @@ class MainWindow(QMainWindow):
                 seconds_per_image=seconds_per_image,
                 transition_seconds=transition_seconds,
                 fade_out=fade_out,
+                include_nsfw=include_nsfw,
             )
         except Exception as exc:
             QMessageBox.critical(self, "Reel Anime V5", str(exc))
