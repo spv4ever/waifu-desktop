@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
     QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QMenu, QStackedWidget,
-    QHeaderView, QListWidget,
+    QHeaderView, QListWidget, QListWidgetItem,
 )
 
 from app.config.app_config import load_app_config
@@ -28,6 +28,7 @@ from app.services.dollimages_pack_service import DollimagesPackService
 from app.services.file_open import open_file, open_folder_and_select
 from app.services.checkpoint_service import CheckpointService
 from app.services.reel_service import ReelService
+from app.services.video_montage_service import VideoMontageService
 from app.services.manual_prompt_service import ManualPromptService
 from app.services.dollimages_manual_prompt_service import DollimagesManualPromptService
 from app.services.image2vid_service import ImageToVideoService
@@ -83,6 +84,68 @@ class NoFocusRectStyle(QProxyStyle):
             return
         super().drawPrimitive(element, option, painter, widget)
 
+
+class VideoDropList(QListWidget):
+    """Lista que acepta vídeos arrastrados desde el explorador de archivos."""
+
+    _VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"}
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setAcceptDrops(True)
+        self.setDragDropMode(QAbstractItemView.DropOnly)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+
+    def dragEnterEvent(self, event) -> None:  # noqa: N802 - Qt API
+        if self._has_video_urls(event.mimeData()):
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event) -> None:  # noqa: N802 - Qt API
+        if self._has_video_urls(event.mimeData()):
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event) -> None:  # noqa: N802 - Qt API
+        paths = self._video_paths_from_mime(event.mimeData())
+        if not paths:
+            super().dropEvent(event)
+            return
+        self.add_video_paths(paths)
+        event.acceptProposedAction()
+
+    def _has_video_urls(self, mime_data) -> bool:
+        return bool(self._video_paths_from_mime(mime_data))
+
+    def _video_paths_from_mime(self, mime_data) -> list[Path]:
+        if not mime_data.hasUrls():
+            return []
+        paths: list[Path] = []
+        for url in mime_data.urls():
+            if not url.isLocalFile():
+                continue
+            path = Path(url.toLocalFile())
+            if path.suffix.lower() in self._VIDEO_EXTENSIONS:
+                paths.append(path)
+        return paths
+
+    def add_video_paths(self, paths: list[Path]) -> None:
+        existing = {self.item(row).data(Qt.UserRole) for row in range(self.count())}
+        for path in paths:
+            resolved = str(path.expanduser().resolve())
+            if resolved in existing:
+                continue
+            item = QListWidgetItem(path.name)
+            item.setData(Qt.UserRole, resolved)
+            item.setToolTip(resolved)
+            self.addItem(item)
+            existing.add(resolved)
+
+    def video_paths(self) -> list[str]:
+        return [str(self.item(row).data(Qt.UserRole)) for row in range(self.count())]
+
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -105,6 +168,7 @@ class MainWindow(QMainWindow):
         self.dollimages_pack_service = DollimagesPackService()
         self.dollimages_manual_prompt_service = DollimagesManualPromptService()
         self.reel_service = ReelService()
+        self.video_montage_service = VideoMontageService()
         self.manual_prompt_service = ManualPromptService()
         self.image2vid_service = ImageToVideoService()
         self.anime_generation_service = AnimeGenerationService()
@@ -215,6 +279,7 @@ class MainWindow(QMainWindow):
         self.open_reel_btn = QPushButton("Reel Instagram")
         self.open_dollimages_reel_btn = QPushButton("Reel Dollimages")
         self.open_anime_v5_reel_btn = QPushButton("Reel Anime V5")
+        self.open_video_montage_btn = QPushButton("Montar Videos")
         quick_action_buttons = (
             self.open_filters_btn,
             self.open_pack_btn,
@@ -226,6 +291,7 @@ class MainWindow(QMainWindow):
             self.open_reel_btn,
             self.open_dollimages_reel_btn,
             self.open_anime_v5_reel_btn,
+            self.open_video_montage_btn,
         )
         for index, button in enumerate(quick_action_buttons):
             quick_actions.addWidget(button, index // 5, index % 5)
@@ -921,6 +987,51 @@ class MainWindow(QMainWindow):
 
         reel_dialog_layout.addWidget(reel_group)
 
+        self.video_montage_dialog = QDialog(self)
+        self.video_montage_dialog.setWindowTitle("Montar Videos")
+        self.video_montage_dialog.setModal(False)
+        self.video_montage_dialog.resize(760, 460)
+        video_montage_layout = QVBoxLayout(self.video_montage_dialog)
+        video_montage_group = QGroupBox("Concatenar vídeos con fundido y música aleatoria")
+        video_montage_grid = QGridLayout(video_montage_group)
+        video_montage_grid.setHorizontalSpacing(10)
+        video_montage_grid.setVerticalSpacing(8)
+
+        video_montage_grid.addWidget(QLabel("Vídeos:"), 0, 0)
+        self.video_montage_list = VideoDropList()
+        self.video_montage_list.setMinimumHeight(220)
+        self.video_montage_list.setToolTip("Arrastra aquí varios vídeos o usa el botón Añadir vídeos.")
+        video_montage_grid.addWidget(self.video_montage_list, 0, 1, 1, 6)
+
+        self.video_montage_add_btn = QPushButton("Añadir vídeos")
+        video_montage_grid.addWidget(self.video_montage_add_btn, 1, 1)
+        self.video_montage_remove_btn = QPushButton("Quitar seleccionados")
+        video_montage_grid.addWidget(self.video_montage_remove_btn, 1, 2)
+        self.video_montage_clear_btn = QPushButton("Limpiar")
+        video_montage_grid.addWidget(self.video_montage_clear_btn, 1, 3)
+
+        video_montage_grid.addWidget(QLabel("Formato:"), 2, 0)
+        self.video_montage_ratio_combo = QComboBox()
+        self.video_montage_ratio_combo.addItem("Vertical 9:16", "9:16")
+        self.video_montage_ratio_combo.addItem("Horizontal 16:9", "16:9")
+        video_montage_grid.addWidget(self.video_montage_ratio_combo, 2, 1)
+
+        video_montage_grid.addWidget(QLabel("Fundido entre vídeos:"), 2, 2)
+        self.video_montage_transition_spin = QDoubleSpinBox()
+        self.video_montage_transition_spin.setRange(0.0, 5.0)
+        self.video_montage_transition_spin.setSingleStep(0.25)
+        self.video_montage_transition_spin.setValue(0.75)
+        video_montage_grid.addWidget(self.video_montage_transition_spin, 2, 3)
+
+        self.video_montage_fade_out_checkbox = QCheckBox("Fundido final")
+        self.video_montage_fade_out_checkbox.setChecked(True)
+        video_montage_grid.addWidget(self.video_montage_fade_out_checkbox, 2, 4)
+
+        self.video_montage_generate_btn = QPushButton("Crear montaje")
+        video_montage_grid.addWidget(self.video_montage_generate_btn, 2, 5)
+        video_montage_grid.setColumnStretch(6, 1)
+        video_montage_layout.addWidget(video_montage_group)
+
         self.dollimages_reel_dialog = QDialog(self)
         self.dollimages_reel_dialog.setWindowTitle("Reel Dollimages")
         self.dollimages_reel_dialog.setModal(False)
@@ -1216,6 +1327,10 @@ class MainWindow(QMainWindow):
         self.dollimages_generate_btn.clicked.connect(self.generate_dollimages_pack)
         self.dollimages_manual_generate_btn.clicked.connect(self.generate_dollimages_manual_prompt)
         self.reel_generate_btn.clicked.connect(self.generate_reel)
+        self.video_montage_generate_btn.clicked.connect(self.generate_video_montage)
+        self.video_montage_add_btn.clicked.connect(self.add_video_montage_files)
+        self.video_montage_remove_btn.clicked.connect(self.remove_selected_video_montage_files)
+        self.video_montage_clear_btn.clicked.connect(self.video_montage_list.clear)
         self.dollimages_reel_generate_btn.clicked.connect(self.generate_dollimages_reel)
         self.image2vid_generate_btn.clicked.connect(self.generate_image2vid)
         self.open_filters_btn.clicked.connect(self.filters_dialog.show)
@@ -1240,6 +1355,7 @@ class MainWindow(QMainWindow):
         self.anime_v5_prompt_search_input.textChanged.connect(self._filter_anime_v5_prompts)
         self.anime_v5_prompt_table.itemDoubleClicked.connect(lambda _item: self._apply_selected_anime_v5_prompt())
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
+        self.open_video_montage_btn.clicked.connect(self.video_montage_dialog.show)
         self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
         self.open_anime_v5_reel_btn.clicked.connect(self.anime_v5_reel_dialog.show)
         self.anime_v5_reel_generate_btn.clicked.connect(self.generate_anime_v5_reel)
@@ -2955,6 +3071,58 @@ class MainWindow(QMainWindow):
             open_folder_and_select(result.folder)
         except Exception as exc:
             QMessageBox.critical(self, "Reel Instagram", f"No se pudo abrir la carpeta: {exc}")
+
+    def add_video_montage_files(self) -> None:
+        file_paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Añadir vídeos al montaje",
+            "",
+            "Vídeos (*.mp4 *.mov *.m4v *.mkv *.webm *.avi)",
+        )
+        if not file_paths:
+            return
+        self.video_montage_list.add_video_paths([Path(path) for path in file_paths])
+
+    def remove_selected_video_montage_files(self) -> None:
+        selected_rows = sorted(
+            {index.row() for index in self.video_montage_list.selectedIndexes()},
+            reverse=True,
+        )
+        for row in selected_rows:
+            self.video_montage_list.takeItem(row)
+
+    def generate_video_montage(self) -> None:
+        source_videos = self.video_montage_list.video_paths()
+        if len(source_videos) < 2:
+            QMessageBox.warning(self, "Montar Videos", "Añade al menos dos vídeos.")
+            return
+
+        ratio = str(self.video_montage_ratio_combo.currentData() or "9:16")
+        transition_seconds = float(self.video_montage_transition_spin.value())
+        fade_out = self.video_montage_fade_out_checkbox.isChecked()
+
+        try:
+            result = self.video_montage_service.create_montage(
+                source_videos=source_videos,
+                ratio=ratio,
+                transition_seconds=transition_seconds,
+                fade_out=fade_out,
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Montar Videos", str(exc))
+            return
+
+        QMessageBox.information(
+            self,
+            "Montar Videos",
+            f"Montaje creado: {result.video_path.name}\n"
+            f"Duración: {result.duration_seconds:.1f}s · Ratio: {result.ratio}\n"
+            f"Música: {result.audio_path.name if result.audio_path else 'sin música disponible'}",
+        )
+        try:
+            open_folder_and_select(result.video_path)
+        except Exception as exc:
+            QMessageBox.critical(self, "Montar Videos", f"No se pudo abrir el vídeo: {exc}")
 
     def generate_dollimages_reel(self) -> None:
         group_name = self.dollimages_reel_group_combo.currentData()
