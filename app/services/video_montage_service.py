@@ -25,6 +25,7 @@ class VideoMontageService:
     _FPS = 30
     _TRANSITION_SECONDS = 0.75
     _FADE_OUT_SECONDS = 0.5
+    _AUDIO_RANDOM_START_WINDOW_SECONDS = 60.0
     _RATIO_SIZES = {
         "9:16": (1080, 1920),
         "16:9": (1920, 1080),
@@ -70,14 +71,21 @@ class VideoMontageService:
         )
         return max(float(probe.stdout.strip()), 0.0)
 
-    def _select_audio_track(self) -> Path | None:
+    def _select_audio_track(self) -> tuple[Path, float] | None:
         audio_dir = self._repo_root() / "resources" / "audio"
         if not audio_dir.exists():
             return None
         audio_files = sorted(path for path in audio_dir.glob("*.mp3") if path.is_file())
         if not audio_files:
             return None
-        return random.choice(audio_files)
+        audio_path = random.choice(audio_files)
+        audio_duration = self._probe_duration(audio_path)
+        max_start_time = min(
+            self._AUDIO_RANDOM_START_WINDOW_SECONDS,
+            max(audio_duration - 1.0, 0.0),
+        )
+        start_time = random.uniform(0.0, max_start_time) if max_start_time > 0 else 0.0
+        return audio_path, start_time
 
     def create_montage(
         self,
@@ -111,7 +119,9 @@ class VideoMontageService:
 
         folder = self._create_folder()
         output_path = folder / "montaje.mp4"
-        audio_path = self._select_audio_track()
+        audio_selection = self._select_audio_track()
+        audio_path = audio_selection[0] if audio_selection else None
+        audio_start_time = audio_selection[1] if audio_selection else 0.0
 
         cmd = [ffmpeg_path, "-y"]
         for path in paths:
@@ -119,7 +129,14 @@ class VideoMontageService:
         audio_input_index: int | None = None
         if audio_path:
             audio_input_index = len(paths)
-            cmd += ["-stream_loop", "-1", "-i", str(audio_path)]
+            cmd += [
+                "-stream_loop",
+                "-1",
+                "-ss",
+                f"{audio_start_time:.3f}",
+                "-i",
+                str(audio_path),
+            ]
 
         filter_parts: list[str] = []
         concat_labels: list[str] = []
@@ -170,6 +187,7 @@ class VideoMontageService:
             "transition_seconds": transition_seconds,
             "duration_seconds": total_duration,
             "audio": str(audio_path) if audio_path else None,
+            "audio_start_seconds": audio_start_time if audio_path else None,
             "source_videos": [str(path) for path in paths],
         }
         (folder / "montaje.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
