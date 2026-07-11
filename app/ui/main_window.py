@@ -628,6 +628,11 @@ class MainWindow(QMainWindow):
         self.anime_v5_quantity_spin.setRange(1, 500)
         self.anime_v5_quantity_spin.setValue(1)
         anime_grid.addWidget(self.anime_v5_quantity_spin, 1, 5)
+        anime_grid.addWidget(QLabel("Personaje concreto:"), 2, 4)
+        self.anime_v5_single_character_combo = QComboBox()
+        self.anime_v5_single_character_combo.addItem("Todos", None)
+        self.anime_v5_single_character_combo.setToolTip("Opcional: genera solo un personaje cuando hay una única lista seleccionada o activa.")
+        anime_grid.addWidget(self.anime_v5_single_character_combo, 2, 5)
         anime_grid.addWidget(QLabel("Listas a generar:"), 1, 0)
         anime_grid.addWidget(QLabel("Título prompt:"), 3, 0)
         self.anime_v5_prompt_title_input = QLineEdit()
@@ -1224,7 +1229,10 @@ class MainWindow(QMainWindow):
         self.anime_v5_maintenance_btn.clicked.connect(self.open_anime_v5_maintenance_window)
         self.anime_v5_select_all_lists_btn.clicked.connect(self._select_all_anime_v5_lists)
         self.anime_v5_clear_lists_btn.clicked.connect(self.anime_v5_list_selection.clearSelection)
+        self.anime_v5_list_selection.itemSelectionChanged.connect(self._populate_anime_v5_single_character_options)
         self.anime_v5_list_combo.currentIndexChanged.connect(self._load_anime_v5_list_from_combo)
+        self.anime_v5_list_combo.currentTextChanged.connect(lambda _text: self._populate_anime_v5_single_character_options())
+        self.anime_v5_characters_input.textChanged.connect(self._populate_anime_v5_single_character_options)
         self.anime_v5_pick_prompt_btn.clicked.connect(self.open_anime_v5_prompt_picker)
         self.anime_v5_generator_btn.clicked.connect(self.apply_anime_v5_generator_template)
         self.anime_v5_prompt_cancel_btn.clicked.connect(self.anime_v5_prompt_picker_dialog.reject)
@@ -2078,6 +2086,47 @@ class MainWindow(QMainWindow):
         characters = getattr(self, "_anime_v5_character_lists", {}).get(list_name)
         if characters:
             self.anime_v5_characters_input.setPlainText("\n".join(characters))
+        self._populate_anime_v5_single_character_options()
+
+    def _anime_v5_character_label(self, value: str) -> str:
+        raw = str(value).strip()
+        if raw.startswith("{"):
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                data = None
+            if isinstance(data, dict):
+                name = str(data.get("name") or "").strip()
+                if name:
+                    return name
+        return raw
+
+    def _active_anime_v5_generation_list_for_character_filter(self) -> str | None:
+        selected = self._selected_anime_v5_generation_lists()
+        if len(selected) == 1:
+            return selected[0]
+        return None
+
+    def _populate_anime_v5_single_character_options(self) -> None:
+        current_character = self.anime_v5_single_character_combo.currentData()
+        list_name = self._active_anime_v5_generation_list_for_character_filter()
+        characters = self._anime_v5_characters_for_generation(
+            list_name,
+            self.anime_v5_list_combo.currentText().strip(),
+        ) if list_name else []
+
+        self.anime_v5_single_character_combo.blockSignals(True)
+        self.anime_v5_single_character_combo.clear()
+        self.anime_v5_single_character_combo.addItem("Todos", None)
+        for character in characters:
+            label = self._anime_v5_character_label(character)
+            self.anime_v5_single_character_combo.addItem(label, character)
+        if current_character:
+            idx = self.anime_v5_single_character_combo.findData(current_character)
+            if idx >= 0:
+                self.anime_v5_single_character_combo.setCurrentIndex(idx)
+        self.anime_v5_single_character_combo.setEnabled(bool(list_name and characters))
+        self.anime_v5_single_character_combo.blockSignals(False)
 
     def _anime_v5_characters_from_editor(self) -> list[str]:
         return [
@@ -2228,8 +2277,16 @@ class MainWindow(QMainWindow):
         checkpoint_base = self.anime_v5_checkpoint_base_combo.currentData()
         checkpoint_refiner = self.anime_v5_checkpoint_refiner_combo.currentData()
         content_rating = str(self.anime_v5_content_rating_combo.currentData() or "sfw")
+        single_character = self.anime_v5_single_character_combo.currentData()
         if not list_names:
             QMessageBox.warning(self, "Anime V5", "Selecciona al menos una lista de anime.")
+            return
+        if single_character and len(list_names) != 1:
+            QMessageBox.warning(
+                self,
+                "Anime V5",
+                "El personaje concreto solo se puede usar con una única lista seleccionada.",
+            )
             return
         if not checkpoint_base:
             QMessageBox.warning(self, "Anime V5", "Selecciona un modelo principal.")
@@ -2242,6 +2299,8 @@ class MainWindow(QMainWindow):
             results = []
             for selected_list_name in list_names:
                 characters = self._anime_v5_characters_for_generation(selected_list_name, list_name)
+                if single_character and len(list_names) == 1:
+                    characters = [str(single_character)]
                 results.append(
                     self.anime_generation_service.create_images_and_enqueue(
                         AnimeGenerationCreate(
