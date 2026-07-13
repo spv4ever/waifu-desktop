@@ -187,6 +187,9 @@ class MainWindow(QMainWindow):
         self._refresh_timer = QTimer(self)
         self._refresh_timer.setSingleShot(True)
         self._refresh_timer.timeout.connect(self._run_scheduled_refresh)
+        self._preview_auto_disable_timer = QTimer(self)
+        self._preview_auto_disable_timer.setSingleShot(True)
+        self._preview_auto_disable_timer.timeout.connect(self._auto_disable_base_preview)
         self._refresh_resize_columns = False
         self._refresh_worker: RefreshWorker | None = None
         self._refresh_pending = False
@@ -348,6 +351,15 @@ class MainWindow(QMainWindow):
         self.preview_toggle_check = QCheckBox("Mostrar preview")
         self.preview_toggle_check.setChecked(False)
         operation_layout.addWidget(self.preview_toggle_check, 2, 0, 1, 2)
+
+        operation_layout.addWidget(QLabel("Auto-ocultar preview (s):"), 2, 2)
+        self.preview_auto_disable_spin = QSpinBox()
+        self.preview_auto_disable_spin.setRange(1, 3600)
+        self.preview_auto_disable_spin.setValue(60)
+        self.preview_auto_disable_spin.setToolTip(
+            "Segundos que la vista previa permanecerá visible antes de desactivarse automáticamente."
+        )
+        operation_layout.addWidget(self.preview_auto_disable_spin, 2, 3)
         operation_layout.setColumnStretch(4, 1)
         layout.addWidget(operation_group)
 
@@ -1423,6 +1435,7 @@ class MainWindow(QMainWindow):
         self.reset_filters_btn.clicked.connect(self.reset_filters)
         self.toggle_preview_action.toggled.connect(self._toggle_base_preview)
         self.preview_toggle_check.toggled.connect(self._toggle_base_preview)
+        self.preview_auto_disable_spin.valueChanged.connect(self._restart_preview_auto_disable_timer)
         self.toggle_worker_log_action.toggled.connect(self._toggle_worker_log)
         self.clear_worker_log_btn.clicked.connect(self.clear_worker_log)
         self.base_video_play_btn.clicked.connect(self._play_base_video_preview)
@@ -3165,6 +3178,15 @@ class MainWindow(QMainWindow):
             self.preview_toggle_check.blockSignals(False)
         self.base_group.setVisible(checked)
         self._update_right_column_visibility()
+        self._restart_preview_auto_disable_timer()
+
+    def _restart_preview_auto_disable_timer(self) -> None:
+        self._preview_auto_disable_timer.stop()
+        if self.preview_toggle_check.isChecked():
+            self._preview_auto_disable_timer.start(self.preview_auto_disable_spin.value() * 1000)
+
+    def _auto_disable_base_preview(self) -> None:
+        self._toggle_base_preview(False)
 
     def _toggle_worker_log(self, checked: bool) -> None:
         self.worker_log_group.setVisible(checked)
