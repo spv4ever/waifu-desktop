@@ -22,12 +22,17 @@
       "workflow_hint": "bulk_images_default",
       "positive_prompt": "cinematic editorial portrait of a confident female character on a neon city rooftop, 85mm lens, shallow depth of field, rim light, soft key light, magenta and cyan palette, premium fashion photography, highly detailed",
       "negative_prompt": "low quality, blurry, bad anatomy, extra fingers, watermark, text, logo",
+<<<<<<< HEAD
       "tags": [
         "portrait",
         "editorial",
         "neon",
         "cinematic"
       ],
+=======
+      "tags": ["portrait", "editorial", "neon", "cinematic"],
+      "quantity": 1,
+>>>>>>> ac39933ec8015ab7a44931397091fdb0b52c7078
       "priority": 10,
       "status": "ready",
       "enabled": true,
@@ -52,12 +57,17 @@
       "workflow_hint": "bulk_images_default",
       "positive_prompt": "clean commercial fashion lookbook image of an anime-inspired model in a minimal white studio, full body catalog pose, 50mm lens, large softbox lighting, elegant neutral outfit, premium product photography finish",
       "negative_prompt": "low quality, noisy, distorted limbs, bad hands, text, watermark, cluttered background",
+<<<<<<< HEAD
       "tags": [
         "fashion",
         "lookbook",
         "studio",
         "commercial"
       ],
+=======
+      "tags": ["fashion", "lookbook", "studio", "commercial"],
+      "quantity": 1,
+>>>>>>> ac39933ec8015ab7a44931397091fdb0b52c7078
       "priority": 20,
       "status": "ready",
       "enabled": true,
@@ -82,12 +92,17 @@
       "workflow_hint": "bulk_images_default",
       "positive_prompt": "high detail fantasy illustration of a moon sorceress standing in an ancient moonlit forest, mystical hero pose, silver violet and emerald palette, magical particles, layered cinematic depth, ornate costume design",
       "negative_prompt": "flat lighting, low detail, bad anatomy, duplicated body, text, watermark, jpeg artifacts",
+<<<<<<< HEAD
       "tags": [
         "fantasy",
         "character",
         "magic",
         "forest"
       ],
+=======
+      "tags": ["fantasy", "character", "magic", "forest"],
+      "quantity": 1,
+>>>>>>> ac39933ec8015ab7a44931397091fdb0b52c7078
       "priority": 30,
       "status": "draft",
       "enabled": true,

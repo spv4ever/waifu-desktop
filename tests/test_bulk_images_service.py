@@ -49,6 +49,7 @@ def _prompt(**overrides):
         positive_prompt="portrait prompt",
         negative_prompt="negative prompt",
         tags=["tag-a"],
+        quantity=1,
         priority=25,
         status="ready",
         enabled=True,
@@ -85,6 +86,8 @@ def test_create_prompts_and_enqueue_preserves_bulk_prompt_text_and_metadata(monk
     assert store.prompt_items[0]["meta"]["workflow"] == "krea2"
     assert store.prompt_items[0]["meta"]["bulk_metadata"]["workflow_hint"] == "bulk_images_default"
     assert store.prompt_items[0]["meta"].get("checkpoints") is None
+    assert store.prompt_items[0]["meta"]["bulk_generation_index"] == 1
+    assert store.prompt_items[0]["meta"]["bulk_generation_total"] == 1
     assert store.queue_jobs == [{"prompt_item_id": 1, "priority": 25}]
 
 
@@ -140,3 +143,21 @@ def test_create_prompts_and_enqueue_falls_back_to_krea2_for_unknown_workflow_hin
     service.create_prompts_and_enqueue(BulkImagesEnqueueRequest(prompts=[_prompt(workflow_hint="legacy_default")]))
 
     assert store.prompt_items[0]["meta"]["workflow"] == "krea2"
+
+
+def test_create_prompts_and_enqueue_creates_requested_quantity_per_prompt(monkeypatch):
+    store = FakeStore()
+    monkeypatch.setattr("app.services.bulk_images_service.get_store", lambda: store)
+    monkeypatch.setattr(
+        "app.services.bulk_images_service.load_app_config",
+        lambda: SimpleNamespace(defaults={"width": 1024, "height": 1024}, ratios={}),
+    )
+
+    service = BulkImagesService()
+    result = service.create_prompts_and_enqueue(BulkImagesEnqueueRequest(prompts=[_prompt(quantity=3)]))
+
+    assert store.packs[0]["requested_n"] == 3
+    assert result.created_prompt_item_ids == [1, 2, 3]
+    assert [item["meta"]["bulk_generation_index"] for item in store.prompt_items] == [1, 2, 3]
+    assert [item["meta"]["bulk_generation_total"] for item in store.prompt_items] == [3, 3, 3]
+    assert len(store.queue_jobs) == 3

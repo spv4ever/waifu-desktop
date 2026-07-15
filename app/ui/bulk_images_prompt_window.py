@@ -54,6 +54,7 @@ class BulkImagesPromptWindow(QMainWindow):
         ("model_hint", "Modelo"),
         ("workflow_hint", "Workflow"),
         ("tags", "Tags"),
+        ("quantity", "Cantidad"),
         ("priority", "Prioridad"),
         ("status", "Estado"),
         ("enabled", "Activo"),
@@ -200,9 +201,9 @@ class BulkImagesPromptWindow(QMainWindow):
             rows = [prompt for prompt in rows if query in self._search_blob(prompt)]
 
         self.visible_prompts = list(rows)
-        active_count = sum(1 for prompt in rows if prompt.enabled and prompt.positive_prompt.strip())
+        active_count = sum(prompt.quantity for prompt in rows if prompt.enabled and prompt.positive_prompt.strip())
         self._populate_table(rows)
-        self.summary_label.setText(f"{len(rows)} de {len(self.prompts)} prompts ({active_count} activos enviables)")
+        self.summary_label.setText(f"{len(rows)} de {len(self.prompts)} prompts ({active_count} imágenes enviables)")
         self.send_listed_btn.setEnabled(active_count > 0)
 
     def import_prompts_from_json(self) -> None:
@@ -264,7 +265,7 @@ class BulkImagesPromptWindow(QMainWindow):
                     display = str(value)
                 item = QTableWidgetItem(display)
                 item.setToolTip(display)
-                if field_name == "priority":
+                if field_name in {"priority", "quantity"}:
                     item.setData(Qt.EditRole, int(value))
                 self.table.setItem(row_index, col_index, item)
         self.table.resizeColumnsToContents()

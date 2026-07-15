@@ -29,6 +29,7 @@ class BulkImagePrompt:
     positive_prompt: str
     negative_prompt: str
     tags: list[str] = field(default_factory=list)
+    quantity: int = 1
     priority: int = 100
     status: str = "draft"
     enabled: bool = True
@@ -56,6 +57,7 @@ class BulkImagePrompt:
             positive_prompt=str(data.get("positive_prompt", "")).strip(),
             negative_prompt=str(data.get("negative_prompt", "")).strip(),
             tags=[str(tag).strip() for tag in data.get("tags", []) if str(tag).strip()],
+            quantity=max(1, int(data.get("quantity", data.get("count", 1)) or 1)),
             priority=int(data.get("priority", 100)),
             status=str(data.get("status", "draft")).strip() or "draft",
             enabled=bool(data.get("enabled", True)),
@@ -88,6 +90,7 @@ def bulk_image_prompts_example_payload() -> dict[str, Any]:
                 "positive_prompt": "cinematic portrait of a young woman with silver hair on a neon city rooftop at night, soft rim light, volumetric glow, teal and magenta palette, 85mm lens, shallow depth of field, highly detailed digital art",
                 "negative_prompt": "low quality, blurry, distorted hands, extra fingers, watermark, text",
                 "tags": ["portrait", "cinematic", "neon"],
+                "quantity": 3,
                 "priority": 10,
                 "status": "ready",
                 "enabled": True,

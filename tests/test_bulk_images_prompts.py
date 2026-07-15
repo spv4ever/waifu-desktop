@@ -45,6 +45,7 @@ def test_load_bulk_image_prompts_sorts_by_taxonomy_and_priority(tmp_path):
     assert prompts[0].subcategory == "Hero"
     assert prompts[1].enabled is True
     assert prompts[1].status == "draft"
+    assert prompts[1].quantity == 1
 
 
 
@@ -105,3 +106,4 @@ def test_bulk_image_prompts_example_payload_matches_import_format(tmp_path):
     prompts = load_bulk_image_prompts(destination)
     assert prompts[0].id == "bulk-example-001"
     assert prompts[0].enabled is True
+    assert prompts[0].quantity == 3
