@@ -33,6 +33,7 @@ from app.services.manual_prompt_service import ManualPromptService
 from app.services.dollimages_manual_prompt_service import DollimagesManualPromptService
 from app.services.image2vid_service import ImageToVideoService
 from app.services.anime_generation_service import AnimeGenerationService
+from app.services.bulk_images_service import BulkImagesEnqueueRequest, BulkImagesService
 from app.services.anime_v5_prompt_generator import (
     DEFAULT_TEMPLATE,
     DEFAULT_OPTIONS_PATH,
@@ -171,6 +172,7 @@ class MainWindow(QMainWindow):
         self.reel_service = ReelService()
         self.video_montage_service = VideoMontageService()
         self.manual_prompt_service = ManualPromptService()
+        self.bulk_images_service = BulkImagesService()
         self.image2vid_service = ImageToVideoService()
         self.anime_generation_service = AnimeGenerationService()
         self.waifu_catalog = load_waifu_catalog()
@@ -1796,12 +1798,32 @@ class MainWindow(QMainWindow):
             return
         window = BulkImagesPromptWindow()
         window.setAttribute(Qt.WA_DeleteOnClose, True)
+        window.send_listed_requested.connect(self.enqueue_bulk_images_prompts)
         window.destroyed.connect(self._clear_bulk_images_prompt_window)
         self.bulk_images_prompt_window = window
         window.show()
 
     def _clear_bulk_images_prompt_window(self) -> None:
         self.bulk_images_prompt_window = None
+
+    def enqueue_bulk_images_prompts(self, prompts: list[Any]) -> None:
+        if not prompts:
+            QMessageBox.warning(self, "Bulk Images", "No hay prompts activos para enviar.")
+            return
+        try:
+            result = self.bulk_images_service.create_prompts_and_enqueue(
+                BulkImagesEnqueueRequest(prompts=list(prompts))
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Bulk Images", str(exc))
+            return
+
+        self.refresh()
+        QMessageBox.information(
+            self,
+            "Bulk Images",
+            f"Pack {result.pack_id} creado con {len(result.created_prompt_item_ids)} prompts en cola.",
+        )
 
     def open_anime_v5_maintenance_window(self) -> None:
         if self.anime_v5_maintenance_window and self.anime_v5_maintenance_window.isVisible():
