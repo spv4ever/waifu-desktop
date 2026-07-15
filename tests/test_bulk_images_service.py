@@ -82,7 +82,7 @@ def test_create_prompts_and_enqueue_preserves_bulk_prompt_text_and_metadata(monk
     assert store.prompt_items[0]["prompt_text"] == "portrait prompt"
     assert store.prompt_items[0]["negative_text"] == "negative prompt"
     assert store.prompt_items[0]["meta"]["bulk_prompt_id"] == "bulk-1"
-    assert store.prompt_items[0]["meta"]["workflow"] == "dollimages"
+    assert store.prompt_items[0]["meta"]["workflow"] == "krea2"
     assert store.prompt_items[0]["meta"]["bulk_metadata"]["workflow_hint"] == "bulk_images_default"
     assert store.prompt_items[0]["meta"].get("checkpoints") is None
     assert store.queue_jobs == [{"prompt_item_id": 1, "priority": 25}]
@@ -106,7 +106,7 @@ def test_create_prompts_and_enqueue_skips_disabled_prompts(monkeypatch):
     assert store.prompt_items[0]["title"] == "Enabled"
 
 
-def test_create_prompts_and_enqueue_uses_explicit_checkpoint_override(monkeypatch):
+def test_create_prompts_and_enqueue_uses_explicit_checkpoint_override_for_dollimages(monkeypatch):
     store = FakeStore()
     monkeypatch.setattr("app.services.bulk_images_service.get_store", lambda: store)
     monkeypatch.setattr(
@@ -116,10 +116,27 @@ def test_create_prompts_and_enqueue_uses_explicit_checkpoint_override(monkeypatc
 
     service = BulkImagesService()
     service.create_prompts_and_enqueue(
-        BulkImagesEnqueueRequest(prompts=[_prompt(model_hint="image")], checkpoint_base="agilPhoto_v10.safetensors")
+        BulkImagesEnqueueRequest(
+            prompts=[_prompt(model_hint="image", workflow_hint="dollimages")],
+            checkpoint_base="agilPhoto_v10.safetensors",
+        )
     )
 
     assert store.prompt_items[0]["meta"]["checkpoints"] == {
         "base": "agilPhoto_v10.safetensors",
         "refiner": "agilPhoto_v10.safetensors",
     }
+
+
+def test_create_prompts_and_enqueue_falls_back_to_krea2_for_unknown_workflow_hint(monkeypatch):
+    store = FakeStore()
+    monkeypatch.setattr("app.services.bulk_images_service.get_store", lambda: store)
+    monkeypatch.setattr(
+        "app.services.bulk_images_service.load_app_config",
+        lambda: SimpleNamespace(defaults={"width": 1024, "height": 1024}, ratios={}),
+    )
+
+    service = BulkImagesService()
+    service.create_prompts_and_enqueue(BulkImagesEnqueueRequest(prompts=[_prompt(workflow_hint="legacy_default")]))
+
+    assert store.prompt_items[0]["meta"]["workflow"] == "krea2"
