@@ -1753,12 +1753,24 @@ class MainWindow(QMainWindow):
         window = DollimagesPromptWindow()
         window.setAttribute(Qt.WA_DeleteOnClose, True)
         window.catalog_updated.connect(self._populate_dollimages_groups)
+        window.generate_selected_requested.connect(self.prepare_selected_dollimages_prompt)
         window.destroyed.connect(self._clear_dollimages_prompt_window)
         self.dollimages_prompt_window = window
         window.show()
 
     def _clear_dollimages_prompt_window(self) -> None:
         self.dollimages_prompt_window = None
+
+    def prepare_selected_dollimages_prompt(self, prompt_row: Any) -> None:
+        typology_index = self.dollimages_manual_typology_combo.findData(prompt_row.typology)
+        if typology_index >= 0:
+            self.dollimages_manual_typology_combo.setCurrentIndex(typology_index)
+        self.dollimages_manual_title_input.setText(prompt_row.title)
+        self.dollimages_manual_prompt_text_input.setPlainText(prompt_row.prompt_text)
+        self.dollimages_manual_dialog.show()
+        self.dollimages_manual_dialog.activateWindow()
+        self.dollimages_manual_dialog.raise_()
+        self.dollimages_manual_generate_btn.setFocus(Qt.OtherFocusReason)
 
     def open_video_prompt_template_window(self) -> None:
         if self.video_prompt_template_window and self.video_prompt_template_window.isVisible():
