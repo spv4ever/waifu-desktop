@@ -227,6 +227,8 @@ class MainWindow(QMainWindow):
         self.refresh_action = queue_menu.addAction("Refrescar")
         self.pause_action = queue_menu.addAction("Pausar cola")
         self.resume_action = queue_menu.addAction("Reanudar cola")
+        queue_menu.addSeparator()
+        self.clear_queued_action = queue_menu.addAction("Borrar estado QUEUED")
         self.refresh_action.setShortcut("F5")
         self.pause_action.setShortcut("Ctrl+Shift+P")
         self.resume_action.setShortcut("Ctrl+Shift+R")
@@ -334,6 +336,8 @@ class MainWindow(QMainWindow):
         operation_layout = QGridLayout(operation_group)
         self.start_worker_btn = QPushButton("Iniciar Worker")
         self.stop_worker_btn = QPushButton("Parar Worker")
+        self.clear_queued_btn = QPushButton("Borrar QUEUED")
+        self.clear_queued_btn.setToolTip("Elimina de la cola todos los prompts cuyo estado sea QUEUED.")
         self.stop_worker_btn.setEnabled(False)
 
         self.worker_status_label = QLabel("Worker: STOPPED")
@@ -341,7 +345,8 @@ class MainWindow(QMainWindow):
 
         operation_layout.addWidget(self.start_worker_btn, 0, 0)
         operation_layout.addWidget(self.stop_worker_btn, 0, 1)
-        operation_layout.addWidget(self.worker_status_label, 0, 2, 1, 3)
+        operation_layout.addWidget(self.clear_queued_btn, 0, 2)
+        operation_layout.addWidget(self.worker_status_label, 0, 3, 1, 2)
 
         operation_layout.addWidget(QLabel("Mostrar:"), 1, 0)
         self.limit_spin = QSpinBox()
@@ -1333,6 +1338,7 @@ class MainWindow(QMainWindow):
         self.refresh_action.triggered.connect(self.refresh)
         self.pause_action.triggered.connect(self.pause_queue)
         self.resume_action.triggered.connect(self.resume_queue)
+        self.clear_queued_action.triggered.connect(self.clear_queued_prompts)
         self.mark_reel_priority_action.triggered.connect(self.mark_selected_reel_priority)
         self.mark_reel_discard_action.triggered.connect(self.mark_selected_reel_discarded)
         self.clear_reel_flags_action.triggered.connect(self.clear_selected_reel_flags)
@@ -1358,6 +1364,7 @@ class MainWindow(QMainWindow):
 
         self.start_worker_btn.clicked.connect(self.start_worker)
         self.stop_worker_btn.clicked.connect(self.stop_worker)
+        self.clear_queued_btn.clicked.connect(self.clear_queued_prompts)
         self.pack_generate_btn.clicked.connect(self.generate_pack)
         self.manual_prompt_generate_btn.clicked.connect(self.generate_manual_prompt)
         self.dollimages_generate_btn.clicked.connect(self.generate_dollimages_pack)
@@ -1545,6 +1552,30 @@ class MainWindow(QMainWindow):
             self.worker_thread.worker.recover_inflight_jobs()
         self.refresh()
         QMessageBox.information(self, "Cola", "Cola reanudada.")
+
+    def clear_queued_prompts(self) -> None:
+        queued_count = 0
+        if self._cached_status_counts is not None:
+            queued_count = self._cached_status_counts.get("QUEUED", 0)
+
+        confirm = QMessageBox.question(
+            self,
+            "Borrar QUEUED",
+            (
+                "¿Borrar de la cola todos los prompts en estado QUEUED?\n"
+                f"Prompts QUEUED detectados: {queued_count}"
+            ),
+        )
+        if confirm != QMessageBox.Yes:
+            return
+
+        deleted_count = self.store.delete_queued_prompt_items()
+        self.refresh()
+        QMessageBox.information(
+            self,
+            "Borrar QUEUED",
+            f"Prompts QUEUED eliminados: {deleted_count}.",
+        )
 
     # -------- Table / Data --------
 
