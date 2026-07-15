@@ -32,6 +32,7 @@ def _looks_like_checkpoint(value: str) -> bool:
 class BulkImagesEnqueueRequest:
     prompts: list[BulkImagePrompt]
     checkpoint_base: str | None = None
+    quantity_per_prompt: int | None = None
 
 
 class BulkImagesService:
@@ -41,7 +42,8 @@ class BulkImagesService:
 
     def create_prompts_and_enqueue(self, req: BulkImagesEnqueueRequest) -> CreatedPack:
         prompts = [prompt for prompt in req.prompts if prompt.enabled and prompt.positive_prompt.strip()]
-        requested_n = sum(prompt.quantity for prompt in prompts)
+        quantity_override = max(1, int(req.quantity_per_prompt)) if req.quantity_per_prompt is not None else None
+        requested_n = sum(quantity_override or prompt.quantity for prompt in prompts)
         if not prompts or requested_n <= 0:
             raise ValueError("No hay prompts activos con prompt positivo para enviar a la cola.")
 
@@ -72,7 +74,9 @@ class BulkImagesService:
                 prompt.model_hint if _looks_like_checkpoint(prompt.model_hint) else None
             )
 
-            for generation_index in range(1, prompt.quantity + 1):
+            generation_total = quantity_override or prompt.quantity
+
+            for generation_index in range(1, generation_total + 1):
                 seed = rng.randint(0, 2**31 - 1)
                 signature = make_combo_key(
                     {
@@ -94,7 +98,7 @@ class BulkImagesService:
                     "workflow": workflow_key,
                     "bulk_prompt_id": prompt.id,
                     "bulk_generation_index": generation_index,
-                    "bulk_generation_total": prompt.quantity,
+                    "bulk_generation_total": generation_total,
                     "bulk_metadata": {
                         "category": prompt.category,
                         "subcategory": prompt.subcategory,
@@ -110,7 +114,8 @@ class BulkImagesService:
                         "model_hint": prompt.model_hint,
                         "workflow_hint": prompt.workflow_hint,
                         "tags": prompt.tags,
-                        "quantity": prompt.quantity,
+                        "quantity": generation_total,
+                        "library_quantity": prompt.quantity,
                         "priority": prompt.priority,
                         "status": prompt.status,
                     },

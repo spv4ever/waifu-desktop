@@ -1837,13 +1837,13 @@ class MainWindow(QMainWindow):
     def _clear_bulk_images_prompt_window(self) -> None:
         self.bulk_images_prompt_window = None
 
-    def enqueue_bulk_images_prompts(self, prompts: list[Any]) -> None:
+    def enqueue_bulk_images_prompts(self, prompts: list[Any], quantity_per_prompt: int = 1) -> None:
         if not prompts:
             QMessageBox.warning(self, "Bulk Images", "No hay prompts activos para enviar.")
             return
         try:
             result = self.bulk_images_service.create_prompts_and_enqueue(
-                BulkImagesEnqueueRequest(prompts=list(prompts))
+                BulkImagesEnqueueRequest(prompts=list(prompts), quantity_per_prompt=quantity_per_prompt)
             )
         except Exception as exc:
             QMessageBox.critical(self, "Bulk Images", str(exc))
