@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from PySide6.QtCore import Qt, Signal
+
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
+    QFileDialog,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -13,11 +18,17 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QMessageBox,
     QVBoxLayout,
     QWidget,
 )
 
-from app.config.bulk_images_prompts import BulkImagePrompt, load_bulk_image_prompts
+from app.config.bulk_images_prompts import (
+    BulkImagePrompt,
+    bulk_image_prompts_example_payload,
+    import_bulk_image_prompts,
+    load_bulk_image_prompts,
+)
 
 
 class BulkImagesPromptWindow(QMainWindow):
@@ -122,6 +133,16 @@ class BulkImagesPromptWindow(QMainWindow):
         self.summary_label = QLabel("0 prompts")
         summary_row.addWidget(self.summary_label)
         summary_row.addStretch(1)
+        self.import_json_btn = QPushButton("Importar prompts desde JSON")
+        self.import_json_btn.setToolTip("Importa prompts en bloque desde un archivo JSON y actualiza la biblioteca local.")
+        self.import_json_btn.clicked.connect(self.import_prompts_from_json)
+        summary_row.addWidget(self.import_json_btn)
+
+        self.example_json_btn = QPushButton("Guardar JSON ejemplo")
+        self.example_json_btn.setToolTip("Guarda un archivo JSON de ejemplo con la estructura esperada para importación masiva.")
+        self.example_json_btn.clicked.connect(self.save_example_json)
+        summary_row.addWidget(self.example_json_btn)
+
         self.send_listed_btn = QPushButton("Enviar prompts listados a la cola")
         self.send_listed_btn.setToolTip("Encola todos los prompts activos que se muestran con los filtros actuales.")
         self.send_listed_btn.clicked.connect(self.request_send_listed_prompts)
@@ -183,6 +204,46 @@ class BulkImagesPromptWindow(QMainWindow):
         self._populate_table(rows)
         self.summary_label.setText(f"{len(rows)} de {len(self.prompts)} prompts ({active_count} activos enviables)")
         self.send_listed_btn.setEnabled(active_count > 0)
+
+    def import_prompts_from_json(self) -> None:
+        file_name, _ = QFileDialog.getOpenFileName(
+            self,
+            "Importar prompts Bulk Images",
+            "",
+            "JSON (*.json);;Todos los archivos (*)",
+        )
+        if not file_name:
+            return
+        try:
+            added, updated = import_bulk_image_prompts(Path(file_name))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            QMessageBox.critical(self, "Importar prompts", f"No se pudo importar el JSON:\n{exc}")
+            return
+
+        self.reload()
+        QMessageBox.information(
+            self,
+            "Importar prompts",
+            f"Importación completada. Añadidos: {added}. Actualizados: {updated}.",
+        )
+
+    def save_example_json(self) -> None:
+        file_name, _ = QFileDialog.getSaveFileName(
+            self,
+            "Guardar JSON ejemplo",
+            "bulk_images_prompts_example.json",
+            "JSON (*.json);;Todos los archivos (*)",
+        )
+        if not file_name:
+            return
+        try:
+            with open(file_name, "w", encoding="utf-8") as fh:
+                json.dump(bulk_image_prompts_example_payload(), fh, ensure_ascii=False, indent=2)
+                fh.write("\n")
+        except OSError as exc:
+            QMessageBox.critical(self, "JSON ejemplo", f"No se pudo guardar el ejemplo:\n{exc}")
+            return
+        QMessageBox.information(self, "JSON ejemplo", f"Ejemplo guardado en:\n{file_name}")
 
     def request_send_listed_prompts(self) -> None:
         prompts = [prompt for prompt in self.visible_prompts if prompt.enabled and prompt.positive_prompt.strip()]
