@@ -41,7 +41,8 @@ class BulkImagesService:
 
     def create_prompts_and_enqueue(self, req: BulkImagesEnqueueRequest) -> CreatedPack:
         prompts = [prompt for prompt in req.prompts if prompt.enabled and prompt.positive_prompt.strip()]
-        if not prompts:
+        requested_n = sum(prompt.quantity for prompt in prompts)
+        if not prompts or requested_n <= 0:
             raise ValueError("No hay prompts activos con prompt positivo para enviar a la cola.")
 
         defaults = self.app_config.defaults
@@ -51,7 +52,7 @@ class BulkImagesService:
         pack_id = self.store.create_pack(
             category=category,
             variant=variant,
-            requested_n=len(prompts),
+            requested_n=requested_n,
             notes="bulk_images_prompt_library",
         )
 
@@ -66,77 +67,87 @@ class BulkImagesService:
                 fallback_w=int(defaults.get("width", 1024)),
                 fallback_h=int(defaults.get("height", 1024)),
             )
-            seed = rng.randint(0, 2**31 - 1)
-            signature = make_combo_key(
-                {
-                    "source": "bulk_images",
-                    "bulk_prompt_id": prompt.id,
-                    "title": prompt.title,
-                    "prompt_text": prompt.positive_prompt,
-                    "negative_text": prompt.negative_prompt,
-                    "ratio": prompt.ratio,
-                    "seed": seed,
-                }
-            )
-            if not self.store.try_register_combo(combo_key=signature, category=category, variant=variant):
-                continue
-
             workflow_key = _resolve_bulk_workflow_key(prompt.workflow_hint)
-            meta = {
-                "source": "bulk_images",
-                "workflow": workflow_key,
-                "bulk_prompt_id": prompt.id,
-                "bulk_metadata": {
-                    "category": prompt.category,
-                    "subcategory": prompt.subcategory,
-                    "collection": prompt.collection,
-                    "subject": prompt.subject,
-                    "style": prompt.style,
-                    "mood": prompt.mood,
-                    "environment": prompt.environment,
-                    "lighting": prompt.lighting,
-                    "camera": prompt.camera,
-                    "composition": prompt.composition,
-                    "color_palette": prompt.color_palette,
-                    "model_hint": prompt.model_hint,
-                    "workflow_hint": prompt.workflow_hint,
-                    "tags": prompt.tags,
-                    "priority": prompt.priority,
-                    "status": prompt.status,
-                },
-                "combo": {
-                    "category": category,
-                    "variant": variant,
-                    "ratio": prompt.ratio,
-                    "ratio_tag": prompt.ratio,
+            checkpoint = req.checkpoint_base or (
+                prompt.model_hint if _looks_like_checkpoint(prompt.model_hint) else None
+            )
+
+            for generation_index in range(1, prompt.quantity + 1):
+                seed = rng.randint(0, 2**31 - 1)
+                signature = make_combo_key(
+                    {
+                        "source": "bulk_images",
+                        "bulk_prompt_id": prompt.id,
+                        "title": prompt.title,
+                        "prompt_text": prompt.positive_prompt,
+                        "negative_text": prompt.negative_prompt,
+                        "ratio": prompt.ratio,
+                        "generation_index": generation_index,
+                        "seed": seed,
+                    }
+                )
+                if not self.store.try_register_combo(combo_key=signature, category=category, variant=variant):
+                    continue
+
+                meta = {
+                    "source": "bulk_images",
+                    "workflow": workflow_key,
+                    "bulk_prompt_id": prompt.id,
+                    "bulk_generation_index": generation_index,
+                    "bulk_generation_total": prompt.quantity,
+                    "bulk_metadata": {
+                        "category": prompt.category,
+                        "subcategory": prompt.subcategory,
+                        "collection": prompt.collection,
+                        "subject": prompt.subject,
+                        "style": prompt.style,
+                        "mood": prompt.mood,
+                        "environment": prompt.environment,
+                        "lighting": prompt.lighting,
+                        "camera": prompt.camera,
+                        "composition": prompt.composition,
+                        "color_palette": prompt.color_palette,
+                        "model_hint": prompt.model_hint,
+                        "workflow_hint": prompt.workflow_hint,
+                        "tags": prompt.tags,
+                        "quantity": prompt.quantity,
+                        "priority": prompt.priority,
+                        "status": prompt.status,
+                    },
+                    "combo": {
+                        "category": category,
+                        "variant": variant,
+                        "ratio": prompt.ratio,
+                        "ratio_tag": prompt.ratio,
+                        "width": width,
+                        "height": height,
+                    },
+                    "seed": seed,
                     "width": width,
                     "height": height,
-                },
-                "seed": seed,
-                "width": width,
-                "height": height,
-                "ratio": prompt.ratio,
-            }
-            checkpoint = req.checkpoint_base or (prompt.model_hint if _looks_like_checkpoint(prompt.model_hint) else None)
-            if checkpoint and workflow_key in {"dollimages", "waifu"}:
-                meta["checkpoints"] = {"base": checkpoint, "refiner": checkpoint}
+                    "ratio": prompt.ratio,
+                }
+                if checkpoint and workflow_key in {"dollimages", "waifu"}:
+                    meta["checkpoints"] = {"base": checkpoint, "refiner": checkpoint}
 
-            prompt_item_id = self.store.create_prompt_item(
-                pack_id=pack_id,
-                title=prompt.title or prompt.id,
-                prompt_text=prompt.positive_prompt,
-                negative_text=prompt.negative_prompt,
-                meta=meta,
-                signature=signature,
-                status="QUEUED",
-            )
-            created_prompt_item_ids.append(prompt_item_id)
-            created_queue_job_ids.append(self.store.create_queue_job(prompt_item_id=prompt_item_id, priority=prompt.priority))
+                prompt_item_id = self.store.create_prompt_item(
+                    pack_id=pack_id,
+                    title=prompt.title or prompt.id,
+                    prompt_text=prompt.positive_prompt,
+                    negative_text=prompt.negative_prompt,
+                    meta=meta,
+                    signature=signature,
+                    status="QUEUED",
+                )
+                created_prompt_item_ids.append(prompt_item_id)
+                created_queue_job_ids.append(
+                    self.store.create_queue_job(prompt_item_id=prompt_item_id, priority=prompt.priority)
+                )
 
-        if len(created_prompt_item_ids) != len(prompts):
+        if len(created_prompt_item_ids) != requested_n:
             raise RuntimeError(
                 "No se pudieron registrar todos los prompts Bulk Images. "
-                f"Solicitados={len(prompts)}, creados={len(created_prompt_item_ids)}."
+                f"Solicitados={requested_n}, creados={len(created_prompt_item_ids)}."
             )
 
         return CreatedPack(
