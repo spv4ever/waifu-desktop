@@ -68,6 +68,7 @@ from app.ui.prompt_dialog import PromptDetailDialog
 from app.ui.dollimages_prompt_window import DollimagesPromptWindow
 from app.ui.video_prompt_template_window import VideoPromptTemplateWindow
 from app.ui.anime_v5_maintenance_window import AnimeV5MaintenanceWindow
+from app.ui.bulk_images_prompt_window import BulkImagesPromptWindow
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
 
@@ -180,6 +181,7 @@ class MainWindow(QMainWindow):
         self.dollimages_prompt_window: DollimagesPromptWindow | None = None
         self.video_prompt_template_window: VideoPromptTemplateWindow | None = None
         self.anime_v5_maintenance_window: AnimeV5MaintenanceWindow | None = None
+        self.bulk_images_prompt_window: BulkImagesPromptWindow | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -253,6 +255,8 @@ class MainWindow(QMainWindow):
         self.open_video_prompt_templates_action.triggered.connect(self.open_video_prompt_template_window)
         self.open_anime_v5_maintenance_action = maintenance_menu.addAction("Anime V5: personajes y prompts")
         self.open_anime_v5_maintenance_action.triggered.connect(self.open_anime_v5_maintenance_window)
+        self.open_bulk_images_prompt_action = maintenance_menu.addAction("Bulk Images: biblioteca de prompts")
+        self.open_bulk_images_prompt_action.triggered.connect(self.open_bulk_images_prompt_window)
         maintenance_menu.addSeparator()
         self.clear_category_images_action = maintenance_menu.addAction("Vaciar imágenes por categoría")
         self.clear_category_images_action.triggered.connect(self.open_clear_category_images_dialog)
@@ -279,6 +283,7 @@ class MainWindow(QMainWindow):
         self.open_dollimages_manual_prompt_btn = QPushButton("Prompt Manual Dollimages")
         self.open_image2vid_btn = QPushButton("Image2Vid WAN 2.2")
         self.open_anime_v5_btn = QPushButton("Anime V5")
+        self.open_bulk_images_btn = QPushButton("Bulk Images")
         self.open_reel_btn = QPushButton("Reel Instagram")
         self.open_dollimages_reel_btn = QPushButton("Reel Dollimages")
         self.open_anime_v5_reel_btn = QPushButton("Reel Anime V5")
@@ -291,6 +296,7 @@ class MainWindow(QMainWindow):
             self.open_dollimages_manual_prompt_btn,
             self.open_image2vid_btn,
             self.open_anime_v5_btn,
+            self.open_bulk_images_btn,
             self.open_reel_btn,
             self.open_dollimages_reel_btn,
             self.open_anime_v5_reel_btn,
@@ -1352,6 +1358,7 @@ class MainWindow(QMainWindow):
         self.open_dollimages_manual_prompt_btn.clicked.connect(self.dollimages_manual_dialog.show)
         self.open_image2vid_btn.clicked.connect(self.open_image2vid_dialog)
         self.open_anime_v5_btn.clicked.connect(self.anime_v5_dialog.show)
+        self.open_bulk_images_btn.clicked.connect(self.open_bulk_images_prompt_window)
         self.anime_v5_generate_btn.clicked.connect(self.generate_anime_v5)
         self.anime_v5_maintenance_btn.clicked.connect(self.open_anime_v5_maintenance_window)
         self.anime_v5_select_all_lists_btn.clicked.connect(self._select_all_anime_v5_lists)
@@ -1751,6 +1758,22 @@ class MainWindow(QMainWindow):
 
     def _clear_video_prompt_template_window(self) -> None:
         self.video_prompt_template_window = None
+
+
+    def open_bulk_images_prompt_window(self) -> None:
+        if self.bulk_images_prompt_window and self.bulk_images_prompt_window.isVisible():
+            self.bulk_images_prompt_window.reload()
+            self.bulk_images_prompt_window.activateWindow()
+            self.bulk_images_prompt_window.raise_()
+            return
+        window = BulkImagesPromptWindow()
+        window.setAttribute(Qt.WA_DeleteOnClose, True)
+        window.destroyed.connect(self._clear_bulk_images_prompt_window)
+        self.bulk_images_prompt_window = window
+        window.show()
+
+    def _clear_bulk_images_prompt_window(self) -> None:
+        self.bulk_images_prompt_window = None
 
     def open_anime_v5_maintenance_window(self) -> None:
         if self.anime_v5_maintenance_window and self.anime_v5_maintenance_window.isVisible():
