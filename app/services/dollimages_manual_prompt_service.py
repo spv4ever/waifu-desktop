@@ -32,7 +32,12 @@ class DollimagesManualPromptService:
         self.store = get_store()
         self.app_cfg = load_app_config()
 
-    def _default_canvas(self) -> tuple[int, int]:
+    def _default_canvas(self, *, workflow_key: str = "dollimages", ratio: str = "3:4") -> tuple[int, int]:
+        if workflow_key == "krea2":
+            ratios = self.app_cfg.raw.get("krea2_ratios", {})
+            if ratio in ratios:
+                width, height = ratios[ratio]
+                return int(width), int(height)
         defaults = self.app_cfg.raw.get("dollimages_defaults", {})
         width = int(defaults.get("width") or 832)
         height = int(defaults.get("height") or 1216)
@@ -59,7 +64,7 @@ class DollimagesManualPromptService:
         faceswap_enabled = req.faceswap_enabled
         reference_image = req.reference_image
         checkpoint_base = req.checkpoint_base
-        if req.workflow_key == "dollimagesz":
+        if req.workflow_key in {"dollimagesz", "krea2"}:
             faceswap_enabled = False
             reference_image = None
             checkpoint_base = None
@@ -70,8 +75,8 @@ class DollimagesManualPromptService:
         reference_name = ""
         if reference_image:
             reference_name = self._prepare_reference_image(reference_image)
-        width, height = self._default_canvas()
-        ratio_tag = f"{width}x{height}"
+        width, height = self._default_canvas(workflow_key=req.workflow_key, ratio=req.ratio)
+        ratio_tag = req.ratio if req.workflow_key == "krea2" else f"{width}x{height}"
 
         pack_id = self.store.create_pack(
             category="dollimages",
@@ -93,6 +98,7 @@ class DollimagesManualPromptService:
                 candidate = _hash_signature(
                     req.typology,
                     req.workflow_key,
+                    req.ratio,
                     repetition,
                     seed,
                     reference_name,
