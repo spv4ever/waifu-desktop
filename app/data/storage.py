@@ -139,6 +139,9 @@ class BaseStore:
     def delete_prompt_items(self, *, prompt_ids: Iterable[int]) -> int:
         raise NotImplementedError
 
+    def delete_queued_prompt_items(self) -> int:
+        raise NotImplementedError
+
     def fetch_dollimages_reel_group_counts(self, *, typology: str | None) -> dict[str, int]:
         raise NotImplementedError
 
@@ -617,6 +620,17 @@ class SQLiteStore(BaseStore):
                     WHERE id IN ({placeholders})
                     """,
                     ids,
+                )
+        return int(cursor.rowcount or 0)
+
+    def delete_queued_prompt_items(self) -> int:
+        with get_connection() as conn:
+            with conn:
+                cursor = conn.execute(
+                    """
+                    DELETE FROM prompt_item
+                    WHERE status = 'QUEUED'
+                    """
                 )
         return int(cursor.rowcount or 0)
 
