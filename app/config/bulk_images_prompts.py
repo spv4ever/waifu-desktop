@@ -112,7 +112,7 @@ def _read_bulk_image_prompts_payload(path: Path) -> dict[str, Any]:
     return payload
 
 
-def import_bulk_image_prompts(import_path: Path, destination_path: Path = DEFAULT_BULK_IMAGES_PROMPTS_PATH) -> tuple[int, int]:
+def import_bulk_image_prompts(import_path: Path, destination_path: Path | None = None) -> tuple[int, int]:
     with import_path.open("r", encoding="utf-8") as fh:
         imported_payload = json.load(fh)
     if not isinstance(imported_payload, dict) or not isinstance(imported_payload.get("prompts"), list):
@@ -130,35 +130,62 @@ def import_bulk_image_prompts(import_path: Path, destination_path: Path = DEFAUL
         if not prompt.positive_prompt:
             raise ValueError(f"El prompt '{prompt.id}' debe tener un 'positive_prompt'.")
 
-    destination_path.parent.mkdir(parents=True, exist_ok=True)
-    destination_payload = _read_bulk_image_prompts_payload(destination_path)
-    existing_prompts = destination_payload.get("prompts", [])
-    existing_by_id = {str(item.get("id", "")).strip(): item for item in existing_prompts if isinstance(item, dict)}
+    if destination_path is not None:
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        destination_payload = _read_bulk_image_prompts_payload(destination_path)
+        existing_prompts = destination_payload.get("prompts", [])
+        existing_by_id = {str(item.get("id", "")).strip(): item for item in existing_prompts if isinstance(item, dict)}
+        added = 0
+        updated = 0
+        for prompt in imported_prompts:
+            item = asdict(prompt)
+            if prompt.id in existing_by_id:
+                updated += 1
+            else:
+                added += 1
+            existing_by_id[prompt.id] = item
+        destination_payload["prompts"] = list(existing_by_id.values())
+        with destination_path.open("w", encoding="utf-8") as fh:
+            json.dump(destination_payload, fh, ensure_ascii=False, indent=2)
+            fh.write("\n")
+        return added, updated
 
-    added = 0
-    updated = 0
-    for prompt in imported_prompts:
-        item = asdict(prompt)
-        if prompt.id in existing_by_id:
-            updated += 1
-        else:
-            added += 1
-        existing_by_id[prompt.id] = item
+    from app.data.storage import get_store
 
-    destination_payload["prompts"] = list(existing_by_id.values())
-    with destination_path.open("w", encoding="utf-8") as fh:
-        json.dump(destination_payload, fh, ensure_ascii=False, indent=2)
-        fh.write("\n")
-    return added, updated
+    return get_store().import_bulk_image_prompts(imported_prompts)
 
 
-def load_bulk_image_prompts(path: Path = DEFAULT_BULK_IMAGES_PROMPTS_PATH) -> list[BulkImagePrompt]:
-    if not path.exists():
-        return []
-    with path.open("r", encoding="utf-8") as fh:
-        payload = json.load(fh)
-    prompts = payload.get("prompts", [])
-    return sorted(
-        (BulkImagePrompt.from_dict(item) for item in prompts),
-        key=lambda item: (item.category.lower(), item.subcategory.lower(), item.priority, item.title.lower()),
-    )
+def save_bulk_image_prompt(prompt: BulkImagePrompt) -> int:
+    if not prompt.id:
+        raise ValueError("El prompt debe tener un 'id'.")
+    if not prompt.title:
+        raise ValueError(f"El prompt '{prompt.id}' debe tener un 'title'.")
+    if not prompt.positive_prompt:
+        raise ValueError(f"El prompt '{prompt.id}' debe tener un 'positive_prompt'.")
+
+    from app.data.storage import get_store
+
+    return get_store().save_bulk_image_prompt(prompt)
+
+
+def delete_bulk_image_prompt(prompt_id: str) -> None:
+    from app.data.storage import get_store
+
+    get_store().delete_bulk_image_prompt(prompt_id=prompt_id)
+
+
+def load_bulk_image_prompts(path: Path | None = None) -> list[BulkImagePrompt]:
+    if path is not None:
+        if not path.exists():
+            return []
+        with path.open("r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        prompts = payload.get("prompts", [])
+        return sorted(
+            (BulkImagePrompt.from_dict(item) for item in prompts),
+            key=lambda item: (item.category.lower(), item.subcategory.lower(), item.priority, item.title.lower()),
+        )
+
+    from app.data.storage import get_store
+
+    return [BulkImagePrompt.from_dict(asdict(row)) for row in get_store().list_bulk_image_prompts(include_disabled=True)]

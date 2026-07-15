@@ -26,8 +26,10 @@ from PySide6.QtWidgets import (
 from app.config.bulk_images_prompts import (
     BulkImagePrompt,
     bulk_image_prompts_example_payload,
+    delete_bulk_image_prompt,
     import_bulk_image_prompts,
     load_bulk_image_prompts,
+    save_bulk_image_prompt,
 )
 
 
@@ -134,6 +136,16 @@ class BulkImagesPromptWindow(QMainWindow):
         self.summary_label = QLabel("0 prompts")
         summary_row.addWidget(self.summary_label)
         summary_row.addStretch(1)
+        self.save_selected_btn = QPushButton("Guardar fila seleccionada")
+        self.save_selected_btn.setToolTip("Guarda en base de datos los cambios editados en la fila seleccionada.")
+        self.save_selected_btn.clicked.connect(self.save_selected_prompt)
+        summary_row.addWidget(self.save_selected_btn)
+
+        self.delete_selected_btn = QPushButton("Eliminar seleccionado")
+        self.delete_selected_btn.setToolTip("Borra de base de datos el prompt Bulk Images seleccionado.")
+        self.delete_selected_btn.clicked.connect(self.delete_selected_prompt)
+        summary_row.addWidget(self.delete_selected_btn)
+
         self.import_json_btn = QPushButton("Importar prompts desde JSON")
         self.import_json_btn.setToolTip("Importa prompts en bloque desde un archivo JSON y actualiza la biblioteca local.")
         self.import_json_btn.clicked.connect(self.import_prompts_from_json)
@@ -152,13 +164,15 @@ class BulkImagesPromptWindow(QMainWindow):
 
         self.table = QTableWidget(0, len(self.COLUMNS))
         self.table.setHorizontalHeaderLabels([label for _, label in self.COLUMNS])
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.setEditTriggers(QAbstractItemView.DoubleClicked | QAbstractItemView.EditKeyPressed)
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.itemSelectionChanged.connect(self._update_selection_actions)
         self.table.setSortingEnabled(True)
         self.table.setWordWrap(False)
         layout.addWidget(self.table, 1)
 
         self.reload()
+        self._update_selection_actions()
 
     def reload(self) -> None:
         self.prompts = load_bulk_image_prompts()
@@ -205,6 +219,65 @@ class BulkImagesPromptWindow(QMainWindow):
         self._populate_table(rows)
         self.summary_label.setText(f"{len(rows)} de {len(self.prompts)} prompts ({active_count} imágenes enviables)")
         self.send_listed_btn.setEnabled(active_count > 0)
+
+    def _update_selection_actions(self) -> None:
+        has_selection = bool(self.table.selectionModel() and self.table.selectionModel().selectedRows())
+        self.save_selected_btn.setEnabled(has_selection)
+        self.delete_selected_btn.setEnabled(has_selection)
+
+    def _selected_row_index(self) -> int | None:
+        selected = self.table.selectionModel().selectedRows() if self.table.selectionModel() else []
+        if not selected:
+            return None
+        return int(selected[0].row())
+
+    def _prompt_from_table_row(self, row_index: int) -> BulkImagePrompt:
+        values: dict[str, object] = {}
+        for col_index, (field_name, _) in enumerate(self.COLUMNS):
+            item = self.table.item(row_index, col_index)
+            text = item.text().strip() if item else ""
+            if field_name == "tags":
+                values[field_name] = [tag.strip() for tag in text.split(",") if tag.strip()]
+            elif field_name in {"quantity", "priority"}:
+                values[field_name] = int(text or (1 if field_name == "quantity" else 100))
+            elif field_name == "enabled":
+                values[field_name] = text.lower() in {"sí", "si", "true", "1", "yes", "activo"}
+            else:
+                values[field_name] = text
+        return BulkImagePrompt.from_dict(values)
+
+    def save_selected_prompt(self) -> None:
+        row_index = self._selected_row_index()
+        if row_index is None:
+            return
+        try:
+            prompt = self._prompt_from_table_row(row_index)
+            save_bulk_image_prompt(prompt)
+        except (ValueError, OSError) as exc:
+            QMessageBox.critical(self, "Bulk Images", f"No se pudo guardar el prompt:\n{exc}")
+            return
+        self.reload()
+        QMessageBox.information(self, "Bulk Images", "Prompt guardado en base de datos.")
+
+    def delete_selected_prompt(self) -> None:
+        row_index = self._selected_row_index()
+        if row_index is None:
+            return
+        id_item = self.table.item(row_index, 0)
+        prompt_id = id_item.text().strip() if id_item else ""
+        if not prompt_id:
+            return
+        confirm = QMessageBox.question(
+            self,
+            "Eliminar prompt Bulk Images",
+            f"¿Quieres eliminar el prompt '{prompt_id}' de la base de datos?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if confirm != QMessageBox.Yes:
+            return
+        delete_bulk_image_prompt(prompt_id)
+        self.reload()
+        QMessageBox.information(self, "Bulk Images", "Prompt eliminado.")
 
     def import_prompts_from_json(self) -> None:
         file_name, _ = QFileDialog.getOpenFileName(

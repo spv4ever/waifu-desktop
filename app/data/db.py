@@ -10,7 +10,7 @@ from app.config.settings import settings
 def ensure_data_dir() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 12
 
 REQUIRED_COLUMNS: tuple[tuple[str, str], ...] = (
     ("prompt_base", "iteration_groups"),
@@ -21,6 +21,7 @@ REQUIRED_TABLES: tuple[str, ...] = (
     "video_prompt_template",
     "anime_character",
     "anime_prompt",
+    "bulk_image_prompt",
 )
 
 
@@ -45,6 +46,13 @@ def _missing_required_tables(conn: sqlite3.Connection) -> bool:
 
 
 def _apply_migrations_if_needed(conn: sqlite3.Connection) -> None:
+    base_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'prompt_item' LIMIT 1"
+    ).fetchone()
+    if base_table is None:
+        schema_path = Path(__file__).with_name("schema.sql")
+        conn.executescript(schema_path.read_text(encoding="utf-8"))
+
     current_version = int(conn.execute("PRAGMA user_version").fetchone()[0])
     if (
         current_version >= SCHEMA_VERSION
