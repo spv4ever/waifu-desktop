@@ -3679,11 +3679,12 @@ class MainWindow(QMainWindow):
         try:
             if self._refresh_timer.isActive():
                 self._refresh_timer.stop()
-            if self._refresh_worker and self._refresh_worker.isRunning():
-                self._refresh_worker.wait(2000)
-                if self._refresh_worker.isRunning():
-                    self._refresh_worker.terminate()
-                    self._refresh_worker.wait(1000)
+            refresh_worker = self._refresh_worker
+            if refresh_worker and refresh_worker.isRunning():
+                refresh_worker.wait(2000)
+                if refresh_worker.isRunning():
+                    refresh_worker.terminate()
+                    refresh_worker.wait(1000)
             if self.worker_thread and self.worker_thread.isRunning():
                 self.worker_thread.stop()
                 self.worker_thread.wait(2000)
