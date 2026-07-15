@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QPushButton,
+    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QMessageBox,
@@ -36,7 +37,7 @@ from app.config.bulk_images_prompts import (
 class BulkImagesPromptWindow(QMainWindow):
     """Prompt library for the Bulk Images workflow."""
 
-    send_listed_requested = Signal(list)
+    send_listed_requested = Signal(list, int)
 
     COLUMNS = [
         ("id", "ID"),
@@ -136,6 +137,16 @@ class BulkImagesPromptWindow(QMainWindow):
         self.summary_label = QLabel("0 prompts")
         summary_row.addWidget(self.summary_label)
         summary_row.addStretch(1)
+
+        summary_row.addWidget(QLabel("Imágenes por prompt:"))
+        self.quantity_per_prompt_spin = QSpinBox()
+        self.quantity_per_prompt_spin.setRange(1, 999)
+        self.quantity_per_prompt_spin.setValue(1)
+        self.quantity_per_prompt_spin.setToolTip(
+            "Cantidad de imágenes que se crearán por cada prompt listado al enviarlos a la cola."
+        )
+        self.quantity_per_prompt_spin.valueChanged.connect(self.apply_filters)
+        summary_row.addWidget(self.quantity_per_prompt_spin)
         self.save_selected_btn = QPushButton("Guardar fila seleccionada")
         self.save_selected_btn.setToolTip("Guarda en base de datos los cambios editados en la fila seleccionada.")
         self.save_selected_btn.clicked.connect(self.save_selected_prompt)
@@ -215,7 +226,8 @@ class BulkImagesPromptWindow(QMainWindow):
             rows = [prompt for prompt in rows if query in self._search_blob(prompt)]
 
         self.visible_prompts = list(rows)
-        active_count = sum(prompt.quantity for prompt in rows if prompt.enabled and prompt.positive_prompt.strip())
+        quantity_per_prompt = self.quantity_per_prompt_spin.value()
+        active_count = sum(quantity_per_prompt for prompt in rows if prompt.enabled and prompt.positive_prompt.strip())
         self._populate_table(rows)
         self.summary_label.setText(f"{len(rows)} de {len(self.prompts)} prompts ({active_count} imágenes enviables)")
         self.send_listed_btn.setEnabled(active_count > 0)
@@ -322,7 +334,7 @@ class BulkImagesPromptWindow(QMainWindow):
     def request_send_listed_prompts(self) -> None:
         prompts = [prompt for prompt in self.visible_prompts if prompt.enabled and prompt.positive_prompt.strip()]
         if prompts:
-            self.send_listed_requested.emit(prompts)
+            self.send_listed_requested.emit(prompts, self.quantity_per_prompt_spin.value())
 
     def _populate_table(self, prompts: list[BulkImagePrompt]) -> None:
         self.table.setSortingEnabled(False)

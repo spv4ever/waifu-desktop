@@ -161,3 +161,25 @@ def test_create_prompts_and_enqueue_creates_requested_quantity_per_prompt(monkey
     assert [item["meta"]["bulk_generation_index"] for item in store.prompt_items] == [1, 2, 3]
     assert [item["meta"]["bulk_generation_total"] for item in store.prompt_items] == [3, 3, 3]
     assert len(store.queue_jobs) == 3
+
+
+def test_create_prompts_and_enqueue_uses_quantity_per_prompt_override(monkeypatch):
+    store = FakeStore()
+    monkeypatch.setattr("app.services.bulk_images_service.get_store", lambda: store)
+    monkeypatch.setattr(
+        "app.services.bulk_images_service.load_app_config",
+        lambda: SimpleNamespace(defaults={"width": 1024, "height": 1024}, ratios={}),
+    )
+
+    service = BulkImagesService()
+    result = service.create_prompts_and_enqueue(
+        BulkImagesEnqueueRequest(prompts=[_prompt(quantity=5)], quantity_per_prompt=2)
+    )
+
+    assert store.packs[0]["requested_n"] == 2
+    assert result.created_prompt_item_ids == [1, 2]
+    assert [item["meta"]["bulk_generation_index"] for item in store.prompt_items] == [1, 2]
+    assert [item["meta"]["bulk_generation_total"] for item in store.prompt_items] == [2, 2]
+    assert [item["meta"]["bulk_metadata"]["quantity"] for item in store.prompt_items] == [2, 2]
+    assert [item["meta"]["bulk_metadata"]["library_quantity"] for item in store.prompt_items] == [5, 5]
+    assert len(store.queue_jobs) == 2
