@@ -11,6 +11,23 @@ from app.services.combo_key import make_combo_key
 from app.services.ratios import resolve_size
 
 
+_BULK_WORKFLOW_HINTS = {
+    "bulk_images_default": "dollimages",
+    "dollimages": "dollimages",
+    "dollimagesz": "dollimagesz",
+    "krea2": "krea2",
+    "waifu": "waifu",
+}
+
+
+def _resolve_bulk_workflow_key(workflow_hint: str) -> str:
+    return _BULK_WORKFLOW_HINTS.get(workflow_hint.strip().lower(), "dollimages")
+
+
+def _looks_like_checkpoint(value: str) -> bool:
+    return value.lower().endswith((".safetensors", ".ckpt", ".pt", ".pth"))
+
+
 @dataclass(frozen=True)
 class BulkImagesEnqueueRequest:
     prompts: list[BulkImagePrompt]
@@ -64,8 +81,10 @@ class BulkImagesService:
             if not self.store.try_register_combo(combo_key=signature, category=category, variant=variant):
                 continue
 
+            workflow_key = _resolve_bulk_workflow_key(prompt.workflow_hint)
             meta = {
                 "source": "bulk_images",
+                "workflow": workflow_key,
                 "bulk_prompt_id": prompt.id,
                 "bulk_metadata": {
                     "category": prompt.category,
@@ -98,8 +117,8 @@ class BulkImagesService:
                 "height": height,
                 "ratio": prompt.ratio,
             }
-            checkpoint = req.checkpoint_base or prompt.model_hint
-            if checkpoint:
+            checkpoint = req.checkpoint_base or (prompt.model_hint if _looks_like_checkpoint(prompt.model_hint) else None)
+            if checkpoint and workflow_key in {"dollimages", "waifu"}:
                 meta["checkpoints"] = {"base": checkpoint, "refiner": checkpoint}
 
             prompt_item_id = self.store.create_prompt_item(
