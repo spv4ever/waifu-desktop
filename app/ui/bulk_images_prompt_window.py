@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -21,7 +21,9 @@ from app.config.bulk_images_prompts import BulkImagePrompt, load_bulk_image_prom
 
 
 class BulkImagesPromptWindow(QMainWindow):
-    """Read-only prompt library for the upcoming Bulk Images workflow."""
+    """Prompt library for the Bulk Images workflow."""
+
+    send_listed_requested = Signal(list)
 
     COLUMNS = [
         ("id", "ID"),
@@ -67,6 +69,7 @@ class BulkImagesPromptWindow(QMainWindow):
         self.setWindowTitle("Bulk Images — Biblioteca de prompts")
         self.resize(1400, 720)
         self.prompts: list[BulkImagePrompt] = []
+        self.visible_prompts: list[BulkImagePrompt] = []
         self.filter_combos: dict[str, QComboBox] = {}
 
         root = QWidget()
@@ -119,6 +122,10 @@ class BulkImagesPromptWindow(QMainWindow):
         self.summary_label = QLabel("0 prompts")
         summary_row.addWidget(self.summary_label)
         summary_row.addStretch(1)
+        self.send_listed_btn = QPushButton("Enviar prompts listados a la cola")
+        self.send_listed_btn.setToolTip("Encola todos los prompts activos que se muestran con los filtros actuales.")
+        self.send_listed_btn.clicked.connect(self.request_send_listed_prompts)
+        summary_row.addWidget(self.send_listed_btn)
         layout.addLayout(summary_row)
 
         self.table = QTableWidget(0, len(self.COLUMNS))
@@ -171,8 +178,16 @@ class BulkImagesPromptWindow(QMainWindow):
         if query:
             rows = [prompt for prompt in rows if query in self._search_blob(prompt)]
 
+        self.visible_prompts = list(rows)
+        active_count = sum(1 for prompt in rows if prompt.enabled and prompt.positive_prompt.strip())
         self._populate_table(rows)
-        self.summary_label.setText(f"{len(rows)} de {len(self.prompts)} prompts")
+        self.summary_label.setText(f"{len(rows)} de {len(self.prompts)} prompts ({active_count} activos enviables)")
+        self.send_listed_btn.setEnabled(active_count > 0)
+
+    def request_send_listed_prompts(self) -> None:
+        prompts = [prompt for prompt in self.visible_prompts if prompt.enabled and prompt.positive_prompt.strip()]
+        if prompts:
+            self.send_listed_requested.emit(prompts)
 
     def _populate_table(self, prompts: list[BulkImagePrompt]) -> None:
         self.table.setSortingEnabled(False)
