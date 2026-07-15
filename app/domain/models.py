@@ -22,6 +22,7 @@ class DollimagesPackCreate:
     typology: str
     repetitions: int
     workflow_key: str = "dollimages"
+    ratio: str = "3:4"
     manual_text: str = ""
     checkpoint_base: Optional[str] = None
     reference_image: Optional[str] = None
@@ -36,6 +37,7 @@ class DollimagesManualPromptCreate:
     title: str
     prompt_text: str
     workflow_key: str = "dollimages"
+    ratio: str = "3:4"
     checkpoint_base: Optional[str] = None
     reference_image: Optional[str] = None
     faceswap_enabled: bool = True

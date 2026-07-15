@@ -572,7 +572,7 @@ class QueueWorker:
         checkpoint_base = checkpoints.get("base")
         checkpoint_refiner = checkpoints.get("refiner")
         workflow_key = str(meta.get("workflow") or "waifu")
-        use_dollimages_comfy = workflow_key in {"dollimages", "dollimagesz", "anime_v5"}
+        use_dollimages_comfy = workflow_key in {"dollimages", "dollimagesz", "anime_v5", "krea2"}
         if workflow_key == "image2vid":
             use_dollimages_comfy = True
         comfy_client = self.dollimages_comfy if use_dollimages_comfy and self.dollimages_comfy else self.comfy
@@ -581,7 +581,7 @@ class QueueWorker:
         mapping_key = "comfyui_workflow"
         faceswap_enabled = meta.get("faceswap_enabled")
 
-        if workflow_key in {"dollimages", "dollimagesz"}:
+        if workflow_key in {"dollimages", "dollimagesz", "krea2"}:
             typology = sanitize_segment(
                 meta.get("dollimages_typology") or combo.get("variant") or "normal"
             )
@@ -608,6 +608,7 @@ class QueueWorker:
             mapping_key = (
                 "comfyui_workflow_dollimagesz"
                 if workflow_key == "dollimagesz"
+                else "comfyui_workflow_krea2" if workflow_key == "krea2"
                 else "comfyui_workflow_dollimages"
             )
         elif workflow_key == "anime_v5":
@@ -857,7 +858,7 @@ class QueueWorker:
                         video_json=video_output,
                         title=str(item.get("title") or ""),
                     )
-                elif workflow_key in {"dollimages", "dollimagesz"}:
+                elif workflow_key in {"dollimages", "dollimagesz", "krea2"}:
                     self._upload_dollimages_to_cloudinary(
                         prompt_item_id=prompt_item_id,
                         meta=meta,

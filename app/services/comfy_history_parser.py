@@ -6,6 +6,8 @@ SAVE_NODE_BASE = "19"
 SAVE_NODE_UPSCALE = "52"
 SAVE_NODE_DOLLIMAGESZ_BASE = "9"
 SAVE_NODE_IMAGE2VID_VIDEO = "108"
+SAVE_NODE_KREA2_BASE = "363"
+SAVE_NODE_KREA2_UPSCALE = "364"
 
 
 def _pick_images(output: dict[str, Any]) -> list[dict[str, Any]]:
@@ -55,6 +57,9 @@ def extract_base_and_upscale(
     if workflow_key == "dollimagesz":
         base_node = SAVE_NODE_DOLLIMAGESZ_BASE
         upscale_node = None
+    elif workflow_key == "krea2":
+        base_node = SAVE_NODE_KREA2_BASE
+        upscale_node = SAVE_NODE_KREA2_UPSCALE
 
     base_out = outputs.get(base_node) or {}
     up_out = outputs.get(upscale_node) if upscale_node else None
@@ -85,6 +90,9 @@ def extract_base_and_upscale_images(
     if workflow_key == "dollimagesz":
         base_node = SAVE_NODE_DOLLIMAGESZ_BASE
         upscale_node = None
+    elif workflow_key == "krea2":
+        base_node = SAVE_NODE_KREA2_BASE
+        upscale_node = SAVE_NODE_KREA2_UPSCALE
 
     base_out = outputs.get(base_node) or {}
     up_out = outputs.get(upscale_node) if upscale_node else None

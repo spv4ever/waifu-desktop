@@ -604,7 +604,15 @@ class MainWindow(QMainWindow):
         self.dollimages_workflow_combo = QComboBox()
         self.dollimages_workflow_combo.addItem("Dollimages", "dollimages")
         self.dollimages_workflow_combo.addItem("Dollimages Z", "dollimagesz")
+        self.dollimages_workflow_combo.addItem("Krea2", "krea2")
         doll_layout.addWidget(self.dollimages_workflow_combo, 1, 7)
+
+        doll_layout.addWidget(QLabel("Ratio:"), 2, 6)
+        self.dollimages_ratio_combo = QComboBox()
+        for label in ("1:1", "9:16", "16:9", "3:4", "4:3"):
+            self.dollimages_ratio_combo.addItem(label, label)
+        self.dollimages_ratio_combo.setCurrentText("3:4")
+        doll_layout.addWidget(self.dollimages_ratio_combo, 2, 7)
 
         doll_layout.addWidget(QLabel("Texto manual:"), 2, 0)
         self.dollimages_manual_input = QLineEdit()
@@ -612,7 +620,7 @@ class MainWindow(QMainWindow):
         doll_layout.addWidget(self.dollimages_manual_input, 2, 1, 1, 5)
 
         self.dollimages_generate_btn = QPushButton("Crear Pack Dollimages")
-        doll_layout.addWidget(self.dollimages_generate_btn, 2, 6)
+        doll_layout.addWidget(self.dollimages_generate_btn, 3, 6)
         doll_layout.setColumnStretch(7, 1)
 
         doll_dialog_layout.addWidget(doll_group)
@@ -659,7 +667,15 @@ class MainWindow(QMainWindow):
         self.dollimages_manual_workflow_combo = QComboBox()
         self.dollimages_manual_workflow_combo.addItem("Dollimages", "dollimages")
         self.dollimages_manual_workflow_combo.addItem("Dollimages Z", "dollimagesz")
+        self.dollimages_manual_workflow_combo.addItem("Krea2", "krea2")
         doll_manual_grid.addWidget(self.dollimages_manual_workflow_combo, 1, 5)
+
+        doll_manual_grid.addWidget(QLabel("Ratio:"), 1, 6)
+        self.dollimages_manual_ratio_combo = QComboBox()
+        for label in ("1:1", "9:16", "16:9", "3:4", "4:3"):
+            self.dollimages_manual_ratio_combo.addItem(label, label)
+        self.dollimages_manual_ratio_combo.setCurrentText("3:4")
+        doll_manual_grid.addWidget(self.dollimages_manual_ratio_combo, 1, 7)
 
         doll_manual_grid.addWidget(QLabel("Título:"), 2, 0)
         self.dollimages_manual_title_input = QLineEdit()
@@ -2602,6 +2618,7 @@ class MainWindow(QMainWindow):
         group_name = self.dollimages_group_combo.currentData()
         faceswap_enabled = self.dollimages_faceswap_check.isChecked()
         workflow_key = self.dollimages_workflow_combo.currentData()
+        ratio = self.dollimages_ratio_combo.currentData()
 
         if not typology:
             QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona una tipología.")
@@ -2617,6 +2634,7 @@ class MainWindow(QMainWindow):
             typology=str(typology),
             repetitions=repetitions,
             workflow_key=str(workflow_key),
+            ratio=str(ratio or "3:4"),
             manual_text=manual_text,
             checkpoint_base=str(checkpoint_base) if checkpoint_base else None,
             reference_image=reference_image,
@@ -2646,6 +2664,7 @@ class MainWindow(QMainWindow):
         prompt_raw = self.dollimages_manual_prompt_text_input.toPlainText()
         faceswap_enabled = self.dollimages_manual_faceswap_check.isChecked()
         workflow_key = self.dollimages_manual_workflow_combo.currentData()
+        ratio = self.dollimages_manual_ratio_combo.currentData()
 
         if not typology:
             QMessageBox.warning(self, "Prompt manual Dollimages", "Selecciona una tipología.")
@@ -2673,6 +2692,7 @@ class MainWindow(QMainWindow):
             title=title_raw,
             prompt_text=prompt_raw,
             workflow_key=str(workflow_key),
+            ratio=str(ratio or "3:4"),
             checkpoint_base=str(checkpoint_base) if checkpoint_base else None,
             reference_image=reference_image,
             faceswap_enabled=faceswap_enabled,
