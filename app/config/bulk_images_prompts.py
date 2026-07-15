@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +61,92 @@ class BulkImagePrompt:
             enabled=bool(data.get("enabled", True)),
             notes=str(data.get("notes", "")).strip(),
         )
+
+
+def bulk_image_prompts_example_payload() -> dict[str, Any]:
+    return {
+        "library_name": "Bulk Images",
+        "description": "Ejemplo para importar prompts masivos en Bulk Images.",
+        "prompts": [
+            {
+                "id": "bulk-example-001",
+                "title": "Retrato cinematográfico de ejemplo",
+                "category": "Portrait",
+                "subcategory": "Cinematic",
+                "collection": "Import Example",
+                "subject": "young woman with silver hair",
+                "style": "cinematic digital art",
+                "mood": "confident and serene",
+                "environment": "neon city rooftop at night",
+                "lighting": "soft rim light, volumetric glow",
+                "camera": "85mm lens, shallow depth of field",
+                "composition": "centered portrait, upper body",
+                "color_palette": "teal, magenta, deep blue",
+                "ratio": "2:3",
+                "model_hint": "krea2",
+                "workflow_hint": "bulk_images_default",
+                "positive_prompt": "cinematic portrait of a young woman with silver hair on a neon city rooftop at night, soft rim light, volumetric glow, teal and magenta palette, 85mm lens, shallow depth of field, highly detailed digital art",
+                "negative_prompt": "low quality, blurry, distorted hands, extra fingers, watermark, text",
+                "tags": ["portrait", "cinematic", "neon"],
+                "priority": 10,
+                "status": "ready",
+                "enabled": True,
+                "notes": "Duplica este objeto para añadir más prompts. El campo id debe ser único."
+            }
+        ],
+    }
+
+
+def _read_bulk_image_prompts_payload(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {"library_name": "Bulk Images", "prompts": []}
+    with path.open("r", encoding="utf-8") as fh:
+        payload = json.load(fh)
+    if not isinstance(payload, dict):
+        raise ValueError("El JSON debe ser un objeto con una clave 'prompts'.")
+    if not isinstance(payload.get("prompts", []), list):
+        raise ValueError("La clave 'prompts' debe contener una lista.")
+    return payload
+
+
+def import_bulk_image_prompts(import_path: Path, destination_path: Path = DEFAULT_BULK_IMAGES_PROMPTS_PATH) -> tuple[int, int]:
+    with import_path.open("r", encoding="utf-8") as fh:
+        imported_payload = json.load(fh)
+    if not isinstance(imported_payload, dict) or not isinstance(imported_payload.get("prompts"), list):
+        raise ValueError("El archivo debe tener el formato {'prompts': [...]}.")
+
+    imported_prompts = [BulkImagePrompt.from_dict(item) for item in imported_payload["prompts"] if isinstance(item, dict)]
+    if not imported_prompts:
+        raise ValueError("El archivo no contiene prompts válidos para importar.")
+
+    for prompt in imported_prompts:
+        if not prompt.id:
+            raise ValueError("Todos los prompts importados deben tener un 'id'.")
+        if not prompt.title:
+            raise ValueError(f"El prompt '{prompt.id}' debe tener un 'title'.")
+        if not prompt.positive_prompt:
+            raise ValueError(f"El prompt '{prompt.id}' debe tener un 'positive_prompt'.")
+
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+    destination_payload = _read_bulk_image_prompts_payload(destination_path)
+    existing_prompts = destination_payload.get("prompts", [])
+    existing_by_id = {str(item.get("id", "")).strip(): item for item in existing_prompts if isinstance(item, dict)}
+
+    added = 0
+    updated = 0
+    for prompt in imported_prompts:
+        item = asdict(prompt)
+        if prompt.id in existing_by_id:
+            updated += 1
+        else:
+            added += 1
+        existing_by_id[prompt.id] = item
+
+    destination_payload["prompts"] = list(existing_by_id.values())
+    with destination_path.open("w", encoding="utf-8") as fh:
+        json.dump(destination_payload, fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+    return added, updated
 
 
 def load_bulk_image_prompts(path: Path = DEFAULT_BULK_IMAGES_PROMPTS_PATH) -> list[BulkImagePrompt]:
