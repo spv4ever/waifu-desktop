@@ -26,6 +26,7 @@ from app.data.storage import get_store
 
 class DollimagesPromptWindow(QMainWindow):
     catalog_updated = Signal()
+    generate_selected_requested = Signal(object)
 
     def __init__(self) -> None:
         super().__init__()
@@ -87,10 +88,12 @@ class DollimagesPromptWindow(QMainWindow):
         self.new_btn = QPushButton("Nuevo")
         self.delete_btn = QPushButton("Eliminar")
         self.import_btn = QPushButton("Importar JSON Dollimages")
+        self.generate_selected_btn = QPushButton("Generar prompt seleccionado")
         action_row.addWidget(self.save_btn)
         action_row.addWidget(self.new_btn)
         action_row.addWidget(self.delete_btn)
         action_row.addWidget(self.import_btn)
+        action_row.addWidget(self.generate_selected_btn)
         action_row.addStretch(1)
         prompt_layout.addLayout(action_row)
 
@@ -102,6 +105,7 @@ class DollimagesPromptWindow(QMainWindow):
         self.new_btn.clicked.connect(self.reset_form)
         self.delete_btn.clicked.connect(self.delete_prompt)
         self.import_btn.clicked.connect(self.import_prompts)
+        self.generate_selected_btn.clicked.connect(self.request_generate_selected_prompt)
 
         self._refresh_prompt_list()
         self.reset_form()
@@ -133,6 +137,25 @@ class DollimagesPromptWindow(QMainWindow):
         self.prompt_text_input.clear()
         self.prompt_typology_combo.setCurrentIndex(0)
         self.prompt_enabled_checkbox.setChecked(True)
+
+    def request_generate_selected_prompt(self) -> None:
+        prompt_id = self.prompt_combo.currentData()
+        if not prompt_id:
+            QMessageBox.warning(
+                self,
+                "Dollimages",
+                "Selecciona un prompt existente para generarlo.",
+            )
+            return
+        row = self._prompt_map.get(int(prompt_id))
+        if not row:
+            QMessageBox.warning(
+                self,
+                "Dollimages",
+                "No se encontró el prompt seleccionado.",
+            )
+            return
+        self.generate_selected_requested.emit(row)
 
     def load_prompt_from_combo(self) -> None:
         prompt_id = self.prompt_combo.currentData()
