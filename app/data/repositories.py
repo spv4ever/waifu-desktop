@@ -52,6 +52,34 @@ class DollimagePromptRow:
 
 
 @dataclass(frozen=True)
+class BulkImagePromptRow:
+    id: str
+    title: str
+    category: str
+    subcategory: str
+    collection: str
+    subject: str
+    style: str
+    mood: str
+    environment: str
+    lighting: str
+    camera: str
+    composition: str
+    color_palette: str
+    ratio: str
+    model_hint: str
+    workflow_hint: str
+    positive_prompt: str
+    negative_prompt: str
+    tags: list[str]
+    quantity: int
+    priority: int
+    status: str
+    enabled: bool
+    notes: str
+
+
+@dataclass(frozen=True)
 class VideoPromptTemplateRow:
     id: int
     title: str
@@ -454,6 +482,79 @@ class DollimagePromptRepository:
 
     def delete(self, conn: sqlite3.Connection, *, prompt_id: int) -> None:
         conn.execute("DELETE FROM dollimage_prompt WHERE id = ?", (prompt_id,))
+
+
+class BulkImagePromptRepository:
+    FIELDS = (
+        "id", "title", "category", "subcategory", "collection", "subject", "style", "mood",
+        "environment", "lighting", "camera", "composition", "color_palette", "ratio", "model_hint",
+        "workflow_hint", "positive_prompt", "negative_prompt", "tags_json", "quantity", "priority",
+        "status", "enabled", "notes",
+    )
+
+    def list(self, conn: sqlite3.Connection, *, include_disabled: bool = False) -> list[BulkImagePromptRow]:
+        rows = conn.execute(
+            """
+            SELECT id, title, category, subcategory, collection, subject, style, mood, environment,
+                   lighting, camera, composition, color_palette, ratio, model_hint, workflow_hint,
+                   positive_prompt, negative_prompt, tags_json, quantity, priority, status, enabled, notes
+            FROM bulk_image_prompt
+            WHERE (? = 1) OR enabled = 1
+            ORDER BY lower(category), lower(subcategory), priority, lower(title)
+            """,
+            (1 if include_disabled else 0,),
+        ).fetchall()
+        out: list[BulkImagePromptRow] = []
+        for row in rows:
+            try:
+                tags = json.loads(row["tags_json"] or "[]")
+            except json.JSONDecodeError:
+                tags = []
+            out.append(BulkImagePromptRow(
+                id=str(row["id"]), title=str(row["title"]), category=str(row["category"]),
+                subcategory=str(row["subcategory"]), collection=str(row["collection"]),
+                subject=str(row["subject"]), style=str(row["style"]), mood=str(row["mood"]),
+                environment=str(row["environment"]), lighting=str(row["lighting"]), camera=str(row["camera"]),
+                composition=str(row["composition"]), color_palette=str(row["color_palette"]),
+                ratio=str(row["ratio"]), model_hint=str(row["model_hint"]), workflow_hint=str(row["workflow_hint"]),
+                positive_prompt=str(row["positive_prompt"]), negative_prompt=str(row["negative_prompt"]),
+                tags=[str(tag) for tag in tags if str(tag).strip()], quantity=int(row["quantity"]),
+                priority=int(row["priority"]), status=str(row["status"]), enabled=bool(row["enabled"]),
+                notes=str(row["notes"]),
+            ))
+        return out
+
+    def save(self, conn: sqlite3.Connection, prompt: Any) -> bool:
+        tags_json = json.dumps(getattr(prompt, "tags", []) or [], ensure_ascii=False)
+        cur = conn.execute(
+            """
+            INSERT INTO bulk_image_prompt (
+                id, title, category, subcategory, collection, subject, style, mood, environment, lighting,
+                camera, composition, color_palette, ratio, model_hint, workflow_hint, positive_prompt,
+                negative_prompt, tags_json, quantity, priority, status, enabled, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                title=excluded.title, category=excluded.category, subcategory=excluded.subcategory,
+                collection=excluded.collection, subject=excluded.subject, style=excluded.style, mood=excluded.mood,
+                environment=excluded.environment, lighting=excluded.lighting, camera=excluded.camera,
+                composition=excluded.composition, color_palette=excluded.color_palette, ratio=excluded.ratio,
+                model_hint=excluded.model_hint, workflow_hint=excluded.workflow_hint, positive_prompt=excluded.positive_prompt,
+                negative_prompt=excluded.negative_prompt, tags_json=excluded.tags_json, quantity=excluded.quantity,
+                priority=excluded.priority, status=excluded.status, enabled=excluded.enabled, notes=excluded.notes,
+                updated_at=datetime('now')
+            """,
+            (
+                prompt.id, prompt.title, prompt.category, prompt.subcategory, prompt.collection, prompt.subject,
+                prompt.style, prompt.mood, prompt.environment, prompt.lighting, prompt.camera, prompt.composition,
+                prompt.color_palette, prompt.ratio, prompt.model_hint, prompt.workflow_hint, prompt.positive_prompt,
+                prompt.negative_prompt, tags_json, prompt.quantity, prompt.priority, prompt.status,
+                1 if prompt.enabled else 0, prompt.notes,
+            ),
+        )
+        return cur.rowcount == 1
+
+    def delete(self, conn: sqlite3.Connection, *, prompt_id: str) -> None:
+        conn.execute("DELETE FROM bulk_image_prompt WHERE id = ?", (prompt_id,))
 
 
 class VideoPromptTemplateRepository:

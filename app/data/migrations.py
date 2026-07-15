@@ -243,6 +243,58 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
 
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS bulk_image_prompt (
+          id              TEXT PRIMARY KEY,
+          title           TEXT NOT NULL,
+          category        TEXT NOT NULL DEFAULT 'Uncategorized',
+          subcategory     TEXT NOT NULL DEFAULT 'General',
+          collection      TEXT NOT NULL DEFAULT 'Default',
+          subject         TEXT NOT NULL DEFAULT '',
+          style           TEXT NOT NULL DEFAULT '',
+          mood            TEXT NOT NULL DEFAULT '',
+          environment     TEXT NOT NULL DEFAULT '',
+          lighting        TEXT NOT NULL DEFAULT '',
+          camera          TEXT NOT NULL DEFAULT '',
+          composition     TEXT NOT NULL DEFAULT '',
+          color_palette   TEXT NOT NULL DEFAULT '',
+          ratio           TEXT NOT NULL DEFAULT '',
+          model_hint      TEXT NOT NULL DEFAULT '',
+          workflow_hint   TEXT NOT NULL DEFAULT '',
+          positive_prompt TEXT NOT NULL,
+          negative_prompt TEXT NOT NULL DEFAULT '',
+          tags_json       TEXT NOT NULL DEFAULT '[]',
+          quantity        INTEGER NOT NULL DEFAULT 1,
+          priority        INTEGER NOT NULL DEFAULT 100,
+          status          TEXT NOT NULL DEFAULT 'draft',
+          enabled         INTEGER NOT NULL DEFAULT 1,
+          notes           TEXT NOT NULL DEFAULT '',
+          created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_bulk_image_prompt_taxonomy
+        ON bulk_image_prompt(category, subcategory, priority, title);
+        """
+    )
+
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_bulk_image_prompt_updated_at
+        AFTER UPDATE ON bulk_image_prompt
+        FOR EACH ROW
+        BEGIN
+          UPDATE bulk_image_prompt SET updated_at = datetime('now') WHERE id = NEW.id;
+        END;
+        """
+    )
+
+
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS video_prompt_template (
           id          INTEGER PRIMARY KEY AUTOINCREMENT,
           title       TEXT NOT NULL,

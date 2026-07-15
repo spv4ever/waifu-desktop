@@ -8,6 +8,8 @@ from app.data.db import get_connection
 from app.data.kv_store import KVStore
 from app.data.repositories import (
     ComboRegistryRepository,
+    BulkImagePromptRepository,
+    BulkImagePromptRow,
     DollimagePromptRepository,
     DollimagePromptRow,
     PackRepository,
@@ -385,6 +387,18 @@ class BaseStore:
     def ensure_social_copies_seeded(self, copies: list[dict[str, str]]) -> int:
         raise NotImplementedError
 
+    def list_bulk_image_prompts(self, *, include_disabled: bool = False) -> list[BulkImagePromptRow]:
+        raise NotImplementedError
+
+    def save_bulk_image_prompt(self, prompt: Any) -> int:
+        raise NotImplementedError
+
+    def delete_bulk_image_prompt(self, *, prompt_id: str) -> None:
+        raise NotImplementedError
+
+    def import_bulk_image_prompts(self, prompts: list[Any]) -> tuple[int, int]:
+        raise NotImplementedError
+
     def list_dollimage_prompts(self, *, include_disabled: bool = False) -> list[DollimagePromptRow]:
         raise NotImplementedError
 
@@ -435,6 +449,7 @@ class SQLiteStore(BaseStore):
         self._prompt_base = PromptBaseRepository()
         self._variations = PromptVariationRepository()
         self._social_copies = SocialCopyRepository()
+        self._bulk_image_prompts = BulkImagePromptRepository()
         self._dollimage_prompts = DollimagePromptRepository()
         self._video_prompt_templates = VideoPromptTemplateRepository()
         self._kv = KVStore()
@@ -1424,6 +1439,42 @@ class SQLiteStore(BaseStore):
         with get_connection() as conn:
             with conn:
                 return self._social_copies.ensure_seeded(conn, copies)
+
+    def list_bulk_image_prompts(self, *, include_disabled: bool = False) -> list[BulkImagePromptRow]:
+        with get_connection() as conn:
+            return self._bulk_image_prompts.list(conn, include_disabled=include_disabled)
+
+    def save_bulk_image_prompt(self, prompt: Any) -> int:
+        with get_connection() as conn:
+            with conn:
+                existed = conn.execute(
+                    "SELECT 1 FROM bulk_image_prompt WHERE id = ? LIMIT 1",
+                    (prompt.id,),
+                ).fetchone()
+                self._bulk_image_prompts.save(conn, prompt)
+                return 0 if existed else 1
+
+    def delete_bulk_image_prompt(self, *, prompt_id: str) -> None:
+        with get_connection() as conn:
+            with conn:
+                self._bulk_image_prompts.delete(conn, prompt_id=prompt_id)
+
+    def import_bulk_image_prompts(self, prompts: list[Any]) -> tuple[int, int]:
+        if not prompts:
+            return 0, 0
+        added = 0
+        updated = 0
+        with get_connection() as conn:
+            with conn:
+                existing = {str(row["id"]) for row in conn.execute("SELECT id FROM bulk_image_prompt").fetchall()}
+                for prompt in prompts:
+                    self._bulk_image_prompts.save(conn, prompt)
+                    if prompt.id in existing:
+                        updated += 1
+                    else:
+                        added += 1
+                        existing.add(prompt.id)
+        return added, updated
 
     def list_dollimage_prompts(self, *, include_disabled: bool = False) -> list[DollimagePromptRow]:
         with get_connection() as conn:
