@@ -12,7 +12,7 @@ from app.services.ratios import resolve_size
 
 
 _BULK_WORKFLOW_HINTS = {
-    "bulk_images_default": "dollimages",
+    "bulk_images_default": "krea2",
     "dollimages": "dollimages",
     "dollimagesz": "dollimagesz",
     "krea2": "krea2",
@@ -21,7 +21,7 @@ _BULK_WORKFLOW_HINTS = {
 
 
 def _resolve_bulk_workflow_key(workflow_hint: str) -> str:
-    return _BULK_WORKFLOW_HINTS.get(workflow_hint.strip().lower(), "dollimages")
+    return _BULK_WORKFLOW_HINTS.get(workflow_hint.strip().lower(), "krea2")
 
 
 def _looks_like_checkpoint(value: str) -> bool:
