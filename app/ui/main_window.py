@@ -1085,9 +1085,9 @@ class MainWindow(QMainWindow):
         bulk_youtube_grid.setVerticalSpacing(8)
 
         bulk_youtube_grid.addWidget(QLabel("Categoría Bulk:"), 0, 0)
-        self.bulk_youtube_category_input = QLineEdit()
-        self.bulk_youtube_category_input.setPlaceholderText("Ej: Nature Wallpaper")
-        bulk_youtube_grid.addWidget(self.bulk_youtube_category_input, 0, 1, 1, 3)
+        self.bulk_youtube_category_combo = QComboBox()
+        self.bulk_youtube_category_combo.setMinimumWidth(280)
+        bulk_youtube_grid.addWidget(self.bulk_youtube_category_combo, 0, 1, 1, 3)
 
         bulk_youtube_grid.addWidget(QLabel("Audio relax:"), 1, 0)
         self.bulk_youtube_audio_combo = QComboBox()
@@ -1110,6 +1110,26 @@ class MainWindow(QMainWindow):
         self.bulk_youtube_transition_spin.setValue(0.75)
         bulk_youtube_grid.addWidget(self.bulk_youtube_transition_spin, 2, 3)
 
+        bulk_youtube_grid.addWidget(QLabel("Transición:"), 2, 4)
+        self.bulk_youtube_transition_type_combo = QComboBox()
+        for label, value in [
+            ("Fundido", "fade"),
+            ("Fundido negro", "fadeblack"),
+            ("Fundido blanco", "fadewhite"),
+            ("Disolver", "dissolve"),
+            ("Pixelizar", "pixelize"),
+            ("Barrido izquierda", "wipeleft"),
+            ("Barrido derecha", "wiperight"),
+            ("Barrido arriba", "wipeup"),
+            ("Barrido abajo", "wipedown"),
+            ("Deslizar izquierda", "slideleft"),
+            ("Deslizar derecha", "slideright"),
+            ("Círculo abre", "circleopen"),
+            ("Círculo cierra", "circleclose"),
+        ]:
+            self.bulk_youtube_transition_type_combo.addItem(label, value)
+        bulk_youtube_grid.addWidget(self.bulk_youtube_transition_type_combo, 2, 5)
+
         bulk_youtube_grid.addWidget(QLabel("Resolución:"), 3, 0)
         self.bulk_youtube_resolution_combo = QComboBox()
         self.bulk_youtube_resolution_combo.addItem("4K (3840x2160)", "4k")
@@ -1118,9 +1138,15 @@ class MainWindow(QMainWindow):
 
         self.bulk_youtube_generate_btn = QPushButton("Crear vídeo YouTube")
         bulk_youtube_grid.addWidget(self.bulk_youtube_generate_btn, 3, 3, 1, 2)
-        bulk_youtube_grid.setColumnStretch(5, 1)
+
+        self.bulk_youtube_plan_label = QLabel("Selecciona categoría y audio para calcular imágenes necesarias.")
+        self.bulk_youtube_plan_label.setWordWrap(True)
+        bulk_youtube_grid.addWidget(self.bulk_youtube_plan_label, 4, 0, 1, 6)
+        bulk_youtube_grid.setColumnStretch(6, 1)
         bulk_youtube_layout.addWidget(bulk_youtube_group)
+        self._populate_bulk_youtube_category_combo()
         self._populate_bulk_youtube_audio_combo()
+        self._update_bulk_youtube_plan_label()
 
         self.dollimages_reel_dialog = QDialog(self)
         self.dollimages_reel_dialog.setWindowTitle("Reel Dollimages")
@@ -1422,6 +1448,11 @@ class MainWindow(QMainWindow):
         self.video_montage_generate_btn.clicked.connect(self.generate_video_montage)
         self.bulk_youtube_generate_btn.clicked.connect(self.generate_bulk_youtube_video)
         self.bulk_youtube_reload_audio_btn.clicked.connect(self._populate_bulk_youtube_audio_combo)
+        self.bulk_youtube_category_combo.currentIndexChanged.connect(self._update_bulk_youtube_plan_label)
+        self.bulk_youtube_audio_combo.currentIndexChanged.connect(self._update_bulk_youtube_plan_label)
+        self.bulk_youtube_seconds_spin.valueChanged.connect(self._update_bulk_youtube_plan_label)
+        self.bulk_youtube_transition_spin.valueChanged.connect(self._update_bulk_youtube_plan_label)
+        self.bulk_youtube_transition_type_combo.currentIndexChanged.connect(self._update_bulk_youtube_plan_label)
         self.video_montage_add_btn.clicked.connect(self.add_video_montage_files)
         self.video_montage_remove_btn.clicked.connect(self.remove_selected_video_montage_files)
         self.video_montage_clear_btn.clicked.connect(self.video_montage_list.clear)
@@ -1451,7 +1482,7 @@ class MainWindow(QMainWindow):
         self.anime_v5_prompt_table.itemDoubleClicked.connect(lambda _item: self._apply_selected_anime_v5_prompt())
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
         self.open_video_montage_btn.clicked.connect(self.video_montage_dialog.show)
-        self.open_bulk_youtube_btn.clicked.connect(self.bulk_youtube_dialog.show)
+        self.open_bulk_youtube_btn.clicked.connect(self.open_bulk_youtube_dialog)
         self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
         self.open_anime_v5_reel_btn.clicked.connect(self.anime_v5_reel_dialog.show)
         self.anime_v5_reel_generate_btn.clicked.connect(self.generate_anime_v5_reel)
@@ -3245,6 +3276,52 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, "Reel Instagram", f"No se pudo abrir la carpeta: {exc}")
 
+    def _populate_bulk_youtube_category_combo(self) -> None:
+        current = self.bulk_youtube_category_combo.currentData() if hasattr(self, "bulk_youtube_category_combo") else None
+        self.bulk_youtube_category_combo.clear()
+        for row in get_store().list_bulk_youtube_categories():
+            category = str(row.get("category") or "").strip()
+            count = int(row.get("available_count") or 0)
+            if category:
+                self.bulk_youtube_category_combo.addItem(f"{category} ({count})", category)
+        if current:
+            idx = self.bulk_youtube_category_combo.findData(current)
+            if idx >= 0:
+                self.bulk_youtube_category_combo.setCurrentIndex(idx)
+
+    def open_bulk_youtube_dialog(self) -> None:
+        self._populate_bulk_youtube_category_combo()
+        self._populate_bulk_youtube_audio_combo()
+        self._update_bulk_youtube_plan_label()
+        self.bulk_youtube_dialog.show()
+
+    def _update_bulk_youtube_plan_label(self) -> None:
+        if not hasattr(self, "bulk_youtube_plan_label"):
+            return
+        category = self.bulk_youtube_category_combo.currentData()
+        audio_filename = self.bulk_youtube_audio_combo.currentData()
+        if not category or not audio_filename:
+            self.bulk_youtube_plan_label.setText("Selecciona categoría y audio para calcular imágenes necesarias.")
+            return
+        try:
+            plan = self.video_montage_service.calculate_bulk_youtube_plan(
+                bulk_category=str(category),
+                audio_filename=str(audio_filename),
+                image_display_seconds=float(self.bulk_youtube_seconds_spin.value()),
+                transition_seconds=float(self.bulk_youtube_transition_spin.value()),
+                transition_type=str(self.bulk_youtube_transition_type_combo.currentData() or "fade"),
+            )
+        except Exception as exc:
+            self.bulk_youtube_plan_label.setText(f"No se pudo calcular el plan: {exc}")
+            return
+        self.bulk_youtube_plan_label.setText(
+            f"Audio: {plan.audio_duration_seconds:.1f}s · "
+            f"Imagen: {plan.image_display_seconds:.2f}s · "
+            f"Transición: {plan.transition_seconds:.2f}s ({self.bulk_youtube_transition_type_combo.currentText()}) · "
+            f"Necesitas: {plan.needed_images} imágenes · "
+            f"Disponibles en categoría: {plan.available_images}"
+        )
+
 
     def _populate_bulk_youtube_audio_combo(self) -> None:
         current = self.bulk_youtube_audio_combo.currentData() if hasattr(self, "bulk_youtube_audio_combo") else None
@@ -3259,9 +3336,10 @@ class MainWindow(QMainWindow):
             if idx >= 0:
                 self.bulk_youtube_audio_combo.setCurrentIndex(idx)
         self.bulk_youtube_generate_btn.setEnabled(bool(audio_files))
+        self._update_bulk_youtube_plan_label()
 
     def generate_bulk_youtube_video(self) -> None:
-        bulk_category = self.bulk_youtube_category_input.text().strip()
+        bulk_category = str(self.bulk_youtube_category_combo.currentData() or "").strip()
         audio_filename = self.bulk_youtube_audio_combo.currentData()
         if not bulk_category:
             QMessageBox.warning(self, "Vídeo YouTube Bulk Images", "Indica la categoría Bulk Images.")
@@ -3281,6 +3359,7 @@ class MainWindow(QMainWindow):
                 image_display_seconds=float(self.bulk_youtube_seconds_spin.value()),
                 transition_seconds=float(self.bulk_youtube_transition_spin.value()),
                 resolution=str(self.bulk_youtube_resolution_combo.currentData() or "4k"),
+                transition_type=str(self.bulk_youtube_transition_type_combo.currentData() or "fade"),
             )
         except Exception as exc:
             QMessageBox.critical(self, "Vídeo YouTube Bulk Images", str(exc))

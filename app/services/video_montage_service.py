@@ -35,6 +35,18 @@ class BulkImagesYoutubeVideoResult:
     image_display_seconds: float
     resolution: str
     bulk_category: str
+    transition_seconds: float
+    transition_type: str
+
+
+@dataclass(frozen=True)
+class BulkYoutubePlan:
+    audio_duration_seconds: float
+    image_display_seconds: float
+    transition_seconds: float
+    transition_type: str
+    needed_images: int
+    available_images: int
 
 
 class VideoMontageService:
@@ -52,6 +64,7 @@ class VideoMontageService:
     _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
     _YOUTUBE_4K_SIZE = (3840, 2160)
     _YOUTUBE_IMAGE_SECONDS = 8.0
+    _YOUTUBE_TRANSITIONS = {"fade", "fadeblack", "fadewhite", "distance", "wipeleft", "wiperight", "wipeup", "wipedown", "slideleft", "slideright", "slideup", "slidedown", "circleopen", "circleclose", "dissolve", "pixelize"}
 
     def _repo_root(self) -> Path:
         return Path(__file__).resolve().parents[2]
@@ -154,6 +167,42 @@ class VideoMontageService:
                 break
         return selected
 
+
+    def calculate_bulk_youtube_plan(
+        self,
+        *,
+        bulk_category: str,
+        audio_filename: str | Path,
+        image_display_seconds: float | None = None,
+        transition_seconds: float | None = None,
+        transition_type: str = "fade",
+    ) -> BulkYoutubePlan:
+        clean_category = str(bulk_category).strip()
+        audio_path = self._resolve_audio_relax_track(audio_filename)
+        audio_duration = self._probe_duration(audio_path)
+        if audio_duration <= 0:
+            raise ValueError("No se pudo calcular la duración del MP3 seleccionado.")
+        transition_seconds = self._TRANSITION_SECONDS if transition_seconds is None else max(float(transition_seconds), 0.0)
+        image_display_seconds = (
+            self._YOUTUBE_IMAGE_SECONDS
+            if image_display_seconds is None
+            else max(float(image_display_seconds), transition_seconds + 0.25)
+        )
+        clean_transition = str(transition_type or "fade").strip().lower()
+        if clean_transition not in self._YOUTUBE_TRANSITIONS:
+            clean_transition = "fade"
+        effective_seconds = max(image_display_seconds - transition_seconds, 0.25)
+        needed_images = max(1, ceil(max(audio_duration - transition_seconds, 0.0) / effective_seconds))
+        available_images = len(self._select_unused_bulk_images(bulk_category=clean_category, image_count=10**9)) if clean_category else 0
+        return BulkYoutubePlan(
+            audio_duration_seconds=audio_duration,
+            image_display_seconds=image_display_seconds,
+            transition_seconds=transition_seconds,
+            transition_type=clean_transition,
+            needed_images=needed_images,
+            available_images=available_images,
+        )
+
     def create_bulk_images_youtube_video(
         self,
         *,
@@ -162,6 +211,7 @@ class VideoMontageService:
         image_display_seconds: float | None = None,
         transition_seconds: float | None = None,
         resolution: str = "4k",
+        transition_type: str = "fade",
     ) -> BulkImagesYoutubeVideoResult:
         """Crea un vídeo 16:9 con imágenes no usadas de Bulk Images y una canción MP3 completa."""
         clean_category = str(bulk_category).strip()
@@ -179,6 +229,9 @@ class VideoMontageService:
             if image_display_seconds is None
             else max(float(image_display_seconds), transition_seconds + 0.25)
         )
+        clean_transition = str(transition_type or "fade").strip().lower()
+        if clean_transition not in self._YOUTUBE_TRANSITIONS:
+            raise ValueError("Transición no soportada para el vídeo YouTube Bulk Images.")
         effective_seconds = max(image_display_seconds - transition_seconds, 0.25)
         image_count = max(1, ceil(max(audio_duration - transition_seconds, 0.0) / effective_seconds))
 
@@ -217,7 +270,7 @@ class VideoMontageService:
             out_label = f"xf{idx}"
             offset = max(current_duration - transition_seconds, 0.0)
             filter_parts.append(
-                f"[{current_label}][v{idx}]xfade=transition=fade:duration={transition_seconds:.3f}:"
+                f"[{current_label}][v{idx}]xfade=transition={clean_transition}:duration={transition_seconds:.3f}:"
                 f"offset={offset:.3f}[{out_label}]"
             )
             current_label = out_label
@@ -269,6 +322,7 @@ class VideoMontageService:
             "duration_seconds": audio_duration,
             "image_display_seconds": image_display_seconds,
             "transition_seconds": transition_seconds,
+            "transition_type": clean_transition,
             "resolution": {"label": resolution, "width": width, "height": height},
             "prompt_item_ids": prompt_item_ids,
             "source_images": [str(path) for path in paths],
@@ -285,6 +339,8 @@ class VideoMontageService:
             image_display_seconds=image_display_seconds,
             resolution=resolution,
             bulk_category=clean_category,
+            transition_seconds=transition_seconds,
+            transition_type=clean_transition,
         )
 
     def create_montage(
