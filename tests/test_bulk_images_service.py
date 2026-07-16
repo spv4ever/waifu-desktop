@@ -183,3 +183,23 @@ def test_create_prompts_and_enqueue_uses_quantity_per_prompt_override(monkeypatc
     assert [item["meta"]["bulk_metadata"]["quantity"] for item in store.prompt_items] == [2, 2]
     assert [item["meta"]["bulk_metadata"]["library_quantity"] for item in store.prompt_items] == [5, 5]
     assert len(store.queue_jobs) == 2
+
+
+def test_bulk_images_output_prefixes_group_by_category_and_normal_scaled_folders():
+    from app.services.queue_worker import _build_bulk_images_output_prefixes
+
+    base_prefix, upscale_prefix = _build_bulk_images_output_prefixes(
+        meta={
+            "source": "bulk_images",
+            "bulk_generation_index": 2,
+            "bulk_metadata": {
+                "category": "Nature Wallpaper",
+                "subcategory": "Alpine Lake",
+            },
+        },
+        prompt_item_id=42,
+        title="Morning Glow",
+    )
+
+    assert base_prefix == "bulk_images/Nature Wallpaper/normal/Alpine Lake_42_g2_Morning Glow"
+    assert upscale_prefix == "bulk_images/Nature Wallpaper/scaled/Alpine Lake_42_g2_Morning Glow"

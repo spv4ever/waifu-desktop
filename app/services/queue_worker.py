@@ -53,6 +53,33 @@ def _select_dollimages_upload_images(
     return [fallback_image] if fallback_image else []
 
 
+def _build_bulk_images_output_prefixes(
+    *,
+    meta: dict[str, Any],
+    prompt_item_id: int,
+    title: str | None,
+) -> tuple[str, str]:
+    """Build normal/scaled output prefixes grouped by Bulk Images category."""
+    bulk_metadata = meta.get("bulk_metadata") if isinstance(meta.get("bulk_metadata"), dict) else {}
+    category = sanitize_segment(bulk_metadata.get("category") or "uncategorized")
+    subcategory = sanitize_segment(bulk_metadata.get("subcategory") or "general")
+    generation_index = meta.get("bulk_generation_index")
+    title_segment = sanitize_segment(title or "")
+
+    name_parts = [subcategory, str(prompt_item_id)]
+    if generation_index:
+        name_parts.append(f"g{generation_index}")
+    if title_segment:
+        name_parts.append(title_segment)
+    base_name = sanitize_segment("_".join(name_parts))
+
+    folder = sanitize_relpath(f"bulk_images/{category}")
+    return (
+        sanitize_relpath(f"{folder}/normal/{base_name}"),
+        sanitize_relpath(f"{folder}/scaled/{base_name}"),
+    )
+
+
 class QueueWorker:
     def __init__(self, *, log_callback: Callable[[str], None] | None = None) -> None:
         self.store = get_store()
@@ -600,8 +627,15 @@ class QueueWorker:
                 base_name = f"{reference_stem}_{prompt_item_id}"
             else:
                 base_name = f"{prompt_item_id}" if not title_segment else f"{prompt_item_id}_{title_segment}"
-            base_prefix = sanitize_relpath(f"{folder}/{base_name}")
-            upscale_prefix = base_prefix
+            if meta.get("source") == "bulk_images":
+                base_prefix, upscale_prefix = _build_bulk_images_output_prefixes(
+                    meta=meta,
+                    prompt_item_id=prompt_item_id,
+                    title=item.get("title"),
+                )
+            else:
+                base_prefix = sanitize_relpath(f"{folder}/{base_name}")
+                upscale_prefix = base_prefix
             width = int(meta.get("width") or 832)
             height = int(meta.get("height") or 1216)
             seed = meta.get("seed")
@@ -618,8 +652,15 @@ class QueueWorker:
             folder_prefix = "anime/nsfw" if content_rating == "nsfw" else "anime"
             folder = sanitize_relpath(f"{folder_prefix}/{list_name}/{character}")
             base_name = sanitize_segment(f"{prompt_item_id}")
-            base_prefix = sanitize_relpath(f"{folder}/{base_name}")
-            upscale_prefix = base_prefix
+            if meta.get("source") == "bulk_images":
+                base_prefix, upscale_prefix = _build_bulk_images_output_prefixes(
+                    meta=meta,
+                    prompt_item_id=prompt_item_id,
+                    title=item.get("title"),
+                )
+            else:
+                base_prefix = sanitize_relpath(f"{folder}/{base_name}")
+                upscale_prefix = base_prefix
             width = int(meta.get("width") or combo.get("width") or 1024)
             height = int(meta.get("height") or combo.get("height") or 1408)
             seed = meta.get("seed")
@@ -656,8 +697,15 @@ class QueueWorker:
             folder = sanitize_relpath(f"anime/Waifu/{category}/{variant}")
 
             base_name = sanitize_segment(f"{ratio}_{prompt_item_id}")
-            base_prefix = sanitize_relpath(f"{folder}/{base_name}")
-            upscale_prefix = sanitize_relpath(f"{folder}/{base_name}_4k")
+            if meta.get("source") == "bulk_images":
+                base_prefix, upscale_prefix = _build_bulk_images_output_prefixes(
+                    meta=meta,
+                    prompt_item_id=prompt_item_id,
+                    title=item.get("title"),
+                )
+            else:
+                base_prefix = sanitize_relpath(f"{folder}/{base_name}")
+                upscale_prefix = sanitize_relpath(f"{folder}/{base_name}_4k")
 
             # Tamaños (ratio -> width/height ya vienen en meta/combo)
             width = int(meta.get("width") or combo.get("width") or 1024)
