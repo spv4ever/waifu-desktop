@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import json
 import random
+import re
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass
 from math import ceil
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from app.data.storage import get_store
 from app.services.output_paths import build_output_path
@@ -65,6 +67,77 @@ class VideoMontageService:
     _YOUTUBE_4K_SIZE = (3840, 2160)
     _YOUTUBE_IMAGE_SECONDS = 8.0
     _YOUTUBE_TRANSITIONS = {"fade", "fadeblack", "fadewhite", "distance", "wipeleft", "wiperight", "wipeup", "wipedown", "slideleft", "slideright", "slideup", "slidedown", "circleopen", "circleclose", "dissolve", "pixelize"}
+    _FFMPEG_TIME_RE = re.compile(r"time=(\d+):(\d+):(\d+(?:\.\d+)?)")
+
+    def _emit_progress(self, progress_callback: Callable[[str], None] | None, message: str) -> None:
+        if progress_callback:
+            progress_callback(message)
+
+    def _format_eta(self, seconds: float | None) -> str:
+        if seconds is None or seconds <= 0:
+            return "calculando..."
+        minutes, secs = divmod(int(round(seconds)), 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}h {minutes:02d}m {secs:02d}s"
+        if minutes:
+            return f"{minutes}m {secs:02d}s"
+        return f"{secs}s"
+
+    def _parse_ffmpeg_time(self, line: str) -> float | None:
+        match = self._FFMPEG_TIME_RE.search(line)
+        if not match:
+            return None
+        hours = int(match.group(1))
+        minutes = int(match.group(2))
+        seconds = float(match.group(3))
+        return (hours * 3600) + (minutes * 60) + seconds
+
+    def _run_ffmpeg_render(
+        self,
+        cmd: list[str],
+        *,
+        cwd: Path,
+        total_seconds: float,
+        progress_callback: Callable[[str], None] | None = None,
+    ) -> None:
+        if not progress_callback:
+            subprocess.run(cmd, cwd=str(cwd), check=True, capture_output=True, text=True)
+            return
+
+        started_at = time.monotonic()
+        last_percent = -1
+        process = subprocess.Popen(
+            cmd,
+            cwd=str(cwd),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+        output_lines: list[str] = []
+        assert process.stdout is not None
+        for raw_line in process.stdout:
+            line = raw_line.strip()
+            if line:
+                output_lines.append(line)
+            rendered_seconds = self._parse_ffmpeg_time(line)
+            if rendered_seconds is None:
+                continue
+            progress = min(max(rendered_seconds / max(total_seconds, 0.001), 0.0), 1.0)
+            percent = int(progress * 100)
+            if percent == last_percent and percent < 100:
+                continue
+            last_percent = percent
+            elapsed = time.monotonic() - started_at
+            eta = (elapsed / progress) - elapsed if progress > 0 else None
+            self._emit_progress(
+                progress_callback,
+                f"Renderizando: {percent}% ({rendered_seconds:.1f}s/{total_seconds:.1f}s) · ETA {self._format_eta(eta)}",
+            )
+        return_code = process.wait()
+        if return_code != 0:
+            raise subprocess.CalledProcessError(return_code, cmd, output="\n".join(output_lines))
 
     def _repo_root(self) -> Path:
         return Path(__file__).resolve().parents[2]
@@ -212,14 +285,17 @@ class VideoMontageService:
         transition_seconds: float | None = None,
         resolution: str = "4k",
         transition_type: str = "fade",
+        progress_callback: Callable[[str], None] | None = None,
     ) -> BulkImagesYoutubeVideoResult:
         """Crea un vídeo 16:9 con imágenes no usadas de Bulk Images y una canción MP3 completa."""
         clean_category = str(bulk_category).strip()
         if not clean_category:
             raise ValueError("Selecciona una categoría de Bulk Images.")
 
+        self._emit_progress(progress_callback, "Validando audio seleccionado...")
         audio_path = self._resolve_audio_relax_track(audio_filename)
         audio_duration = self._probe_duration(audio_path)
+        self._emit_progress(progress_callback, f"Audio: {audio_path.name} · duración {audio_duration:.1f}s")
         if audio_duration <= 0:
             raise ValueError("No se pudo calcular la duración del MP3 seleccionado.")
 
@@ -235,6 +311,7 @@ class VideoMontageService:
         effective_seconds = max(image_display_seconds - transition_seconds, 0.25)
         image_count = max(1, ceil(max(audio_duration - transition_seconds, 0.0) / effective_seconds))
 
+        self._emit_progress(progress_callback, f"Seleccionando {image_count} imágenes sin usar de la categoría {clean_category}...")
         selected = self._select_unused_bulk_images(bulk_category=clean_category, image_count=image_count)
         if len(selected) < image_count:
             raise RuntimeError(
@@ -247,6 +324,7 @@ class VideoMontageService:
             raise RuntimeError("No se encontró ffmpeg en el sistema para renderizar el vídeo.")
 
         width, height = self._YOUTUBE_4K_SIZE if resolution.lower() == "4k" else self._RATIO_SIZES["16:9"]
+        self._emit_progress(progress_callback, f"Preparando render {width}x{height} con transición {clean_transition}...")
         folder = self._create_folder()
         output_path = folder / "bulk_images_youtube.mp4"
         paths = [path for _, path, _ in selected]
@@ -311,7 +389,9 @@ class VideoMontageService:
             f"{audio_duration:.3f}",
             str(output_path),
         ]
-        subprocess.run(cmd, cwd=str(folder), check=True, capture_output=True, text=True)
+        self._emit_progress(progress_callback, "Iniciando FFmpeg...")
+        self._run_ffmpeg_render(cmd, cwd=folder, total_seconds=audio_duration, progress_callback=progress_callback)
+        self._emit_progress(progress_callback, "Render finalizado. Marcando imágenes como usadas...")
 
         prompt_item_ids = [prompt_id for prompt_id, _, _ in selected]
         get_store().mark_prompt_items_used_in_reel(prompt_item_ids)
@@ -328,6 +408,7 @@ class VideoMontageService:
             "source_images": [str(path) for path in paths],
         }
         (folder / "bulk_images_youtube.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+        self._emit_progress(progress_callback, f"Vídeo creado correctamente: {output_path}")
 
         return BulkImagesYoutubeVideoResult(
             folder=folder,

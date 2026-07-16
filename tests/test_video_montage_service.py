@@ -123,3 +123,48 @@ def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_p
     metadata = json.loads((output_dir / "bulk_images_youtube.json").read_text(encoding="utf-8"))
     assert metadata["duration_seconds"] == 15.0
     assert metadata["audio"] == str(audio_path.resolve())
+
+def test_create_bulk_images_youtube_video_reports_progress(tmp_path, monkeypatch):
+    audio_dir = tmp_path / "resources" / "audio_relax"
+    audio_dir.mkdir(parents=True)
+    audio_path = audio_dir / "relax.mp3"
+    audio_path.write_bytes(b"audio")
+    image_path = tmp_path / "image.png"
+    image_path.write_bytes(b"image")
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    class Store:
+        def select_unused_bulk_images_for_youtube_video(self, *, bulk_category):
+            return [{"id": 1, "base_image_json": json.dumps({"filename": image_path.name}), "upscale_image_json": None}]
+
+        def mark_prompt_items_used_in_reel(self, prompt_item_ids):
+            self.marked = list(prompt_item_ids)
+
+    service = VideoMontageService()
+    store = Store()
+    events = []
+    monkeypatch.setattr(service, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(service, "_probe_duration", lambda path: 5.0)
+    monkeypatch.setattr(service, "_create_folder", lambda: output_dir)
+    monkeypatch.setattr("app.services.video_montage_service.get_store", lambda: store)
+    monkeypatch.setattr("app.services.video_montage_service.build_output_path", lambda image_json: tmp_path / image_json["filename"])
+    monkeypatch.setattr("app.services.video_montage_service.shutil.which", lambda name: f"/usr/bin/{name}")
+
+    def _fake_render(cmd, *, cwd, total_seconds, progress_callback=None):
+        Path(cmd[-1]).write_bytes(b"rendered")
+        assert total_seconds == 5.0
+        progress_callback("Renderizando: 100% (5.0s/5.0s) · ETA 0s")
+
+    monkeypatch.setattr(service, "_run_ffmpeg_render", _fake_render)
+
+    service.create_bulk_images_youtube_video(
+        bulk_category="Nature Wallpaper",
+        audio_filename=audio_path.name,
+        progress_callback=events.append,
+    )
+
+    assert events[0] == "Validando audio seleccionado..."
+    assert any("Seleccionando" in event for event in events)
+    assert any("ETA" in event for event in events)
+    assert events[-1].startswith("Vídeo creado correctamente:")
