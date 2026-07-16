@@ -292,6 +292,7 @@ class MainWindow(QMainWindow):
         self.open_dollimages_reel_btn = QPushButton("Reel Dollimages")
         self.open_anime_v5_reel_btn = QPushButton("Reel Anime V5")
         self.open_video_montage_btn = QPushButton("Montar Videos")
+        self.open_bulk_youtube_btn = QPushButton("YouTube Bulk")
         quick_action_buttons = (
             self.open_filters_btn,
             self.open_pack_btn,
@@ -305,6 +306,7 @@ class MainWindow(QMainWindow):
             self.open_dollimages_reel_btn,
             self.open_anime_v5_reel_btn,
             self.open_video_montage_btn,
+            self.open_bulk_youtube_btn,
         )
         for index, button in enumerate(quick_action_buttons):
             quick_actions.addWidget(button, index // 5, index % 5)
@@ -1073,6 +1075,53 @@ class MainWindow(QMainWindow):
         video_montage_grid.setColumnStretch(6, 1)
         video_montage_layout.addWidget(video_montage_group)
 
+        self.bulk_youtube_dialog = QDialog(self)
+        self.bulk_youtube_dialog.setWindowTitle("Vídeo YouTube Bulk Images")
+        self.bulk_youtube_dialog.setModal(False)
+        bulk_youtube_layout = QVBoxLayout(self.bulk_youtube_dialog)
+        bulk_youtube_group = QGroupBox("Crear vídeo YouTube 16:9 desde Bulk Images")
+        bulk_youtube_grid = QGridLayout(bulk_youtube_group)
+        bulk_youtube_grid.setHorizontalSpacing(10)
+        bulk_youtube_grid.setVerticalSpacing(8)
+
+        bulk_youtube_grid.addWidget(QLabel("Categoría Bulk:"), 0, 0)
+        self.bulk_youtube_category_input = QLineEdit()
+        self.bulk_youtube_category_input.setPlaceholderText("Ej: Nature Wallpaper")
+        bulk_youtube_grid.addWidget(self.bulk_youtube_category_input, 0, 1, 1, 3)
+
+        bulk_youtube_grid.addWidget(QLabel("Audio relax:"), 1, 0)
+        self.bulk_youtube_audio_combo = QComboBox()
+        self.bulk_youtube_audio_combo.setMinimumWidth(280)
+        bulk_youtube_grid.addWidget(self.bulk_youtube_audio_combo, 1, 1, 1, 3)
+        self.bulk_youtube_reload_audio_btn = QPushButton("Recargar audios")
+        bulk_youtube_grid.addWidget(self.bulk_youtube_reload_audio_btn, 1, 4)
+
+        bulk_youtube_grid.addWidget(QLabel("Segundos/imagen:"), 2, 0)
+        self.bulk_youtube_seconds_spin = QDoubleSpinBox()
+        self.bulk_youtube_seconds_spin.setRange(1.0, 60.0)
+        self.bulk_youtube_seconds_spin.setSingleStep(0.5)
+        self.bulk_youtube_seconds_spin.setValue(8.0)
+        bulk_youtube_grid.addWidget(self.bulk_youtube_seconds_spin, 2, 1)
+
+        bulk_youtube_grid.addWidget(QLabel("Fundido:"), 2, 2)
+        self.bulk_youtube_transition_spin = QDoubleSpinBox()
+        self.bulk_youtube_transition_spin.setRange(0.0, 5.0)
+        self.bulk_youtube_transition_spin.setSingleStep(0.25)
+        self.bulk_youtube_transition_spin.setValue(0.75)
+        bulk_youtube_grid.addWidget(self.bulk_youtube_transition_spin, 2, 3)
+
+        bulk_youtube_grid.addWidget(QLabel("Resolución:"), 3, 0)
+        self.bulk_youtube_resolution_combo = QComboBox()
+        self.bulk_youtube_resolution_combo.addItem("4K (3840x2160)", "4k")
+        self.bulk_youtube_resolution_combo.addItem("1080p (1920x1080)", "1080p")
+        bulk_youtube_grid.addWidget(self.bulk_youtube_resolution_combo, 3, 1)
+
+        self.bulk_youtube_generate_btn = QPushButton("Crear vídeo YouTube")
+        bulk_youtube_grid.addWidget(self.bulk_youtube_generate_btn, 3, 3, 1, 2)
+        bulk_youtube_grid.setColumnStretch(5, 1)
+        bulk_youtube_layout.addWidget(bulk_youtube_group)
+        self._populate_bulk_youtube_audio_combo()
+
         self.dollimages_reel_dialog = QDialog(self)
         self.dollimages_reel_dialog.setWindowTitle("Reel Dollimages")
         self.dollimages_reel_dialog.setModal(False)
@@ -1371,6 +1420,8 @@ class MainWindow(QMainWindow):
         self.dollimages_manual_generate_btn.clicked.connect(self.generate_dollimages_manual_prompt)
         self.reel_generate_btn.clicked.connect(self.generate_reel)
         self.video_montage_generate_btn.clicked.connect(self.generate_video_montage)
+        self.bulk_youtube_generate_btn.clicked.connect(self.generate_bulk_youtube_video)
+        self.bulk_youtube_reload_audio_btn.clicked.connect(self._populate_bulk_youtube_audio_combo)
         self.video_montage_add_btn.clicked.connect(self.add_video_montage_files)
         self.video_montage_remove_btn.clicked.connect(self.remove_selected_video_montage_files)
         self.video_montage_clear_btn.clicked.connect(self.video_montage_list.clear)
@@ -1400,6 +1451,7 @@ class MainWindow(QMainWindow):
         self.anime_v5_prompt_table.itemDoubleClicked.connect(lambda _item: self._apply_selected_anime_v5_prompt())
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
         self.open_video_montage_btn.clicked.connect(self.video_montage_dialog.show)
+        self.open_bulk_youtube_btn.clicked.connect(self.bulk_youtube_dialog.show)
         self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
         self.open_anime_v5_reel_btn.clicked.connect(self.anime_v5_reel_dialog.show)
         self.anime_v5_reel_generate_btn.clicked.connect(self.generate_anime_v5_reel)
@@ -3192,6 +3244,59 @@ class MainWindow(QMainWindow):
             open_folder_and_select(result.folder)
         except Exception as exc:
             QMessageBox.critical(self, "Reel Instagram", f"No se pudo abrir la carpeta: {exc}")
+
+
+    def _populate_bulk_youtube_audio_combo(self) -> None:
+        current = self.bulk_youtube_audio_combo.currentData() if hasattr(self, "bulk_youtube_audio_combo") else None
+        audio_dir = Path(__file__).resolve().parents[2] / "resources" / "audio_relax"
+        audio_files = sorted(path for path in audio_dir.glob("*.mp3") if path.is_file()) if audio_dir.exists() else []
+
+        self.bulk_youtube_audio_combo.clear()
+        for audio_path in audio_files:
+            self.bulk_youtube_audio_combo.addItem(audio_path.name, audio_path.name)
+        if current:
+            idx = self.bulk_youtube_audio_combo.findData(current)
+            if idx >= 0:
+                self.bulk_youtube_audio_combo.setCurrentIndex(idx)
+        self.bulk_youtube_generate_btn.setEnabled(bool(audio_files))
+
+    def generate_bulk_youtube_video(self) -> None:
+        bulk_category = self.bulk_youtube_category_input.text().strip()
+        audio_filename = self.bulk_youtube_audio_combo.currentData()
+        if not bulk_category:
+            QMessageBox.warning(self, "Vídeo YouTube Bulk Images", "Indica la categoría Bulk Images.")
+            return
+        if not audio_filename:
+            QMessageBox.warning(
+                self,
+                "Vídeo YouTube Bulk Images",
+                "Añade al menos un MP3 en resources/audio_relax y pulsa Recargar audios.",
+            )
+            return
+
+        try:
+            result = self.video_montage_service.create_bulk_images_youtube_video(
+                bulk_category=bulk_category,
+                audio_filename=str(audio_filename),
+                image_display_seconds=float(self.bulk_youtube_seconds_spin.value()),
+                transition_seconds=float(self.bulk_youtube_transition_spin.value()),
+                resolution=str(self.bulk_youtube_resolution_combo.currentData() or "4k"),
+            )
+        except Exception as exc:
+            QMessageBox.critical(self, "Vídeo YouTube Bulk Images", str(exc))
+            return
+
+        QMessageBox.information(
+            self,
+            "Vídeo YouTube Bulk Images",
+            f"Vídeo creado: {result.video_path.name}\n"
+            f"Categoría: {result.bulk_category} · Duración: {result.duration_seconds:.1f}s\n"
+            f"Imágenes usadas: {len(result.source_images)} · Audio: {result.audio_path.name}",
+        )
+        try:
+            open_folder_and_select(result.video_path)
+        except Exception as exc:
+            QMessageBox.critical(self, "Vídeo YouTube Bulk Images", f"No se pudo abrir el vídeo: {exc}")
 
     def add_video_montage_files(self) -> None:
         file_paths, _ = QFileDialog.getOpenFileNames(
