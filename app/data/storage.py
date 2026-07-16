@@ -350,6 +350,9 @@ class BaseStore:
     def mark_prompt_items_used_in_reel(self, prompt_item_ids: list[int]) -> None:
         raise NotImplementedError
 
+    def select_unused_bulk_images_for_youtube_video(self, *, bulk_category: str) -> list[dict[str, Any]]:
+        raise NotImplementedError
+
     def set_prompt_item_reel_flags(
         self,
         *,
@@ -1344,6 +1347,24 @@ class SQLiteStore(BaseStore):
                     prompt_item_ids,
                 )
 
+    def select_unused_bulk_images_for_youtube_video(self, *, bulk_category: str) -> list[dict[str, Any]]:
+        with get_connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, base_image_json, upscale_image_json
+                FROM prompt_item
+                WHERE status = 'DONE'
+                  AND used_in_reel = 0
+                  AND reel_discarded = 0
+                  AND (base_image_json IS NOT NULL OR upscale_image_json IS NOT NULL)
+                  AND json_extract(meta_json, '$.source') = 'bulk_images'
+                  AND json_extract(meta_json, '$.bulk_metadata.category') = ?
+                ORDER BY COALESCE(updated_at, created_at) DESC, id DESC
+                """,
+                (bulk_category,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def set_prompt_item_reel_flags(
         self,
         *,
@@ -1762,4 +1783,3 @@ class SQLiteStore(BaseStore):
                     (title, prompt_text, 1 if enabled else 0),
                 )
                 return int(cur.fetchone()["id"])
-
