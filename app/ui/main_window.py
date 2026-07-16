@@ -3352,6 +3352,24 @@ class MainWindow(QMainWindow):
             )
             return
 
+        progress_dialog = QDialog(self)
+        progress_dialog.setWindowTitle("Progreso vídeo YouTube Bulk Images")
+        progress_dialog.setModal(True)
+        progress_layout = QVBoxLayout(progress_dialog)
+        progress_label = QLabel("Generando vídeo. Este proceso puede tardar varios minutos.")
+        progress_log = QPlainTextEdit()
+        progress_log.setReadOnly(True)
+        progress_log.setMinimumSize(620, 260)
+        progress_layout.addWidget(progress_label)
+        progress_layout.addWidget(progress_log)
+        progress_dialog.show()
+
+        def _log_progress(message: str) -> None:
+            progress_label.setText(message)
+            progress_log.appendPlainText(message)
+            progress_log.verticalScrollBar().setValue(progress_log.verticalScrollBar().maximum())
+            QApplication.processEvents()
+
         try:
             result = self.video_montage_service.create_bulk_images_youtube_video(
                 bulk_category=bulk_category,
@@ -3360,10 +3378,16 @@ class MainWindow(QMainWindow):
                 transition_seconds=float(self.bulk_youtube_transition_spin.value()),
                 resolution=str(self.bulk_youtube_resolution_combo.currentData() or "4k"),
                 transition_type=str(self.bulk_youtube_transition_type_combo.currentData() or "fade"),
+                progress_callback=_log_progress,
             )
         except Exception as exc:
+            progress_dialog.close()
+            QApplication.processEvents()
             QMessageBox.critical(self, "Vídeo YouTube Bulk Images", str(exc))
             return
+
+        progress_dialog.close()
+        QApplication.processEvents()
 
         QMessageBox.information(
             self,
