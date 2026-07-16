@@ -5,8 +5,13 @@ import random
 import shutil
 import subprocess
 from dataclasses import dataclass
+from math import ceil
 from datetime import datetime
 from pathlib import Path
+from typing import Any
+
+from app.data.storage import get_store
+from app.services.output_paths import build_output_path
 
 
 @dataclass(frozen=True)
@@ -17,6 +22,19 @@ class VideoMontageResult:
     audio_path: Path | None
     duration_seconds: float
     ratio: str
+
+
+@dataclass(frozen=True)
+class BulkImagesYoutubeVideoResult:
+    folder: Path
+    video_path: Path
+    source_images: list[Path]
+    prompt_item_ids: list[int]
+    audio_path: Path
+    duration_seconds: float
+    image_display_seconds: float
+    resolution: str
+    bulk_category: str
 
 
 class VideoMontageService:
@@ -31,6 +49,9 @@ class VideoMontageService:
         "16:9": (1920, 1080),
     }
     _VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"}
+    _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+    _YOUTUBE_4K_SIZE = (3840, 2160)
+    _YOUTUBE_IMAGE_SECONDS = 8.0
 
     def _repo_root(self) -> Path:
         return Path(__file__).resolve().parents[2]
@@ -86,6 +107,185 @@ class VideoMontageService:
         )
         start_time = random.uniform(0.0, max_start_time) if max_start_time > 0 else 0.0
         return audio_path, start_time
+
+    def _audio_relax_dir(self) -> Path:
+        return self._repo_root() / "resources" / "audio_relax"
+
+    def _resolve_audio_relax_track(self, audio_filename: str | Path) -> Path:
+        audio_path = Path(audio_filename).expanduser()
+        if not audio_path.is_absolute():
+            audio_path = self._audio_relax_dir() / audio_path
+        audio_path = audio_path.resolve()
+        audio_dir = self._audio_relax_dir().resolve()
+        if not audio_path.exists() or not audio_path.is_file():
+            raise FileNotFoundError(f"No existe el audio MP3: {audio_path}")
+        if audio_path.suffix.lower() != ".mp3":
+            raise ValueError("El audio debe ser un archivo .mp3 de resources/audio_relax.")
+        if audio_dir not in audio_path.parents:
+            raise ValueError("El audio debe estar dentro de resources/audio_relax.")
+        return audio_path
+
+    def _select_unused_bulk_images(
+        self,
+        *,
+        bulk_category: str,
+        image_count: int,
+    ) -> list[tuple[int, Path, dict[str, Any]]]:
+        store = get_store()
+        rows = store.select_unused_bulk_images_for_youtube_video(bulk_category=bulk_category)
+        random.shuffle(rows)
+
+        selected: list[tuple[int, Path, dict[str, Any]]] = []
+        for row in rows:
+            image_json = None
+            if row.get("upscale_image_json"):
+                image_json = json.loads(row["upscale_image_json"])
+            elif row.get("base_image_json"):
+                image_json = json.loads(row["base_image_json"])
+            if not image_json:
+                continue
+
+            source_path = build_output_path(image_json)
+            if not source_path.exists() or source_path.suffix.lower() not in self._IMAGE_EXTENSIONS:
+                continue
+
+            selected.append((int(row["id"]), source_path, image_json))
+            if len(selected) >= image_count:
+                break
+        return selected
+
+    def create_bulk_images_youtube_video(
+        self,
+        *,
+        bulk_category: str,
+        audio_filename: str | Path,
+        image_display_seconds: float | None = None,
+        transition_seconds: float | None = None,
+        resolution: str = "4k",
+    ) -> BulkImagesYoutubeVideoResult:
+        """Crea un vídeo 16:9 con imágenes no usadas de Bulk Images y una canción MP3 completa."""
+        clean_category = str(bulk_category).strip()
+        if not clean_category:
+            raise ValueError("Selecciona una categoría de Bulk Images.")
+
+        audio_path = self._resolve_audio_relax_track(audio_filename)
+        audio_duration = self._probe_duration(audio_path)
+        if audio_duration <= 0:
+            raise ValueError("No se pudo calcular la duración del MP3 seleccionado.")
+
+        transition_seconds = self._TRANSITION_SECONDS if transition_seconds is None else max(float(transition_seconds), 0.0)
+        image_display_seconds = (
+            self._YOUTUBE_IMAGE_SECONDS
+            if image_display_seconds is None
+            else max(float(image_display_seconds), transition_seconds + 0.25)
+        )
+        effective_seconds = max(image_display_seconds - transition_seconds, 0.25)
+        image_count = max(1, ceil(max(audio_duration - transition_seconds, 0.0) / effective_seconds))
+
+        selected = self._select_unused_bulk_images(bulk_category=clean_category, image_count=image_count)
+        if len(selected) < image_count:
+            raise RuntimeError(
+                "No hay suficientes imágenes sin usar para cubrir toda la canción. "
+                f"Necesarias={image_count}, disponibles={len(selected)}."
+            )
+
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            raise RuntimeError("No se encontró ffmpeg en el sistema para renderizar el vídeo.")
+
+        width, height = self._YOUTUBE_4K_SIZE if resolution.lower() == "4k" else self._RATIO_SIZES["16:9"]
+        folder = self._create_folder()
+        output_path = folder / "bulk_images_youtube.mp4"
+        paths = [path for _, path, _ in selected]
+
+        cmd = [ffmpeg_path, "-y"]
+        for path in paths:
+            cmd += ["-loop", "1", "-t", f"{image_display_seconds:.3f}", "-i", str(path)]
+        audio_input_index = len(paths)
+        cmd += ["-i", str(audio_path)]
+
+        filter_parts: list[str] = []
+        for idx in range(len(paths)):
+            filter_parts.append(
+                f"[{idx}:v]scale={width}:{height}:force_original_aspect_ratio=increase,"
+                f"crop={width}:{height},setsar=1,fps={self._FPS},format=yuv420p[v{idx}]"
+            )
+
+        current_label = "v0"
+        current_duration = image_display_seconds
+        for idx in range(1, len(paths)):
+            out_label = f"xf{idx}"
+            offset = max(current_duration - transition_seconds, 0.0)
+            filter_parts.append(
+                f"[{current_label}][v{idx}]xfade=transition=fade:duration={transition_seconds:.3f}:"
+                f"offset={offset:.3f}[{out_label}]"
+            )
+            current_label = out_label
+            current_duration += image_display_seconds - transition_seconds
+
+        fade_out_start = max(audio_duration - self._FADE_OUT_SECONDS, 0.0)
+        filter_parts.append(
+            f"[{current_label}]trim=0:{audio_duration:.3f},setpts=PTS-STARTPTS,"
+            f"fade=t=out:st={fade_out_start:.3f}:d={self._FADE_OUT_SECONDS}[v]"
+        )
+        filter_parts.append(
+            f"[{audio_input_index}:a]atrim=0:{audio_duration:.3f},asetpts=PTS-STARTPTS,"
+            f"afade=t=out:st={fade_out_start:.3f}:d={self._FADE_OUT_SECONDS}[a]"
+        )
+
+        cmd += [
+            "-filter_complex",
+            ";".join(filter_parts),
+            "-map",
+            "[v]",
+            "-map",
+            "[a]",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "slow",
+            "-crf",
+            "18",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "192k",
+            "-pix_fmt",
+            "yuv420p",
+            "-movflags",
+            "+faststart",
+            "-t",
+            f"{audio_duration:.3f}",
+            str(output_path),
+        ]
+        subprocess.run(cmd, cwd=str(folder), check=True, capture_output=True, text=True)
+
+        prompt_item_ids = [prompt_id for prompt_id, _, _ in selected]
+        get_store().mark_prompt_items_used_in_reel(prompt_item_ids)
+
+        metadata = {
+            "bulk_category": clean_category,
+            "audio": str(audio_path),
+            "duration_seconds": audio_duration,
+            "image_display_seconds": image_display_seconds,
+            "transition_seconds": transition_seconds,
+            "resolution": {"label": resolution, "width": width, "height": height},
+            "prompt_item_ids": prompt_item_ids,
+            "source_images": [str(path) for path in paths],
+        }
+        (folder / "bulk_images_youtube.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        return BulkImagesYoutubeVideoResult(
+            folder=folder,
+            video_path=output_path,
+            source_images=paths,
+            prompt_item_ids=prompt_item_ids,
+            audio_path=audio_path,
+            duration_seconds=audio_duration,
+            image_display_seconds=image_display_seconds,
+            resolution=resolution,
+            bulk_category=clean_category,
+        )
 
     def create_montage(
         self,

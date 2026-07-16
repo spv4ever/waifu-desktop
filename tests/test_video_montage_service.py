@@ -57,3 +57,69 @@ def test_create_montage_seeks_audio_before_input_and_records_offset(tmp_path, mo
     ]
     metadata = json.loads((output_dir / "montaje.json").read_text(encoding="utf-8"))
     assert metadata["audio_start_seconds"] == 37.25
+
+
+def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_path, monkeypatch):
+    audio_dir = tmp_path / "resources" / "audio_relax"
+    audio_dir.mkdir(parents=True)
+    audio_path = audio_dir / "relax.mp3"
+    audio_path.write_bytes(b"audio")
+    image_paths = []
+    for idx in range(3):
+        path = tmp_path / f"image_{idx}.png"
+        path.write_bytes(b"image")
+        image_paths.append(path)
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    class Store:
+        def __init__(self):
+            self.marked = []
+
+        def select_unused_bulk_images_for_youtube_video(self, *, bulk_category):
+            assert bulk_category == "Nature Wallpaper"
+            return [
+                {"id": idx + 1, "base_image_json": json.dumps({"filename": path.name}), "upscale_image_json": None}
+                for idx, path in enumerate(image_paths)
+            ]
+
+        def mark_prompt_items_used_in_reel(self, prompt_item_ids):
+            self.marked = list(prompt_item_ids)
+
+    store = Store()
+    service = VideoMontageService()
+    monkeypatch.setattr(service, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(service, "_probe_duration", lambda path: 15.0)
+    monkeypatch.setattr(service, "_create_folder", lambda: output_dir)
+    monkeypatch.setattr("app.services.video_montage_service.get_store", lambda: store)
+    monkeypatch.setattr(
+        "app.services.video_montage_service.build_output_path",
+        lambda image_json: tmp_path / image_json["filename"],
+    )
+    monkeypatch.setattr("app.services.video_montage_service.random.shuffle", lambda items: None)
+    monkeypatch.setattr("app.services.video_montage_service.shutil.which", lambda name: f"/usr/bin/{name}")
+
+    captured = {}
+
+    def _fake_run(cmd, cwd, check, capture_output, text):
+        captured["cmd"] = cmd
+        Path(cmd[-1]).write_bytes(b"rendered")
+
+    monkeypatch.setattr("app.services.video_montage_service.subprocess.run", _fake_run)
+
+    result = service.create_bulk_images_youtube_video(
+        bulk_category="Nature Wallpaper",
+        audio_filename="relax.mp3",
+        image_display_seconds=8.0,
+        transition_seconds=0.75,
+    )
+
+    filter_complex = captured["cmd"][captured["cmd"].index("-filter_complex") + 1]
+    assert result.video_path == output_dir / "bulk_images_youtube.mp4"
+    assert result.prompt_item_ids == [1, 2]
+    assert store.marked == [1, 2]
+    assert "xfade=transition=fade" in filter_complex
+    assert "scale=3840:2160" in filter_complex
+    metadata = json.loads((output_dir / "bulk_images_youtube.json").read_text(encoding="utf-8"))
+    assert metadata["duration_seconds"] == 15.0
+    assert metadata["audio"] == str(audio_path.resolve())
