@@ -7,7 +7,7 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import urlopen
 
-from PySide6.QtCore import Qt, QDateTime, QDate, QTime, QTimer, QUrl
+from PySide6.QtCore import Qt, QDateTime, QDate, QTime, QTimer, QUrl, QThread, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtMultimediaWidgets import QVideoWidget
@@ -28,7 +28,7 @@ from app.services.dollimages_pack_service import DollimagesPackService
 from app.services.file_open import open_file, open_folder_and_select
 from app.services.checkpoint_service import CheckpointService
 from app.services.reel_service import ReelService
-from app.services.video_montage_service import VideoMontageService
+from app.services.video_montage_service import VideoMontageService, BulkImagesYoutubeVideoResult
 from app.services.manual_prompt_service import ManualPromptService
 from app.services.dollimages_manual_prompt_service import DollimagesManualPromptService
 from app.services.image2vid_service import ImageToVideoService
@@ -78,6 +78,29 @@ IMAGE2VID_MIN_NEGATIVE_PROMPT = (
     "最差质量，低质量，JPEG压缩残留，丑陋的，残缺的，多余的手指，画得不好的手部，画得不好的脸部，"
     "畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"
 )
+
+
+
+class BulkYoutubeVideoThread(QThread):
+    progress = Signal(str)
+    succeeded = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, service: VideoMontageService, **kwargs: Any) -> None:
+        super().__init__()
+        self.service = service
+        self.kwargs = kwargs
+
+    def run(self) -> None:
+        try:
+            result = self.service.create_bulk_images_youtube_video(
+                **self.kwargs,
+                progress_callback=self.progress.emit,
+            )
+        except Exception as exc:
+            self.failed.emit(str(exc))
+            return
+        self.succeeded.emit(result)
 
 class NoFocusRectStyle(QProxyStyle):
     """Elimina el rectángulo de foco (focus rect) que en Windows 11 aparece como marcas/lineas."""
@@ -184,6 +207,8 @@ class MainWindow(QMainWindow):
         self.video_prompt_template_window: VideoPromptTemplateWindow | None = None
         self.anime_v5_maintenance_window: AnimeV5MaintenanceWindow | None = None
         self.bulk_images_prompt_window: BulkImagesPromptWindow | None = None
+        self.bulk_youtube_thread: BulkYoutubeVideoThread | None = None
+        self.bulk_youtube_progress_dialog: QDialog | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -3339,6 +3364,14 @@ class MainWindow(QMainWindow):
         self._update_bulk_youtube_plan_label()
 
     def generate_bulk_youtube_video(self) -> None:
+        if self.bulk_youtube_thread and self.bulk_youtube_thread.isRunning():
+            QMessageBox.information(
+                self,
+                "Vídeo YouTube Bulk Images",
+                "Ya hay un vídeo YouTube Bulk Images generándose. Revisa la ventana de progreso.",
+            )
+            return
+
         bulk_category = str(self.bulk_youtube_category_combo.currentData() or "").strip()
         audio_filename = self.bulk_youtube_audio_combo.currentData()
         if not bulk_category:
@@ -3354,52 +3387,69 @@ class MainWindow(QMainWindow):
 
         progress_dialog = QDialog(self)
         progress_dialog.setWindowTitle("Progreso vídeo YouTube Bulk Images")
-        progress_dialog.setModal(True)
+        progress_dialog.setModal(False)
+        progress_dialog.setAttribute(Qt.WA_DeleteOnClose, False)
         progress_layout = QVBoxLayout(progress_dialog)
-        progress_label = QLabel("Generando vídeo. Este proceso puede tardar varios minutos.")
+        progress_label = QLabel("Preparando vídeo. Puedes seguir usando la aplicación mientras se renderiza.")
         progress_log = QPlainTextEdit()
         progress_log.setReadOnly(True)
         progress_log.setMinimumSize(620, 260)
         progress_layout.addWidget(progress_label)
         progress_layout.addWidget(progress_log)
         progress_dialog.show()
+        self.bulk_youtube_progress_dialog = progress_dialog
+        self.bulk_youtube_generate_btn.setEnabled(False)
+
+        thread = BulkYoutubeVideoThread(
+            self.video_montage_service,
+            bulk_category=bulk_category,
+            audio_filename=str(audio_filename),
+            image_display_seconds=float(self.bulk_youtube_seconds_spin.value()),
+            transition_seconds=float(self.bulk_youtube_transition_spin.value()),
+            resolution=str(self.bulk_youtube_resolution_combo.currentData() or "4k"),
+            transition_type=str(self.bulk_youtube_transition_type_combo.currentData() or "fade"),
+        )
+        self.bulk_youtube_thread = thread
 
         def _log_progress(message: str) -> None:
             progress_label.setText(message)
             progress_log.appendPlainText(message)
             progress_log.verticalScrollBar().setValue(progress_log.verticalScrollBar().maximum())
-            QApplication.processEvents()
 
-        try:
-            result = self.video_montage_service.create_bulk_images_youtube_video(
-                bulk_category=bulk_category,
-                audio_filename=str(audio_filename),
-                image_display_seconds=float(self.bulk_youtube_seconds_spin.value()),
-                transition_seconds=float(self.bulk_youtube_transition_spin.value()),
-                resolution=str(self.bulk_youtube_resolution_combo.currentData() or "4k"),
-                transition_type=str(self.bulk_youtube_transition_type_combo.currentData() or "fade"),
-                progress_callback=_log_progress,
+        def _cleanup_thread() -> None:
+            self.bulk_youtube_generate_btn.setEnabled(bool(self.bulk_youtube_audio_combo.count()))
+            thread.deleteLater()
+            if self.bulk_youtube_thread is thread:
+                self.bulk_youtube_thread = None
+
+        def _handle_success(result: object) -> None:
+            assert isinstance(result, BulkImagesYoutubeVideoResult)
+            if self.bulk_youtube_progress_dialog:
+                self.bulk_youtube_progress_dialog.close()
+                self.bulk_youtube_progress_dialog = None
+            QMessageBox.information(
+                self,
+                "Vídeo YouTube Bulk Images",
+                f"Vídeo creado: {result.video_path.name}\n"
+                f"Categoría: {result.bulk_category} · Duración: {result.duration_seconds:.1f}s\n"
+                f"Imágenes usadas: {len(result.source_images)} · Audio: {result.audio_path.name}",
             )
-        except Exception as exc:
-            progress_dialog.close()
-            QApplication.processEvents()
-            QMessageBox.critical(self, "Vídeo YouTube Bulk Images", str(exc))
-            return
+            try:
+                open_folder_and_select(result.video_path)
+            except Exception as exc:
+                QMessageBox.critical(self, "Vídeo YouTube Bulk Images", f"No se pudo abrir el vídeo: {exc}")
 
-        progress_dialog.close()
-        QApplication.processEvents()
+        def _handle_failure(message: str) -> None:
+            if self.bulk_youtube_progress_dialog:
+                self.bulk_youtube_progress_dialog.close()
+                self.bulk_youtube_progress_dialog = None
+            QMessageBox.critical(self, "Vídeo YouTube Bulk Images", message)
 
-        QMessageBox.information(
-            self,
-            "Vídeo YouTube Bulk Images",
-            f"Vídeo creado: {result.video_path.name}\n"
-            f"Categoría: {result.bulk_category} · Duración: {result.duration_seconds:.1f}s\n"
-            f"Imágenes usadas: {len(result.source_images)} · Audio: {result.audio_path.name}",
-        )
-        try:
-            open_folder_and_select(result.video_path)
-        except Exception as exc:
-            QMessageBox.critical(self, "Vídeo YouTube Bulk Images", f"No se pudo abrir el vídeo: {exc}")
+        thread.progress.connect(_log_progress)
+        thread.succeeded.connect(_handle_success)
+        thread.failed.connect(_handle_failure)
+        thread.finished.connect(_cleanup_thread)
+        thread.start()
 
     def add_video_montage_files(self) -> None:
         file_paths, _ = QFileDialog.getOpenFileNames(
@@ -3899,6 +3949,11 @@ class MainWindow(QMainWindow):
                 if self.worker_thread.isRunning():
                     self.worker_thread.terminate()
                     self.worker_thread.wait(1000)
+            if self.bulk_youtube_thread and self.bulk_youtube_thread.isRunning():
+                self.bulk_youtube_thread.wait(2000)
+                if self.bulk_youtube_thread.isRunning():
+                    self.bulk_youtube_thread.terminate()
+                    self.bulk_youtube_thread.wait(1000)
         finally:
             super().closeEvent(event)
 
