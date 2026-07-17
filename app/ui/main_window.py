@@ -176,16 +176,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Waifu Desktop — Cola & Resultados")
         self.resize(1200, 750)
-        self.setStyleSheet("""
-        QGroupBox {
-            font-weight: 600;
-        }
-        QGroupBox::title {
-            subcontrol-origin: margin;
-            left: 8px;
-            padding: 0 4px;
-        }
-        """)
+        self._dark_mode = True
+        self._apply_theme()
         self._base_path: Path | None = None
 
         self.store = get_store()
@@ -269,6 +261,11 @@ class MainWindow(QMainWindow):
         self.toggle_worker_log_action = view_menu.addAction("Mostrar log del worker")
         self.toggle_worker_log_action.setCheckable(True)
         self.toggle_worker_log_action.setChecked(True)
+        view_menu.addSeparator()
+        self.toggle_dark_mode_action = view_menu.addAction("Modo oscuro")
+        self.toggle_dark_mode_action.setCheckable(True)
+        self.toggle_dark_mode_action.setChecked(self._dark_mode)
+        self.toggle_dark_mode_action.triggered.connect(self._set_dark_mode)
         self.view_production_action = view_menu.addAction("Ver producción")
         self.view_production_action.triggered.connect(self.open_production_dialog)
 
@@ -293,9 +290,9 @@ class MainWindow(QMainWindow):
         header = QHBoxLayout()
         title_stack = QVBoxLayout()
         title_label = QLabel("Waifu Desktop")
-        title_label.setStyleSheet("font-size: 22px; font-weight: 700;")
+        title_label.setObjectName("AppTitle")
         subtitle_label = QLabel("Panel comercial de producción, cola y resultados")
-        subtitle_label.setStyleSheet("color: #9aa0a6; font-size: 12px;")
+        subtitle_label.setObjectName("AppSubtitle")
         title_stack.addWidget(title_label)
         title_stack.addWidget(subtitle_label)
         header.addLayout(title_stack)
@@ -339,6 +336,7 @@ class MainWindow(QMainWindow):
         layout.addLayout(quick_actions)
 
         summary_group = QGroupBox("Resumen rápido")
+        summary_group.setObjectName("Card")
         summary_layout = QHBoxLayout(summary_group)
         self.status_total_label = QLabel("Total: 0")
         self.status_created_label = QLabel("CREATED: 0")
@@ -360,6 +358,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(summary_group)
 
         operation_group = QGroupBox("Operación")
+        operation_group.setObjectName("Card")
         operation_layout = QGridLayout(operation_group)
         self.start_worker_btn = QPushButton("Iniciar Worker")
         self.stop_worker_btn = QPushButton("Parar Worker")
@@ -1329,31 +1328,7 @@ class MainWindow(QMainWindow):
         self.table.setPalette(pal)
 
         # 3) Refuerza en QSS (incluye estados active/inactive para que SIEMPRE se vea el texto)
-        self.table.setStyleSheet("""
-        QTableWidget::item {
-        border: 0px;
-        padding: 2px 6px;
-        }
-        QTableWidget::item:selected:active {
-        background-color: #2b2f36;
-        color: #ffffff;
-        }
-        QTableWidget::item:selected:!active {
-        background-color: #2b2f36;
-        color: #ffffff;
-        }
-        QTableWidget::item:focus {
-        outline: none;
-        border: 0px;
-        }
-        QTableWidget:focus {
-        outline: none;
-        }
-        QHeaderView::section {
-        padding: 6px;
-        border: 0px;
-        }
-        """)
+        self._style_table_selection()
 
         left_column.addWidget(self.table, 1)
 
@@ -1366,12 +1341,12 @@ class MainWindow(QMainWindow):
         self.base_image_label = ClickableLabel("(sin base)")
         self.base_image_label.setAlignment(Qt.AlignCenter)
         self.base_image_label.setMinimumHeight(240)
-        self.base_image_label.setStyleSheet("border: 1px solid #444;")
+        self.base_image_label.setObjectName("PreviewSurface")
         self.base_preview_stack.addWidget(self.base_image_label)
 
         self.base_video_widget = QVideoWidget()
         self.base_video_widget.setMinimumHeight(240)
-        self.base_video_widget.setStyleSheet("border: 1px solid #444;")
+        self.base_video_widget.setObjectName("PreviewSurface")
         self.base_preview_stack.addWidget(self.base_video_widget)
 
         self.base_video_player = QMediaPlayer(self)
@@ -4037,6 +4012,86 @@ class MainWindow(QMainWindow):
         if value in {"asc", "desc"}:
             return str(value)
         return "desc"
+
+    def _set_dark_mode(self, enabled: bool) -> None:
+        self._dark_mode = enabled
+        self._apply_theme()
+        if hasattr(self, "table"):
+            self._style_table_selection()
+
+    def _apply_theme(self) -> None:
+        app = QApplication.instance()
+        if app is not None:
+            app.setPalette(self._build_palette(self._dark_mode))
+        self.setStyleSheet(self._theme_stylesheet(self._dark_mode))
+
+    def _build_palette(self, dark: bool) -> QPalette:
+        palette = QPalette()
+        if dark:
+            palette.setColor(QPalette.Window, QColor("#0f172a"))
+            palette.setColor(QPalette.WindowText, QColor("#e5e7eb"))
+            palette.setColor(QPalette.Base, QColor("#111827"))
+            palette.setColor(QPalette.AlternateBase, QColor("#172033"))
+            palette.setColor(QPalette.Text, QColor("#e5e7eb"))
+            palette.setColor(QPalette.Button, QColor("#1f2937"))
+            palette.setColor(QPalette.ButtonText, QColor("#f8fafc"))
+            palette.setColor(QPalette.Highlight, QColor("#38bdf8"))
+            palette.setColor(QPalette.HighlightedText, QColor("#06111f"))
+        else:
+            palette.setColor(QPalette.Window, QColor("#f4f7fb"))
+            palette.setColor(QPalette.WindowText, QColor("#172033"))
+            palette.setColor(QPalette.Base, QColor("#ffffff"))
+            palette.setColor(QPalette.AlternateBase, QColor("#eef4fb"))
+            palette.setColor(QPalette.Text, QColor("#172033"))
+            palette.setColor(QPalette.Button, QColor("#ffffff"))
+            palette.setColor(QPalette.ButtonText, QColor("#172033"))
+            palette.setColor(QPalette.Highlight, QColor("#2563eb"))
+            palette.setColor(QPalette.HighlightedText, QColor("#ffffff"))
+        return palette
+
+    def _theme_stylesheet(self, dark: bool) -> str:
+        if dark:
+            bg, panel, panel2, text, muted, border, accent, accent2 = (
+                "#0f172a", "#111827", "#1f2937", "#e5e7eb", "#94a3b8", "#334155", "#38bdf8", "#0ea5e9"
+            )
+            input_bg = "#0b1220"
+        else:
+            bg, panel, panel2, text, muted, border, accent, accent2 = (
+                "#f4f7fb", "#ffffff", "#eef4fb", "#172033", "#64748b", "#cbd5e1", "#2563eb", "#1d4ed8"
+            )
+            input_bg = "#ffffff"
+        return f"""
+        QMainWindow, QDialog {{ background: {bg}; color: {text}; }}
+        QMenuBar {{ background: {panel}; color: {text}; padding: 4px; border-bottom: 1px solid {border}; }}
+        QMenuBar::item:selected, QMenu {{ background: {panel2}; color: {text}; }}
+        QMenu::item:selected {{ background: {accent}; color: #ffffff; }}
+        QLabel#AppTitle {{ color: {text}; font-size: 28px; font-weight: 800; letter-spacing: .3px; }}
+        QLabel#AppSubtitle {{ color: {muted}; font-size: 13px; }}
+        QGroupBox {{ background: {panel}; border: 1px solid {border}; border-radius: 14px; margin-top: 16px; padding: 14px; font-weight: 700; }}
+        QGroupBox::title {{ subcontrol-origin: margin; left: 14px; padding: 0 8px; color: {accent}; }}
+        QPushButton {{ background: {panel2}; color: {text}; border: 1px solid {border}; border-radius: 9px; padding: 8px 12px; font-weight: 600; }}
+        QPushButton:hover {{ border-color: {accent}; background: {accent}; color: #ffffff; }}
+        QPushButton:pressed {{ background: {accent2}; }}
+        QPushButton:disabled {{ color: {muted}; background: {panel}; }}
+        QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateTimeEdit, QPlainTextEdit, QListWidget {{ background: {input_bg}; color: {text}; border: 1px solid {border}; border-radius: 8px; padding: 6px; selection-background-color: {accent}; }}
+        QTableWidget {{ background: {panel}; alternate-background-color: {panel2}; color: {text}; border: 1px solid {border}; border-radius: 12px; gridline-color: {border}; }}
+        QHeaderView::section {{ background: {panel2}; color: {muted}; padding: 8px; border: 0; border-bottom: 1px solid {border}; font-weight: 700; }}
+        QWidget#PreviewSurface {{ background: {input_bg}; border: 1px solid {border}; border-radius: 12px; color: {muted}; }}
+        QCheckBox {{ color: {text}; spacing: 8px; }}
+        """
+
+    def _style_table_selection(self) -> None:
+        highlight = "#38bdf8" if self._dark_mode else "#2563eb"
+        text = "#06111f" if self._dark_mode else "#ffffff"
+        pal = self.table.palette()
+        pal.setColor(QPalette.Highlight, QColor(highlight))
+        pal.setColor(QPalette.HighlightedText, QColor(text))
+        self.table.setPalette(pal)
+        self.table.setStyleSheet(f"""
+        QTableWidget::item {{ border: 0px; padding: 4px 8px; }}
+        QTableWidget::item:selected:active, QTableWidget::item:selected:!active {{ background-color: {highlight}; color: {text}; }}
+        QTableWidget::item:focus, QTableWidget:focus {{ outline: none; border: 0px; }}
+        """)
 
     def _apply_last_days_range(self, days: int) -> None:
         days = max(1, int(days))
