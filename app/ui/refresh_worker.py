@@ -71,9 +71,11 @@ class RefreshWorker(QThread):
                 date_to=self._date_to,
                 sort_order=self._sort_order,
             )
-            filters = fetch_prompt_filters()
+            # Los filtros y el resumen por categoría cambian poco y pueden ser
+            # caros en bases grandes; sólo se recalculan en refrescos completos.
+            filters = fetch_prompt_filters() if self._resize_columns else {}
             status_counts = fetch_prompt_status_counts()
-            category_counts = fetch_category_production_counts()
+            category_counts = fetch_category_production_counts() if self._resize_columns else []
             paused_value = get_store().kv_get("queue_paused", "false")
             payload = RefreshPayload(
                 rows=rows,

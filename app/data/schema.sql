@@ -45,6 +45,9 @@ CREATE TABLE IF NOT EXISTS prompt_item (
 CREATE INDEX IF NOT EXISTS idx_prompt_item_pack_id ON prompt_item(pack_id);
 CREATE INDEX IF NOT EXISTS idx_prompt_item_status ON prompt_item(status);
 
+CREATE INDEX IF NOT EXISTS idx_prompt_item_datestamp
+ON prompt_item(COALESCE(updated_at, created_at));
+
 -- Trigger para updated_at en prompt_item
 CREATE TRIGGER IF NOT EXISTS trg_prompt_item_updated_at
 AFTER UPDATE ON prompt_item
@@ -71,6 +74,9 @@ CREATE TABLE IF NOT EXISTS queue_job (
 
 CREATE INDEX IF NOT EXISTS idx_queue_job_status_priority
 ON queue_job(status, priority, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_queue_job_prompt_item_latest
+ON queue_job(prompt_item_id, id DESC);
 
 -- 5) Settings simples en DB (opcional, útil para rutas, flags, etc.)
 CREATE TABLE IF NOT EXISTS kv_store (

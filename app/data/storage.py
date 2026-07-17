@@ -774,28 +774,52 @@ class SQLiteStore(BaseStore):
         with get_connection() as conn:
             rows = conn.execute(
                 f"""
+                WITH latest_prompt_items AS (
+                    SELECT
+                        id,
+                        title,
+                        prompt_text,
+                        status,
+                        used_in_reel,
+                        reel_priority,
+                        reel_discarded,
+                        meta_json,
+                        base_image_json,
+                        upscale_image_json,
+                        {datestamp_expr} AS datestamp
+                    FROM prompt_item
+                    {where_clause}
+                    ORDER BY datestamp {order_direction}
+                    LIMIT ?
+                ),
+                latest_queue_job AS (
+                    SELECT q.prompt_item_id, q.progress, q.backend_status, q.status
+                    FROM queue_job q
+                    INNER JOIN (
+                        SELECT prompt_item_id, MAX(id) AS id
+                        FROM queue_job
+                        WHERE prompt_item_id IN (SELECT id FROM latest_prompt_items)
+                        GROUP BY prompt_item_id
+                    ) latest ON latest.id = q.id
+                )
                 SELECT
-                    id,
-                    title,
-                    prompt_text,
-                    status,
-                    used_in_reel,
-                    reel_priority,
-                    reel_discarded,
-                    meta_json,
-                    base_image_json,
-                    upscale_image_json,
-                    (SELECT progress FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1)
-                        AS job_progress,
-                    (SELECT backend_status FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1)
-                        AS job_backend_status,
-                    (SELECT status FROM queue_job WHERE prompt_item_id = prompt_item.id ORDER BY id DESC LIMIT 1)
-                        AS job_status,
-                    {datestamp_expr} AS datestamp
-                FROM prompt_item
-                {where_clause}
-                ORDER BY datestamp {order_direction}
-                LIMIT ?
+                    p.id,
+                    p.title,
+                    p.prompt_text,
+                    p.status,
+                    p.used_in_reel,
+                    p.reel_priority,
+                    p.reel_discarded,
+                    p.meta_json,
+                    p.base_image_json,
+                    p.upscale_image_json,
+                    q.progress AS job_progress,
+                    q.backend_status AS job_backend_status,
+                    q.status AS job_status,
+                    p.datestamp AS datestamp
+                FROM latest_prompt_items p
+                LEFT JOIN latest_queue_job q ON q.prompt_item_id = p.id
+                ORDER BY p.datestamp {order_direction}
                 """,
                 (*params, limit),
             ).fetchall()
