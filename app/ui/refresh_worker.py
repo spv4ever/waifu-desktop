@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QObject, QThread, Signal
 
 from app.data.storage import get_store
 from app.ui.data_source import (
@@ -42,8 +42,9 @@ class RefreshWorker(QThread):
         date_to: str | None,
         sort_order: str,
         resize_columns: bool,
+        parent: QObject | None = None,
     ) -> None:
-        super().__init__()
+        super().__init__(parent)
         self._limit = limit
         self._prompt_id = prompt_id
         self._category = category

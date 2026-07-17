@@ -1735,14 +1735,18 @@ class MainWindow(QMainWindow):
             date_to=params["date_to"],
             sort_order=str(params["sort_order"]),
             resize_columns=resize_columns,
+            parent=self,
         )
         worker.result.connect(self._on_refresh_result)
         worker.failed.connect(self._on_refresh_failed)
-        worker.finished.connect(self._clear_refresh_worker)
+        worker.finished.connect(lambda worker=worker: self._clear_refresh_worker(worker))
+        worker.finished.connect(worker.deleteLater)
         self._refresh_worker = worker
         worker.start()
 
-    def _clear_refresh_worker(self) -> None:
+    def _clear_refresh_worker(self, worker: RefreshWorker) -> None:
+        if self._refresh_worker is not worker:
+            return
         self._refresh_worker = None
         if self._refresh_pending:
             self._refresh_pending = False
@@ -3937,9 +3941,11 @@ class MainWindow(QMainWindow):
         try:
             if self._refresh_timer.isActive():
                 self._refresh_timer.stop()
+            self._refresh_pending = False
             refresh_worker = self._refresh_worker
             if refresh_worker and refresh_worker.isRunning():
-                refresh_worker.wait(2000)
+                refresh_worker.requestInterruption()
+                refresh_worker.wait(5000)
                 if refresh_worker.isRunning():
                     refresh_worker.terminate()
                     refresh_worker.wait(1000)
