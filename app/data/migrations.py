@@ -113,6 +113,19 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
 
     conn.execute(
         """
+        CREATE INDEX IF NOT EXISTS idx_prompt_item_datestamp
+        ON prompt_item(COALESCE(updated_at, created_at));
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_queue_job_prompt_item_latest
+        ON queue_job(prompt_item_id, id DESC);
+        """
+    )
+
+    conn.execute(
+        """
         CREATE INDEX IF NOT EXISTS idx_prompt_base_kind_enabled
         ON prompt_base(kind, enabled);
         """

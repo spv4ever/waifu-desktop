@@ -1699,7 +1699,7 @@ class MainWindow(QMainWindow):
         self._start_refresh(resize_columns=resize_columns)
 
     def refresh(self) -> None:
-        self._start_refresh(resize_columns=True)
+        self._schedule_refresh(resize_columns=True)
 
     def _collect_refresh_params(self) -> dict[str, object]:
         return {
@@ -1762,38 +1762,50 @@ class MainWindow(QMainWindow):
 
     def _apply_refresh_result(self, payload: RefreshPayload) -> None:
         data = payload.rows
-        self.table.setRowCount(len(data))
-        for i, row in enumerate(data):
-            id_item = QTableWidgetItem(str(row.id))
-            id_item.setData(Qt.UserRole, row.progress)
-            id_item.setData(Qt.UserRole + 1, row.backend_status)
-            self.table.setItem(i, 0, id_item)
-            self.table.setItem(i, 1, QTableWidgetItem(row.category))
-            self.table.setItem(i, 2, QTableWidgetItem("✅" if row.has_base else "—"))
-            self.table.setItem(i, 3, QTableWidgetItem("✅" if row.has_upscale else "—"))
-            self.table.setItem(i, 4, QTableWidgetItem("✅" if row.used_in_reel else "—"))
-            self.table.setItem(i, 5, QTableWidgetItem("⭐" if row.reel_priority else "—"))
-            self.table.setItem(i, 6, QTableWidgetItem("⛔" if row.reel_discarded else "—"))
-            self.table.setItem(i, 7, QTableWidgetItem(row.variant))
-            self.table.setItem(i, 8, QTableWidgetItem(row.status))
-            self.table.setItem(i, 9, QTableWidgetItem(row.datestamp))
-            self.table.setItem(i, 10, QTableWidgetItem(row.title))
-            self.table.setItem(i, 11, QTableWidgetItem(row.ratio))
-            self.table.setItem(i, 12, QTableWidgetItem(row.checkpoint_base or "—"))
-            self.table.setItem(i, 13, QTableWidgetItem(row.checkpoint_refiner or "—"))
+        previous_updates_enabled = self.table.updatesEnabled()
+        previous_sorting_enabled = self.table.isSortingEnabled()
+        self.table.setUpdatesEnabled(False)
+        self.table.setSortingEnabled(False)
+        self.table.blockSignals(True)
+        try:
+            self.table.setRowCount(len(data))
+            for i, row in enumerate(data):
+                id_item = QTableWidgetItem(str(row.id))
+                id_item.setData(Qt.UserRole, row.progress)
+                id_item.setData(Qt.UserRole + 1, row.backend_status)
+                self.table.setItem(i, 0, id_item)
+                self.table.setItem(i, 1, QTableWidgetItem(row.category))
+                self.table.setItem(i, 2, QTableWidgetItem("✅" if row.has_base else "—"))
+                self.table.setItem(i, 3, QTableWidgetItem("✅" if row.has_upscale else "—"))
+                self.table.setItem(i, 4, QTableWidgetItem("✅" if row.used_in_reel else "—"))
+                self.table.setItem(i, 5, QTableWidgetItem("⭐" if row.reel_priority else "—"))
+                self.table.setItem(i, 6, QTableWidgetItem("⛔" if row.reel_discarded else "—"))
+                self.table.setItem(i, 7, QTableWidgetItem(row.variant))
+                self.table.setItem(i, 8, QTableWidgetItem(row.status))
+                self.table.setItem(i, 9, QTableWidgetItem(row.datestamp))
+                self.table.setItem(i, 10, QTableWidgetItem(row.title))
+                self.table.setItem(i, 11, QTableWidgetItem(row.ratio))
+                self.table.setItem(i, 12, QTableWidgetItem(row.checkpoint_base or "—"))
+                self.table.setItem(i, 13, QTableWidgetItem(row.checkpoint_refiner or "—"))
 
-        if payload.resize_columns:
-            self.table.resizeColumnsToContents()
+            if payload.resize_columns:
+                self.table.resizeColumnsToContents()
+        finally:
+            self.table.blockSignals(False)
+            self.table.setSortingEnabled(previous_sorting_enabled)
+            self.table.setUpdatesEnabled(previous_updates_enabled)
 
         # Recalcular botones + preview tras refrescar
         self.update_actions_state()
 
-        self._cached_filters = payload.filters
+        if payload.filters:
+            self._cached_filters = payload.filters
+            self._refresh_filters(filters=payload.filters)
         self._cached_status_counts = payload.status_counts
-        self._cached_category_counts = payload.category_counts
-        self._refresh_filters(filters=payload.filters)
         self._refresh_status_counts(counts=payload.status_counts)
-        self._refresh_category_production_counts(counts=payload.category_counts)
+        if payload.category_counts:
+            self._cached_category_counts = payload.category_counts
+            self._refresh_category_production_counts(counts=payload.category_counts)
 
         is_paused = payload.is_paused
         self.pause_action.setEnabled(not is_paused)

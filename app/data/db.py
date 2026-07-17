@@ -10,7 +10,7 @@ from app.config.settings import settings
 def ensure_data_dir() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-SCHEMA_VERSION = 12
+SCHEMA_VERSION = 13
 
 REQUIRED_COLUMNS: tuple[tuple[str, str], ...] = (
     ("prompt_base", "iteration_groups"),
