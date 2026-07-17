@@ -4020,10 +4020,12 @@ class MainWindow(QMainWindow):
             self._style_table_selection()
 
     def _apply_theme(self) -> None:
+        stylesheet = self._theme_stylesheet(self._dark_mode)
         app = QApplication.instance()
         if app is not None:
             app.setPalette(self._build_palette(self._dark_mode))
-        self.setStyleSheet(self._theme_stylesheet(self._dark_mode))
+            app.setStyleSheet(stylesheet)
+        self.setStyleSheet(stylesheet)
 
     def _build_palette(self, dark: bool) -> QPalette:
         palette = QPalette()
@@ -4055,11 +4057,13 @@ class MainWindow(QMainWindow):
                 "#0f172a", "#111827", "#1f2937", "#e5e7eb", "#94a3b8", "#334155", "#38bdf8", "#0ea5e9"
             )
             input_bg = "#0b1220"
+            highlight_text = "#06111f"
         else:
             bg, panel, panel2, text, muted, border, accent, accent2 = (
                 "#f4f7fb", "#ffffff", "#eef4fb", "#172033", "#64748b", "#cbd5e1", "#2563eb", "#1d4ed8"
             )
             input_bg = "#ffffff"
+            highlight_text = "#ffffff"
         return f"""
         QMainWindow, QDialog {{ background: {bg}; color: {text}; }}
         QMenuBar {{ background: {panel}; color: {text}; padding: 4px; border-bottom: 1px solid {border}; }}
@@ -4073,7 +4077,13 @@ class MainWindow(QMainWindow):
         QPushButton:hover {{ border-color: {accent}; background: {accent}; color: #ffffff; }}
         QPushButton:pressed {{ background: {accent2}; }}
         QPushButton:disabled {{ color: {muted}; background: {panel}; }}
-        QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateTimeEdit, QPlainTextEdit, QListWidget {{ background: {input_bg}; color: {text}; border: 1px solid {border}; border-radius: 8px; padding: 6px; selection-background-color: {accent}; }}
+        QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateTimeEdit, QPlainTextEdit, QListWidget {{ background: {input_bg}; color: {text}; border: 1px solid {border}; border-radius: 8px; padding: 6px; selection-background-color: {accent}; selection-color: {highlight_text}; }}
+        QComboBox {{ padding-right: 28px; }}
+        QComboBox::drop-down {{ subcontrol-origin: padding; subcontrol-position: top right; width: 24px; border-left: 1px solid {border}; border-top-right-radius: 8px; border-bottom-right-radius: 8px; background: {panel2}; }}
+        QComboBox::down-arrow {{ image: none; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid {text}; margin-right: 7px; }}
+        QComboBox QAbstractItemView {{ background: {input_bg}; color: {text}; border: 1px solid {border}; selection-background-color: {accent}; selection-color: {highlight_text}; outline: 0; padding: 4px; }}
+        QComboBox QAbstractItemView::item {{ min-height: 24px; padding: 4px 8px; color: {text}; background: {input_bg}; }}
+        QComboBox QAbstractItemView::item:hover, QComboBox QAbstractItemView::item:selected {{ background: {accent}; color: {highlight_text}; }}
         QTableWidget {{ background: {panel}; alternate-background-color: {panel2}; color: {text}; border: 1px solid {border}; border-radius: 12px; gridline-color: {border}; }}
         QHeaderView::section {{ background: {panel2}; color: {muted}; padding: 8px; border: 0; border-bottom: 1px solid {border}; font-weight: 700; }}
         QWidget#PreviewSurface {{ background: {input_bg}; border: 1px solid {border}; border-radius: 12px; color: {muted}; }}
