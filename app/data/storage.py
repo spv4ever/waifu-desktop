@@ -126,6 +126,9 @@ class BaseStore:
     def fetch_queue_status_counts(self) -> dict[str, int]:
         raise NotImplementedError
 
+    def fetch_queue_eta_seconds(self) -> int | None:
+        raise NotImplementedError
+
     def fetch_variants_for_category(self, category: str | None) -> list[str]:
         raise NotImplementedError
 
@@ -540,6 +543,36 @@ class SQLiteStore(BaseStore):
                 """
             ).fetchall()
         return {str(r["status"]): int(r["n"]) for r in rows}
+
+    def fetch_queue_eta_seconds(self) -> int | None:
+        with get_connection() as conn:
+            remaining_row = conn.execute(
+                """
+                SELECT COUNT(*) AS n
+                FROM prompt_item
+                WHERE status IN ('QUEUED', 'SENT')
+                """
+            ).fetchone()
+            duration_rows = conn.execute(
+                """
+                SELECT (julianday(updated_at) - julianday(created_at)) * 86400.0 AS seconds
+                FROM queue_job
+                WHERE status='DONE'
+                  AND updated_at IS NOT NULL
+                  AND created_at IS NOT NULL
+                  AND julianday(updated_at) > julianday(created_at)
+                ORDER BY updated_at DESC
+                LIMIT 50
+                """
+            ).fetchall()
+
+        remaining = int(remaining_row["n"]) if remaining_row else 0
+        durations = [float(r["seconds"]) for r in duration_rows if r["seconds"] is not None and float(r["seconds"]) > 0]
+        if remaining <= 0:
+            return 0
+        if not durations:
+            return None
+        return int(round((sum(durations) / len(durations)) * remaining))
 
     def fetch_variants_for_category(self, category: str | None) -> list[str]:
         if not category:

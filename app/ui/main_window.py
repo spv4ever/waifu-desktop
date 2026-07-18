@@ -344,6 +344,7 @@ class MainWindow(QMainWindow):
         self.status_sent_label = QLabel("SENT: 0")
         self.status_done_label = QLabel("DONE: 0")
         self.status_failed_label = QLabel("FAILED: 0")
+        self.status_eta_label = QLabel("ETA: —")
         summary_layout.addStretch(1)
         for lbl in (
             self.status_total_label,
@@ -352,6 +353,7 @@ class MainWindow(QMainWindow):
             self.status_sent_label,
             self.status_done_label,
             self.status_failed_label,
+            self.status_eta_label,
         ):
             summary_layout.addWidget(lbl)
         summary_layout.addStretch(1)
@@ -4189,6 +4191,15 @@ class MainWindow(QMainWindow):
                 combo.setCurrentIndex(idx)
         combo.blockSignals(False)
 
+    @staticmethod
+    def _format_duration(seconds: int | None) -> str:
+        if seconds is None:
+            return "—"
+        seconds = max(0, int(seconds))
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
     def _refresh_status_counts(self, *, counts: dict[str, int] | None = None) -> None:
         counts = counts or fetch_prompt_status_counts()
         self.status_total_label.setText(f"Total: {counts.get('TOTAL', 0)}")
@@ -4197,6 +4208,7 @@ class MainWindow(QMainWindow):
         self.status_sent_label.setText(f"SENT: {counts.get('SENT', 0)}")
         self.status_done_label.setText(f"DONE: {counts.get('DONE', 0)}")
         self.status_failed_label.setText(f"FAILED: {counts.get('FAILED', 0)}")
+        self.status_eta_label.setText(f"ETA: {self._format_duration(counts.get('ETA_SECONDS'))}")
 
     def _refresh_category_production_counts(
         self,

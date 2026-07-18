@@ -78,7 +78,11 @@ def fetch_prompt_filters() -> dict[str, list[str]]:
 
 def fetch_prompt_status_counts() -> dict[str, int]:
     store = get_store()
-    return store.fetch_prompt_status_counts()
+    counts = store.fetch_prompt_status_counts()
+    eta_seconds = store.fetch_queue_eta_seconds()
+    if eta_seconds is not None:
+        counts["ETA_SECONDS"] = eta_seconds
+    return counts
 
 
 def fetch_variants_for_category(category: str | None) -> list[str]:
