@@ -546,13 +546,19 @@ class SQLiteStore(BaseStore):
 
     def fetch_queue_eta_seconds(self) -> int | None:
         with get_connection() as conn:
-            remaining_row = conn.execute(
+            active_rows = conn.execute(
                 """
-                SELECT COUNT(*) AS n
-                FROM prompt_item
-                WHERE status IN ('QUEUED', 'SENT')
+                SELECT
+                    status,
+                    CASE
+                        WHEN status = 'RUNNING' AND started_at IS NOT NULL
+                        THEN (julianday('now') - julianday(started_at)) * 86400.0
+                        ELSE 0
+                    END AS elapsed_seconds
+                FROM queue_job
+                WHERE status IN ('PENDING', 'RUNNING')
                 """
-            ).fetchone()
+            ).fetchall()
             duration_rows = conn.execute(
                 """
                 SELECT (julianday(completed_at) - julianday(started_at)) * 86400.0 AS seconds
@@ -566,13 +572,22 @@ class SQLiteStore(BaseStore):
                 """
             ).fetchall()
 
-        remaining = int(remaining_row["n"]) if remaining_row else 0
+        active_jobs = list(active_rows)
         durations = [float(r["seconds"]) for r in duration_rows if r["seconds"] is not None and float(r["seconds"]) > 0]
-        if remaining <= 0:
+        if not active_jobs:
             return 0
         if not durations:
             return None
-        return int(round((sum(durations) / len(durations)) * remaining))
+
+        average_seconds = sum(durations) / len(durations)
+        remaining_seconds = 0.0
+        for row in active_jobs:
+            if row["status"] == "RUNNING":
+                elapsed_seconds = float(row["elapsed_seconds"] or 0)
+                remaining_seconds += max(average_seconds - elapsed_seconds, 0.0)
+            else:
+                remaining_seconds += average_seconds
+        return int(round(remaining_seconds))
 
     def fetch_variants_for_category(self, category: str | None) -> list[str]:
         if not category:
