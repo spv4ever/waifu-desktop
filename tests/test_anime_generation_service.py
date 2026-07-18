@@ -131,7 +131,10 @@ def test_anime_v5_generator_can_fix_outfit_and_randomize_other_options(monkeypat
         AnimeGenerationCreate(
             list_name="One Piece",
             prompt_title="Generated",
-            prompt_text="[personaje] from [anime], [shot], [pose], [location], [fit] [outfit], [fabric], [condition], [styling], [expression], [lighting]",
+            prompt_text=(
+                "[personaje] from [anime], [shot], [pose], [location], [fit] [outfit], "
+                "[fabric], [condition], [styling], [expression], [lighting]"
+            ),
             characters=["Nami"],
             quantity_per_character=1,
             fixed_outfit="custom battle outfit",
@@ -198,7 +201,10 @@ def test_anime_v5_generator_reuses_selected_options_for_all_characters(monkeypat
         AnimeGenerationCreate(
             list_name="One Piece",
             prompt_title="Generated",
-            prompt_text="[personaje] from [anime], [shot], [pose], [location], [fit] [outfit], [fabric], [condition], [styling], [expression], [lighting]",
+            prompt_text=(
+                "[personaje] from [anime], [shot], [pose], [location], [fit] [outfit], "
+                "[fabric], [condition], [styling], [expression], [lighting]"
+            ),
             characters=["Nami", "Robin"],
             quantity_per_character=2,
         )
@@ -295,3 +301,84 @@ def test_anime_v5_nsfw_content_rating_updates_variant_and_meta(monkeypatch):
     assert store.pack["variant"] == "One Piece nsfw"
     assert store.prompt_items[0]["meta"]["combo"]["variant"] == "One Piece nsfw"
     assert store.prompt_items[0]["meta"]["anime_v5_content_rating"] == "nsfw"
+
+
+def test_anime_v5_generator_creates_requested_random_combinations(monkeypatch):
+    store = FakeAnimeStore()
+    selections = [
+        AnimeV5PromptSelection(
+            location="rooftop",
+            pose="standing",
+            fit="fitted",
+            outfit="dress",
+            fabric="satin",
+            condition="pressed",
+            styling="luxury styling",
+            expression="smile",
+            lighting="sunset",
+            shot="full body",
+        ),
+        AnimeV5PromptSelection(
+            location="beach",
+            pose="sitting",
+            fit="relaxed",
+            outfit="jacket",
+            fabric="linen",
+            condition="wind-swept",
+            styling="resort styling",
+            expression="serious",
+            lighting="neon",
+            shot="portrait",
+        ),
+    ]
+    monkeypatch.setattr(anime_generation_service, "get_store", lambda: store)
+    monkeypatch.setattr(
+        anime_generation_service,
+        "load_anime_v5_prompt_options",
+        lambda: {
+            "locations": ["rooftop", "beach"],
+            "poses": ["standing", "sitting"],
+            "fits": ["fitted", "relaxed"],
+            "outfits": ["dress", "jacket"],
+            "fabrics": ["satin", "linen"],
+            "conditions": ["pressed", "wind-swept"],
+            "stylings": ["luxury styling", "resort styling"],
+            "expressions": ["smile", "serious"],
+            "lighting": ["sunset", "neon"],
+            "shots": ["full body", "portrait"],
+        },
+    )
+    monkeypatch.setattr(
+        anime_generation_service,
+        "choose_anime_v5_prompt_selection",
+        lambda *args, **kwargs: selections.pop(0),
+    )
+
+    service = AnimeGenerationService()
+    result = service.create_images_and_enqueue(
+        AnimeGenerationCreate(
+            list_name="One Piece",
+            prompt_title="Generated",
+            prompt_text=(
+                "[personaje] from [anime], [shot], [pose], [location], [fit] [outfit], "
+                "[fabric], [condition], [styling], [expression], [lighting]"
+            ),
+            characters=["Nami"],
+            quantity_per_character=3,
+            random_combinations=2,
+        )
+    )
+
+    assert store.pack["requested_n"] == 6
+    assert len(result.created_prompt_item_ids) == 6
+    assert [item["meta"]["anime_v5_random_combination_index"] for item in store.prompt_items] == [
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+    ]
+    assert all(item["meta"]["anime_v5_random_combinations"] == 2 for item in store.prompt_items)
+    assert store.prompt_items[0]["prompt_text"].startswith("Nami from One Piece, full body")
+    assert store.prompt_items[3]["prompt_text"].startswith("Nami from One Piece, portrait")

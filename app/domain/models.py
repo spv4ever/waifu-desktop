@@ -55,6 +55,7 @@ class AnimeGenerationCreate:
     checkpoint_base: Optional[str] = None
     checkpoint_refiner: Optional[str] = None
     content_rating: str = "sfw"
+    random_combinations: int = 1
 
 
 @dataclass(frozen=True)
