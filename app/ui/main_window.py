@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
     QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QMenu, QStackedWidget,
-    QHeaderView, QListWidget, QListWidgetItem,
+    QHeaderView, QListWidget, QListWidgetItem, QSizePolicy,
 )
 
 from app.config.app_config import load_app_config
@@ -299,9 +299,9 @@ class MainWindow(QMainWindow):
         header.addStretch(1)
         layout.addLayout(header)
 
-        quick_actions = QGridLayout()
-        quick_actions.setHorizontalSpacing(10)
-        quick_actions.setVerticalSpacing(8)
+        self.quick_actions_layout = QGridLayout()
+        self.quick_actions_layout.setHorizontalSpacing(10)
+        self.quick_actions_layout.setVerticalSpacing(8)
         self.open_filters_btn = QPushButton("Filtros inteligentes")
         self.open_pack_btn = QPushButton("Generar Pack Waifu")
         self.open_manual_prompt_btn = QPushButton("Prompt Manual Waifu")
@@ -315,7 +315,7 @@ class MainWindow(QMainWindow):
         self.open_anime_v5_reel_btn = QPushButton("Reel Anime V5")
         self.open_video_montage_btn = QPushButton("Montar Videos")
         self.open_bulk_youtube_btn = QPushButton("YouTube Bulk")
-        quick_action_buttons = (
+        self.quick_action_buttons = (
             self.open_filters_btn,
             self.open_pack_btn,
             self.open_manual_prompt_btn,
@@ -330,10 +330,10 @@ class MainWindow(QMainWindow):
             self.open_video_montage_btn,
             self.open_bulk_youtube_btn,
         )
-        for index, button in enumerate(quick_action_buttons):
-            quick_actions.addWidget(button, index // 5, index % 5)
-        quick_actions.setColumnStretch(5, 1)
-        layout.addLayout(quick_actions)
+        for button in self.quick_action_buttons:
+            button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._quick_actions_columns = 0
+        layout.addLayout(self.quick_actions_layout)
 
         summary_group = QGroupBox("Resumen rápido")
         summary_group.setObjectName("Card")
@@ -361,7 +361,7 @@ class MainWindow(QMainWindow):
 
         operation_group = QGroupBox("Operación")
         operation_group.setObjectName("Card")
-        operation_layout = QGridLayout(operation_group)
+        self.operation_layout = QGridLayout(operation_group)
         self.start_worker_btn = QPushButton("Iniciar Worker")
         self.stop_worker_btn = QPushButton("Parar Worker")
         self.clear_queued_btn = QPushButton("Borrar QUEUED")
@@ -371,37 +371,38 @@ class MainWindow(QMainWindow):
         self.worker_status_label = QLabel("Worker: STOPPED")
         self.worker_status_label.setAlignment(Qt.AlignVCenter)
 
-        operation_layout.addWidget(self.start_worker_btn, 0, 0)
-        operation_layout.addWidget(self.stop_worker_btn, 0, 1)
-        operation_layout.addWidget(self.clear_queued_btn, 0, 2)
-        operation_layout.addWidget(self.worker_status_label, 0, 3, 1, 2)
-
-        operation_layout.addWidget(QLabel("Mostrar:"), 1, 0)
         self.limit_spin = QSpinBox()
         self.limit_spin.setRange(10, 500)
         self.limit_spin.setValue(200)
-        operation_layout.addWidget(self.limit_spin, 1, 1)
 
-        operation_layout.addWidget(QLabel("Pausa (s):"), 1, 2)
         self.pause_between_spin = QSpinBox()
         self.pause_between_spin.setRange(0, 60)
         self.pause_between_spin.setValue(5)
         self.pause_between_spin.setToolTip("Segundos de descanso entre imágenes procesadas.")
-        operation_layout.addWidget(self.pause_between_spin, 1, 3)
 
         self.preview_toggle_check = QCheckBox("Mostrar preview")
         self.preview_toggle_check.setChecked(False)
-        operation_layout.addWidget(self.preview_toggle_check, 2, 0, 1, 2)
 
-        operation_layout.addWidget(QLabel("Auto-ocultar preview (s):"), 2, 2)
         self.preview_auto_disable_spin = QSpinBox()
         self.preview_auto_disable_spin.setRange(1, 3600)
         self.preview_auto_disable_spin.setValue(60)
         self.preview_auto_disable_spin.setToolTip(
             "Segundos que la vista previa permanecerá visible antes de desactivarse automáticamente."
         )
-        operation_layout.addWidget(self.preview_auto_disable_spin, 2, 3)
-        operation_layout.setColumnStretch(4, 1)
+
+        self.operation_widgets = (
+            self.start_worker_btn,
+            self.stop_worker_btn,
+            self.clear_queued_btn,
+            self.worker_status_label,
+            self._inline_operation_widget("Mostrar:", self.limit_spin),
+            self._inline_operation_widget("Pausa (s):", self.pause_between_spin),
+            self.preview_toggle_check,
+            self._inline_operation_widget("Auto-ocultar preview (s):", self.preview_auto_disable_spin),
+        )
+        for widget in self.operation_widgets:
+            widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._operation_columns = 0
         layout.addWidget(operation_group)
 
         self.filters_dialog = QDialog(self)
@@ -1582,6 +1583,7 @@ class MainWindow(QMainWindow):
         self._load_image2vid_prompt_templates()
 
         self._update_right_column_visibility()
+        self._relayout_responsive_panels()
         self.prompt_dialog: PromptDetailDialog | None = None
         self.refresh()
 
@@ -3617,6 +3619,53 @@ class MainWindow(QMainWindow):
 
         self._rescale_previews()
 
+    def _inline_operation_widget(self, label_text: str, control: QWidget) -> QWidget:
+        widget = QWidget()
+        widget.setObjectName("InlineOperationControl")
+        row = QHBoxLayout(widget)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
+        label = QLabel(label_text)
+        row.addWidget(label)
+        row.addWidget(control, 1)
+        return widget
+
+    def _clear_grid_layout(self, grid: QGridLayout) -> None:
+        while grid.count():
+            item = grid.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+
+    def _responsive_column_count(self, available_width: int, preferred_cell_width: int, item_count: int) -> int:
+        if item_count <= 0:
+            return 1
+        columns = max(1, available_width // preferred_cell_width)
+        return min(item_count, columns)
+
+    def _relayout_responsive_panels(self) -> None:
+        if hasattr(self, "quick_action_buttons"):
+            quick_width = max(1, self.quick_actions_layout.geometry().width() or self.width())
+            columns = self._responsive_column_count(quick_width, 145, len(self.quick_action_buttons))
+            if columns != self._quick_actions_columns:
+                self._clear_grid_layout(self.quick_actions_layout)
+                for index, button in enumerate(self.quick_action_buttons):
+                    self.quick_actions_layout.addWidget(button, index // columns, index % columns)
+                for column in range(max(self._quick_actions_columns, columns)):
+                    self.quick_actions_layout.setColumnStretch(column, 1 if column < columns else 0)
+                self._quick_actions_columns = columns
+
+        if hasattr(self, "operation_widgets"):
+            operation_width = max(1, self.operation_layout.geometry().width() or self.width())
+            columns = self._responsive_column_count(operation_width, 185, len(self.operation_widgets))
+            if columns != self._operation_columns:
+                self._clear_grid_layout(self.operation_layout)
+                for index, widget in enumerate(self.operation_widgets):
+                    self.operation_layout.addWidget(widget, index // columns, index % columns)
+                for column in range(max(self._operation_columns, columns)):
+                    self.operation_layout.setColumnStretch(column, 1 if column < columns else 0)
+                self._operation_columns = columns
+
     def _rescale_previews(self) -> None:
         if self.base_preview_stack.currentWidget() is self.base_video_widget:
             return
@@ -3632,6 +3681,7 @@ class MainWindow(QMainWindow):
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         self._rescale_previews()
+        self._relayout_responsive_panels()
 
     # -------- Selection: enable actions + update preview --------
 
