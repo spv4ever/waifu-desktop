@@ -781,10 +781,18 @@ class MainWindow(QMainWindow):
         self.anime_v5_generator_btn = QPushButton("Generador Anime V5")
         self.anime_v5_generator_btn.setMinimumWidth(140)
         anime_grid.addWidget(self.anime_v5_generator_btn, 4, 5)
-        anime_grid.addWidget(QLabel("Texto extra outfit:"), 5, 0)
+        anime_grid.addWidget(QLabel("Combinaciones aleatorias:"), 5, 0)
+        self.anime_v5_random_combinations_spin = QSpinBox()
+        self.anime_v5_random_combinations_spin.setRange(1, 500)
+        self.anime_v5_random_combinations_spin.setValue(1)
+        self.anime_v5_random_combinations_spin.setToolTip(
+            "Genera esta cantidad de combinaciones aleatorias del generador Anime V5 y encola las imágenes por personaje para cada una."
+        )
+        anime_grid.addWidget(self.anime_v5_random_combinations_spin, 5, 1)
+        anime_grid.addWidget(QLabel("Texto extra outfit:"), 5, 2)
         self.anime_v5_manual_outfit_input = QLineEdit()
         self.anime_v5_manual_outfit_input.setPlaceholderText("Opcional: se añade al outfit antes de generar el prompt")
-        anime_grid.addWidget(self.anime_v5_manual_outfit_input, 5, 1, 1, 5)
+        anime_grid.addWidget(self.anime_v5_manual_outfit_input, 5, 3, 1, 3)
         anime_grid.addWidget(QLabel("Modelo principal:"), 6, 0)
         self.anime_v5_checkpoint_base_combo = QComboBox()
         self.anime_v5_checkpoint_base_combo.setMinimumWidth(220)
@@ -2604,6 +2612,7 @@ class MainWindow(QMainWindow):
         prompt_title = self.anime_v5_prompt_title_input.text().strip()
         prompt_text = self.anime_v5_prompt_input.toPlainText().strip()
         quantity = int(self.anime_v5_quantity_spin.value())
+        random_combinations = int(self.anime_v5_random_combinations_spin.value())
         fixed_outfit = self._selected_anime_v5_fixed_outfit()
         manual_outfit_text = self.anime_v5_manual_outfit_input.text().strip()
         checkpoint_base = self.anime_v5_checkpoint_base_combo.currentData()
@@ -2641,6 +2650,7 @@ class MainWindow(QMainWindow):
                             prompt_text=prompt_text,
                             characters=characters,
                             quantity_per_character=quantity,
+                            random_combinations=random_combinations,
                             fixed_outfit=fixed_outfit,
                             manual_outfit_text=manual_outfit_text,
                             checkpoint_base=str(checkpoint_base),

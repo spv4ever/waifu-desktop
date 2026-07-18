@@ -116,6 +116,7 @@ class AnimeGenerationService:
         if not characters:
             raise ValueError("Añade al menos un personaje.")
         quantity = max(1, int(req.quantity_per_character))
+        random_combinations = max(1, int(req.random_combinations))
 
         prompt_id = self.store.save_anime_prompt(
             prompt_id=None,
@@ -134,7 +135,7 @@ class AnimeGenerationService:
             for character in characters
         ]
 
-        requested = len(characters) * quantity
+        requested = len(characters) * quantity * random_combinations
         pack_id = self.store.create_pack(
             category="anime",
             variant=f"{list_name} {content_rating}",
@@ -145,84 +146,100 @@ class AnimeGenerationService:
         created_prompt_item_ids: list[int] = []
         created_queue_job_ids: list[int] = []
         prompt_options = load_anime_v5_prompt_options() if _uses_anime_v5_generator(prompt_template) else None
-        prompt_selection = (
-            choose_anime_v5_prompt_selection(
-                self.rng,
-                prompt_options,
-                fixed_outfit=req.fixed_outfit,
-                manual_outfit_text=req.manual_outfit_text,
-            )
-            if prompt_options is not None
-            else None
-        )
-        selected_template = (
-            fill_anime_v5_option_tokens(prompt_template, prompt_selection)
-            if prompt_selection is not None
-            else prompt_template
-        )
         created_at = datetime.now().isoformat(timespec="seconds")
         width, height = 1024, 1408
 
-        for character_id, character in zip(character_ids, characters):
-            character_description = character.description or _default_character_description(character.name)
-            for repetition in range(quantity):
-                rendered_prompt = _render_anime_prompt(
-                    selected_template,
-                    character=character.name,
-                    list_name=list_name,
-                    description=character_description,
+        for combination_index in range(random_combinations):
+            prompt_selection = (
+                choose_anime_v5_prompt_selection(
+                    self.rng,
+                    prompt_options,
+                    fixed_outfit=req.fixed_outfit,
+                    manual_outfit_text=req.manual_outfit_text,
                 )
-                signature = None
-                seed = None
-                for _ in range(10):
-                    seed = self.rng.randint(0, 2**31 - 1)
-                    candidate = _hash_signature("anime_v5", list_name, character.name, character_description, repetition, seed, prompt_template)
-                    if self.store.try_register_combo(combo_key=candidate, category="anime", variant=f"{list_name} {content_rating}"):
-                        signature = candidate
-                        break
-                if signature is None or seed is None:
-                    raise RuntimeError("No se pudo registrar una combinación única para Anime.")
+                if prompt_options is not None
+                else None
+            )
+            selected_template = (
+                fill_anime_v5_option_tokens(prompt_template, prompt_selection)
+                if prompt_selection is not None
+                else prompt_template
+            )
+            for character_id, character in zip(character_ids, characters):
+                character_description = character.description or _default_character_description(character.name)
+                for repetition in range(quantity):
+                    rendered_prompt = _render_anime_prompt(
+                        selected_template,
+                        character=character.name,
+                        list_name=list_name,
+                        description=character_description,
+                    )
+                    signature = None
+                    seed = None
+                    for _ in range(10):
+                        seed = self.rng.randint(0, 2**31 - 1)
+                        candidate = _hash_signature(
+                            "anime_v5",
+                            list_name,
+                            character.name,
+                            character_description,
+                            combination_index,
+                            repetition,
+                            seed,
+                            prompt_template,
+                        )
+                        if self.store.try_register_combo(
+                            combo_key=candidate,
+                            category="anime",
+                            variant=f"{list_name} {content_rating}",
+                        ):
+                            signature = candidate
+                            break
+                    if signature is None or seed is None:
+                        raise RuntimeError("No se pudo registrar una combinación única para Anime.")
 
-                meta = {
-                    "combo": {
-                        "category": "anime",
-                        "variant": f"{list_name} {content_rating}",
-                        "ratio_tag": f"{width}x{height}",
-                        "ratio": f"{width}x{height}",
+                    meta = {
+                        "combo": {
+                            "category": "anime",
+                            "variant": f"{list_name} {content_rating}",
+                            "ratio_tag": f"{width}x{height}",
+                            "ratio": f"{width}x{height}",
+                            "width": width,
+                            "height": height,
+                        },
+                        "workflow": "anime_v5",
+                        "seed": seed,
                         "width": width,
                         "height": height,
-                    },
-                    "workflow": "anime_v5",
-                    "seed": seed,
-                    "width": width,
-                    "height": height,
-                    "anime_prompt_id": prompt_id,
-                    "anime_character_id": character_id,
-                    "anime_character": character.name,
-                    "anime_character_description": character_description,
-                    "anime_character_list": list_name,
-                    "anime_v5_content_rating": content_rating,
-                    "anime_prompt_template": prompt_template,
-                    "anime_v5_prompt_selection": prompt_selection.as_meta() if prompt_selection else None,
-                    "anime_v5_manual_outfit_text": req.manual_outfit_text.strip(),
-                    "created_at": created_at,
-                }
-                if req.checkpoint_base or req.checkpoint_refiner:
-                    meta["checkpoints"] = {
-                        "base": req.checkpoint_base,
-                        "refiner": req.checkpoint_refiner,
+                        "anime_prompt_id": prompt_id,
+                        "anime_character_id": character_id,
+                        "anime_character": character.name,
+                        "anime_character_description": character_description,
+                        "anime_character_list": list_name,
+                        "anime_v5_content_rating": content_rating,
+                        "anime_prompt_template": prompt_template,
+                        "anime_v5_prompt_selection": prompt_selection.as_meta() if prompt_selection else None,
+                        "anime_v5_random_combination_index": combination_index + 1,
+                        "anime_v5_random_combinations": random_combinations,
+                        "anime_v5_manual_outfit_text": req.manual_outfit_text.strip(),
+                        "created_at": created_at,
                     }
+                    if req.checkpoint_base or req.checkpoint_refiner:
+                        meta["checkpoints"] = {
+                            "base": req.checkpoint_base,
+                            "refiner": req.checkpoint_refiner,
+                        }
 
-                item_id = self.store.create_prompt_item(
-                    pack_id=pack_id,
-                    title=f"{list_name} - {character.name}",
-                    prompt_text=rendered_prompt,
-                    negative_text="bad quality,worst quality,worst detail,sketch,censor, watermark, logo, text",
-                    meta=meta,
-                    signature=signature,
-                    status="QUEUED",
-                )
-                created_prompt_item_ids.append(item_id)
-                created_queue_job_ids.append(self.store.create_queue_job(prompt_item_id=item_id, priority=100))
+                    item_id = self.store.create_prompt_item(
+                        pack_id=pack_id,
+                        title=f"{list_name} - {character.name} (combo {combination_index + 1})",
+                        prompt_text=rendered_prompt,
+                        negative_text="bad quality,worst quality,worst detail,sketch,censor, watermark, logo, text",
+                        meta=meta,
+                        signature=signature,
+                        status="QUEUED",
+                    )
+                    created_prompt_item_ids.append(item_id)
+                    created_queue_job_ids.append(self.store.create_queue_job(prompt_item_id=item_id, priority=100))
 
         return AnimeGenerationResult(pack_id, created_prompt_item_ids, created_queue_job_ids)
