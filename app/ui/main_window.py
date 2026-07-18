@@ -344,7 +344,7 @@ class MainWindow(QMainWindow):
         self.status_sent_label = QLabel("SENT: 0")
         self.status_done_label = QLabel("DONE: 0")
         self.status_failed_label = QLabel("FAILED: 0")
-        self.status_eta_label = QLabel("ETA: —")
+        self.status_eta_label = QLabel("Tiempo restante: —")
         summary_layout.addStretch(1)
         for lbl in (
             self.status_total_label,
@@ -4208,7 +4208,7 @@ class MainWindow(QMainWindow):
         self.status_sent_label.setText(f"SENT: {counts.get('SENT', 0)}")
         self.status_done_label.setText(f"DONE: {counts.get('DONE', 0)}")
         self.status_failed_label.setText(f"FAILED: {counts.get('FAILED', 0)}")
-        self.status_eta_label.setText(f"ETA: {self._format_duration(counts.get('ETA_SECONDS'))}")
+        self.status_eta_label.setText(f"Tiempo restante: {self._format_duration(counts.get('ETA_SECONDS'))}")
 
     def _refresh_category_production_counts(
         self,
