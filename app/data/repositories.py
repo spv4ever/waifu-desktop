@@ -776,7 +776,7 @@ class QueueRepository:
             conn.execute(
                 """
                 UPDATE queue_job
-                SET status='RUNNING', attempts=attempts+1
+                SET status='RUNNING', attempts=attempts+1, started_at=datetime('now'), completed_at=NULL
                 WHERE id=? AND status='PENDING'
                 """,
                 (row["id"],),
@@ -802,16 +802,16 @@ class QueueRepository:
             return dict(row2) if row2 else None
 
     def mark_done(self, conn: sqlite3.Connection, job_id: int) -> None:
-        conn.execute("UPDATE queue_job SET status='DONE', last_error=NULL WHERE id=?", (job_id,))
+        conn.execute("UPDATE queue_job SET status='DONE', last_error=NULL, completed_at=datetime('now') WHERE id=?", (job_id,))
 
     def mark_failed(self, conn: sqlite3.Connection, job_id: int, error: str) -> None:
-        conn.execute("UPDATE queue_job SET status='FAILED', last_error=? WHERE id=?", (error, job_id))
+        conn.execute("UPDATE queue_job SET status='FAILED', last_error=?, completed_at=datetime('now') WHERE id=?", (error, job_id))
 
     def reset_running_to_pending(self, conn: sqlite3.Connection) -> int:
         """
         Útil si se cae la app a mitad: vuelve RUNNING -> PENDING.
         """
-        cur = conn.execute("UPDATE queue_job SET status='PENDING' WHERE status='RUNNING'")
+        cur = conn.execute("UPDATE queue_job SET status='PENDING', started_at=NULL, completed_at=NULL WHERE status='RUNNING'")
         return cur.rowcount
 
     def reset_for_retry(self, conn: sqlite3.Connection, job_id: int) -> None:
@@ -824,7 +824,9 @@ class QueueRepository:
                 output_json=NULL,
                 last_error=NULL,
                 progress=0,
-                backend_status=NULL
+                backend_status=NULL,
+                started_at=NULL,
+                completed_at=NULL
             WHERE id=?
             """,
             (job_id,),

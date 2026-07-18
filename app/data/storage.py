@@ -555,13 +555,13 @@ class SQLiteStore(BaseStore):
             ).fetchone()
             duration_rows = conn.execute(
                 """
-                SELECT (julianday(updated_at) - julianday(created_at)) * 86400.0 AS seconds
+                SELECT (julianday(completed_at) - julianday(started_at)) * 86400.0 AS seconds
                 FROM queue_job
                 WHERE status='DONE'
-                  AND updated_at IS NOT NULL
-                  AND created_at IS NOT NULL
-                  AND julianday(updated_at) > julianday(created_at)
-                ORDER BY updated_at DESC
+                  AND started_at IS NOT NULL
+                  AND completed_at IS NOT NULL
+                  AND julianday(completed_at) > julianday(started_at)
+                ORDER BY completed_at DESC
                 LIMIT 50
                 """
             ).fetchall()
@@ -977,7 +977,11 @@ class SQLiteStore(BaseStore):
                         remote_id=NULL,
                         remote_status=NULL,
                         output_json=NULL,
-                        last_error=NULL
+                        last_error=NULL,
+                        progress=0,
+                        backend_status=NULL,
+                        started_at=NULL,
+                        completed_at=NULL
                     WHERE id=?
                     """,
                     (job_id,),
