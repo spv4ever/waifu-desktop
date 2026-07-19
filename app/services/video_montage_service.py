@@ -197,6 +197,10 @@ class VideoMontageService:
     def _audio_relax_dir(self) -> Path:
         return self._repo_root() / "resources" / "audio_relax"
 
+    def _safe_filename_segment(self, value: str) -> str:
+        segment = re.sub(r"[^\w.-]+", "_", value.strip(), flags=re.UNICODE).strip("._-")
+        return segment or "audio"
+
     def _resolve_audio_relax_track(self, audio_filename: str | Path) -> Path:
         audio_path = Path(audio_filename).expanduser()
         if not audio_path.is_absolute():
@@ -326,7 +330,9 @@ class VideoMontageService:
         width, height = self._YOUTUBE_4K_SIZE if resolution.lower() == "4k" else self._RATIO_SIZES["16:9"]
         self._emit_progress(progress_callback, f"Preparando render {width}x{height} con transición {clean_transition}...")
         folder = self._create_folder()
-        output_path = folder / "bulk_images_youtube.mp4"
+        audio_theme_slug = self._safe_filename_segment(audio_path.stem)
+        output_stem = f"bulk_images_youtube_{audio_theme_slug}"
+        output_path = folder / f"{output_stem}.mp4"
         paths = [path for _, path, _ in selected]
 
         cmd = [ffmpeg_path, "-y"]
@@ -407,7 +413,7 @@ class VideoMontageService:
             "prompt_item_ids": prompt_item_ids,
             "source_images": [str(path) for path in paths],
         }
-        (folder / "bulk_images_youtube.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+        (folder / f"{output_stem}.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
         self._emit_progress(progress_callback, f"Vídeo creado correctamente: {output_path}")
 
         return BulkImagesYoutubeVideoResult(

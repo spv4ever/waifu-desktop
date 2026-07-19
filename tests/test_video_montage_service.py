@@ -115,12 +115,12 @@ def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_p
     )
 
     filter_complex = captured["cmd"][captured["cmd"].index("-filter_complex") + 1]
-    assert result.video_path == output_dir / "bulk_images_youtube.mp4"
+    assert result.video_path == output_dir / "bulk_images_youtube_relax.mp4"
     assert result.prompt_item_ids == [1, 2]
     assert store.marked == [1, 2]
     assert "xfade=transition=fade" in filter_complex
     assert "scale=3840:2160" in filter_complex
-    metadata = json.loads((output_dir / "bulk_images_youtube.json").read_text(encoding="utf-8"))
+    metadata = json.loads((output_dir / "bulk_images_youtube_relax.json").read_text(encoding="utf-8"))
     assert metadata["duration_seconds"] == 15.0
     assert metadata["audio"] == str(audio_path.resolve())
 
