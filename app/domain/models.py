@@ -56,6 +56,7 @@ class AnimeGenerationCreate:
     checkpoint_refiner: Optional[str] = None
     content_rating: str = "sfw"
     random_combinations: int = 1
+    add_upskirt_when_skirt: bool = False
 
 
 @dataclass(frozen=True)
