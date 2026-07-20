@@ -303,6 +303,46 @@ def test_anime_v5_nsfw_content_rating_updates_variant_and_meta(monkeypatch):
     assert store.prompt_items[0]["meta"]["anime_v5_content_rating"] == "nsfw"
 
 
+def test_anime_v5_can_add_upskirt_when_prompt_contains_skirt(monkeypatch):
+    store = FakeAnimeStore()
+    monkeypatch.setattr(anime_generation_service, "get_store", lambda: store)
+
+    service = AnimeGenerationService()
+    service.create_images_and_enqueue(
+        AnimeGenerationCreate(
+            list_name="One Piece",
+            prompt_title="Prompt",
+            prompt_text="[personaje] from [anime], pleated skirt, cinematic portrait",
+            characters=["Nami"],
+            quantity_per_character=1,
+            add_upskirt_when_skirt=True,
+        )
+    )
+
+    assert store.prompt_items[0]["prompt_text"] == "Nami from One Piece, pleated skirt, cinematic portrait, upskirt"
+    assert store.prompt_items[0]["meta"]["anime_v5_add_upskirt_when_skirt"] is True
+
+
+def test_anime_v5_does_not_add_upskirt_when_option_is_disabled(monkeypatch):
+    store = FakeAnimeStore()
+    monkeypatch.setattr(anime_generation_service, "get_store", lambda: store)
+
+    service = AnimeGenerationService()
+    service.create_images_and_enqueue(
+        AnimeGenerationCreate(
+            list_name="One Piece",
+            prompt_title="Prompt",
+            prompt_text="[personaje] from [anime], pleated skirt, cinematic portrait",
+            characters=["Nami"],
+            quantity_per_character=1,
+            add_upskirt_when_skirt=False,
+        )
+    )
+
+    assert store.prompt_items[0]["prompt_text"] == "Nami from One Piece, pleated skirt, cinematic portrait"
+    assert store.prompt_items[0]["meta"]["anime_v5_add_upskirt_when_skirt"] is False
+
+
 def test_anime_v5_generator_creates_requested_random_combinations(monkeypatch):
     store = FakeAnimeStore()
     selections = [

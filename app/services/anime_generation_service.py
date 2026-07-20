@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+import re
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -95,6 +96,14 @@ def _uses_anime_v5_generator(prompt_template: str) -> bool:
     )
 
 
+def _add_upskirt_when_skirt(prompt: str) -> str:
+    if re.search(r"\bupskirt\b", prompt, flags=re.IGNORECASE):
+        return prompt
+    if not re.search(r"\b[a-zA-Z-]*skirt[a-zA-Z-]*\b", prompt, flags=re.IGNORECASE):
+        return prompt
+    return f"{prompt.rstrip(' ,')}, upskirt"
+
+
 class AnimeGenerationService:
     def __init__(self) -> None:
         self.store = get_store()
@@ -174,6 +183,8 @@ class AnimeGenerationService:
                         list_name=list_name,
                         description=character_description,
                     )
+                    if req.add_upskirt_when_skirt:
+                        rendered_prompt = _add_upskirt_when_skirt(rendered_prompt)
                     signature = None
                     seed = None
                     for _ in range(10):
@@ -222,6 +233,7 @@ class AnimeGenerationService:
                         "anime_v5_random_combination_index": combination_index + 1,
                         "anime_v5_random_combinations": random_combinations,
                         "anime_v5_manual_outfit_text": req.manual_outfit_text.strip(),
+                        "anime_v5_add_upskirt_when_skirt": req.add_upskirt_when_skirt,
                         "created_at": created_at,
                     }
                     if req.checkpoint_base or req.checkpoint_refiner:

@@ -796,35 +796,40 @@ class MainWindow(QMainWindow):
         self.anime_v5_manual_outfit_input = QLineEdit()
         self.anime_v5_manual_outfit_input.setPlaceholderText("Opcional: se añade al outfit antes de generar el prompt")
         anime_grid.addWidget(self.anime_v5_manual_outfit_input, 5, 3, 1, 3)
-        anime_grid.addWidget(QLabel("Modelo principal:"), 6, 0)
+        self.anime_v5_upskirt_on_skirt_checkbox = QCheckBox("Añadir upskirt si hay skirt")
+        self.anime_v5_upskirt_on_skirt_checkbox.setToolTip(
+            "Cuando esté activo, añade el texto 'upskirt' al prompt final si la combinación contiene 'skirt'."
+        )
+        anime_grid.addWidget(self.anime_v5_upskirt_on_skirt_checkbox, 6, 1, 1, 5)
+        anime_grid.addWidget(QLabel("Modelo principal:"), 7, 0)
         self.anime_v5_checkpoint_base_combo = QComboBox()
         self.anime_v5_checkpoint_base_combo.setMinimumWidth(220)
-        anime_grid.addWidget(self.anime_v5_checkpoint_base_combo, 6, 1, 1, 2)
-        anime_grid.addWidget(QLabel("Modelo refined:"), 6, 3)
+        anime_grid.addWidget(self.anime_v5_checkpoint_base_combo, 7, 1, 1, 2)
+        anime_grid.addWidget(QLabel("Modelo refined:"), 7, 3)
         self.anime_v5_checkpoint_refiner_combo = QComboBox()
         self.anime_v5_checkpoint_refiner_combo.setMinimumWidth(220)
-        anime_grid.addWidget(self.anime_v5_checkpoint_refiner_combo, 6, 4, 1, 2)
-        anime_grid.addWidget(QLabel("Personajes:"), 7, 0)
+        anime_grid.addWidget(self.anime_v5_checkpoint_refiner_combo, 7, 4, 1, 2)
+        anime_grid.addWidget(QLabel("Personajes:"), 8, 0)
         self.anime_v5_characters_input = QPlainTextEdit()
         self.anime_v5_characters_input.setPlaceholderText(
             'Un personaje por línea o JSON. Ej:\n'
             '{"name": "Nami", "anime": "One Piece", "description": "beautiful anime woman with long bright orange hair, large brown eyes, slim curvy figure, recognizable anime-inspired appearance"}'
         )
         self.anime_v5_characters_input.setMinimumHeight(280)
-        anime_grid.addWidget(self.anime_v5_characters_input, 7, 1, 1, 4)
-        anime_grid.addWidget(QLabel("Prompt:"), 8, 0)
+        anime_grid.addWidget(self.anime_v5_characters_input, 8, 1, 1, 4)
+        anime_grid.addWidget(QLabel("Prompt:"), 9, 0)
         self.anime_v5_prompt_input = QPlainTextEdit()
         self.anime_v5_prompt_input.setPlaceholderText("Usa [personaje], [anime], [description] y opcionalmente [shot], [pose], [location], [fit], [outfit], [fabric], [condition], [styling], [expression], [lighting].")
         self.anime_v5_prompt_input.setMinimumHeight(180)
-        anime_grid.addWidget(self.anime_v5_prompt_input, 8, 1, 1, 5)
+        anime_grid.addWidget(self.anime_v5_prompt_input, 9, 1, 1, 5)
         anime_grid.setColumnStretch(1, 1)
-        anime_grid.setRowStretch(7, 3)
-        anime_grid.setRowStretch(8, 2)
+        anime_grid.setRowStretch(8, 3)
+        anime_grid.setRowStretch(9, 2)
         self.anime_v5_options_label = QLabel(f"Opciones editables: {DEFAULT_OPTIONS_PATH}")
         self.anime_v5_options_label.setStyleSheet("color: #9aa0a6; font-size: 11px;")
-        anime_grid.addWidget(self.anime_v5_options_label, 9, 1, 1, 3)
+        anime_grid.addWidget(self.anime_v5_options_label, 10, 1, 1, 3)
         self.anime_v5_generate_btn = QPushButton("Crear imágenes Anime V5")
-        anime_grid.addWidget(self.anime_v5_generate_btn, 9, 4, 1, 2)
+        anime_grid.addWidget(self.anime_v5_generate_btn, 10, 4, 1, 2)
         anime_layout.addWidget(anime_group)
 
         self.anime_v5_prompt_picker_dialog = QDialog(self)
@@ -2623,6 +2628,7 @@ class MainWindow(QMainWindow):
         checkpoint_refiner = self.anime_v5_checkpoint_refiner_combo.currentData()
         content_rating = str(self.anime_v5_content_rating_combo.currentData() or "sfw")
         single_character = self.anime_v5_single_character_combo.currentData()
+        add_upskirt_when_skirt = self.anime_v5_upskirt_on_skirt_checkbox.isChecked()
         if not list_names:
             QMessageBox.warning(self, "Anime V5", "Selecciona al menos una lista de anime.")
             return
@@ -2660,6 +2666,7 @@ class MainWindow(QMainWindow):
                             checkpoint_base=str(checkpoint_base),
                             checkpoint_refiner=str(checkpoint_refiner),
                             content_rating=content_rating,
+                            add_upskirt_when_skirt=add_upskirt_when_skirt,
                         )
                     )
                 )
