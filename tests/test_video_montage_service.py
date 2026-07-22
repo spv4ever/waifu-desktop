@@ -41,7 +41,7 @@ def test_create_montage_seeks_audio_before_input_and_records_offset(tmp_path, mo
 
     captured: dict[str, list[str]] = {}
 
-    def _fake_run(cmd, cwd, check, capture_output, text):
+    def _fake_run(cmd, cwd, check, capture_output, text, **kwargs):
         captured["cmd"] = cmd
         Path(cmd[-1]).write_bytes(b"rendered")
 
@@ -101,7 +101,7 @@ def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_p
 
     captured = {}
 
-    def _fake_run(cmd, cwd, check, capture_output, text):
+    def _fake_run(cmd, cwd, check, capture_output, text, **kwargs):
         captured["cmd"] = cmd
         Path(cmd[-1]).write_bytes(b"rendered")
 

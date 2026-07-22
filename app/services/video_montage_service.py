@@ -102,7 +102,15 @@ class VideoMontageService:
         progress_callback: Callable[[str], None] | None = None,
     ) -> None:
         if not progress_callback:
-            subprocess.run(cmd, cwd=str(cwd), check=True, capture_output=True, text=True)
+            subprocess.run(
+                cmd,
+                cwd=str(cwd),
+                check=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
             return
 
         started_at = time.monotonic()
@@ -113,6 +121,8 @@ class VideoMontageService:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             bufsize=1,
         )
         output_lines: list[str] = []
@@ -175,6 +185,8 @@ class VideoMontageService:
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         return max(float(probe.stdout.strip()), 0.0)
 
@@ -522,7 +534,15 @@ class VideoMontageService:
             cmd += ["-map", "[a]", "-c:a", "aac"]
         cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-t", f"{total_duration:.3f}", str(output_path)]
 
-        subprocess.run(cmd, cwd=str(folder), check=True, capture_output=True, text=True)
+        subprocess.run(
+            cmd,
+            cwd=str(folder),
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
 
         metadata = {
             "ratio": ratio,
