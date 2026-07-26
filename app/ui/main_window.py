@@ -24,6 +24,7 @@ from app.config.waifu_catalog import load_waifu_catalog
 from app.data.storage import get_store
 from app.services.output_paths import build_output_path
 from app.services.comfy_history_parser import extract_saved_video_output
+from app.services.video_preview import resolve_video_preview_url
 from app.services.pack_service import PackService
 from app.services.dollimages_pack_service import DollimagesPackService
 from app.services.file_open import open_file, open_folder_and_select
@@ -3732,19 +3733,21 @@ class MainWindow(QMainWindow):
 
         base_path: Path | None = None
         video_url: str | None = None
-        if r and r.get("base_image_json"):
+        if r and is_image2vid:
+            video_url = self._video_preview_url_from_row(r, video)
+        elif r and r.get("base_image_json"):
             base = json.loads(r["base_image_json"])
             workflow_key = self._workflow_key_from_row(r)
             base_path = build_output_path(base, workflow_key=workflow_key)
-        elif r and r.get("meta_json"):
-            try:
-                meta = json.loads(r["meta_json"])
-            except ValueError:
-                meta = {}
-            if isinstance(meta, dict):
-                video_url = str(meta.get("image2vid_cloudinary_url") or "").strip() or None
 
         self._set_preview(which="base", path=base_path, video_url=video_url)
+
+    def _video_preview_url_from_row(
+        self,
+        row: dict[str, Any],
+        video: dict[str, Any] | None,
+    ) -> str | None:
+        return resolve_video_preview_url(row=row, video=video)
 
     def _on_base_video_status_changed(self, status) -> None:
         if self.base_preview_stack.currentWidget() is not self.base_video_widget:
