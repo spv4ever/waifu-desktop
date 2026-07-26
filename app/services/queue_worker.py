@@ -729,6 +729,29 @@ class QueueWorker:
         if not remote_id:
             wf = self.workflow.load_template(workflow_key=workflow_key)
 
+            if (
+                workflow_key == "image2vid"
+                and reference_image
+                and not reference_image.startswith(("http://", "https://"))
+            ):
+                input_path = Path(settings.comfyui_input_dir) / reference_image
+                try:
+                    reference_image = comfy_client.upload_image(input_path)
+                except (OSError, requests.RequestException, RuntimeError) as exc:
+                    mark_failed, reason = self._should_mark_failed(exc)
+                    if mark_failed:
+                        self.store.mark_failed(job_id, reason)
+                        self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="FAILED")
+                        self._emit_progress()
+                        return "PROCESSED"
+                    self._requeue_for_retry(
+                        conn,
+                        job_id=job_id,
+                        prompt_item_id=prompt_item_id,
+                        reason=f"error subiendo imagen de referencia ({exc})",
+                    )
+                    return "PROCESSED"
+
             wf = self.workflow.apply_overrides(
                 wf,
                 prompt_text=item["prompt_text"],
