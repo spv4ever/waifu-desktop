@@ -4102,7 +4102,7 @@ class MainWindow(QMainWindow):
             elif mode in {"video", "folder_video"}:
                 if not video:
                     raise RuntimeError("Este item no tiene un video generado.")
-                video_path = build_output_path(video, workflow_key=self._workflow_key_from_row(row))
+                video_path = build_output_path(video, workflow_key=workflow_key)
                 if mode == "video":
                     open_file(video_path)
                 else:
