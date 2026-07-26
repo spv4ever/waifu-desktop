@@ -21,7 +21,12 @@ from PySide6.QtWidgets import (
 
 from app.config.app_config import load_app_config
 from app.config.waifu_catalog import load_waifu_catalog
-from app.config.undress import UNDRESS_GARMENTS, build_undress_prompt
+from app.config.undress import (
+    UNDRESS_FPS,
+    UNDRESS_GARMENTS,
+    build_undress_prompt,
+    calculate_undress_duration,
+)
 from app.data.storage import get_store
 from app.services.output_paths import build_output_path
 from app.services.comfy_history_parser import extract_saved_video_output
@@ -960,7 +965,8 @@ class MainWindow(QMainWindow):
             item.setCheckState(Qt.Checked if index == 0 else Qt.Unchecked)
             self.undress_garment_list.addItem(item)
         undress_layout.addWidget(self.undress_garment_list, 1, 1)
-        undress_layout.addWidget(QLabel("Formato fijo: 480x768 · 97 frames · 24 fps"), 1, 2, 1, 3)
+        self.undress_format_label = QLabel()
+        undress_layout.addWidget(self.undress_format_label, 1, 2, 1, 3)
         undress_layout.addWidget(QLabel("Prompt fijo:"), 2, 0)
         self.undress_prompt_preview = QPlainTextEdit()
         self.undress_prompt_preview.setReadOnly(True)
@@ -2960,8 +2966,13 @@ class MainWindow(QMainWindow):
         ]
 
     def _update_undress_prompt(self, _item: QListWidgetItem | None = None) -> None:
+        garments = self._selected_undress_garments()
         self.undress_prompt_preview.setPlainText(
-            build_undress_prompt(self._selected_undress_garments())
+            build_undress_prompt(garments)
+        )
+        seconds, frames = calculate_undress_duration(garments)
+        self.undress_format_label.setText(
+            f"Formato: 480x768 · {frames} frames · {UNDRESS_FPS} fps · {seconds:g} s"
         )
 
     def _set_undress_source_from_current_selection(self, show_warning: bool = True) -> None:
@@ -2986,7 +2997,9 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Undress", "Debes seleccionar una imagen local de la cola.")
             return
 
-        prompt = build_undress_prompt(self._selected_undress_garments())
+        garments = self._selected_undress_garments()
+        prompt = build_undress_prompt(garments)
+        seconds, length_frames = calculate_undress_duration(garments)
         source_category = str(source.get("source_category") or "waifu")
         source_prompt_id = int(source.get("prompt_id") or 0)
         req = ImageToVideoCreate(
@@ -3000,9 +3013,9 @@ class MainWindow(QMainWindow):
             ratio="5:8",
             width=480,
             height=768,
-            seconds=4.0,
-            fps=24,
-            length_frames=97,
+            seconds=seconds,
+            fps=UNDRESS_FPS,
+            length_frames=length_frames,
         )
         try:
             result = self.image2vid_service.create_and_enqueue(req, workflow_key="undress")

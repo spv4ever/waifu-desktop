@@ -5,7 +5,11 @@ from pathlib import Path
 
 import yaml
 
-from app.config.undress import UNDRESS_GARMENTS, build_undress_prompt
+from app.config.undress import (
+    UNDRESS_GARMENTS,
+    build_undress_prompt,
+    calculate_undress_duration,
+)
 
 
 def test_undress_workflow_mappings_target_existing_nodes() -> None:
@@ -43,3 +47,13 @@ def test_undress_prompt_accumulates_checked_garments() -> None:
 
 def test_undress_prompt_uses_default_when_no_garment_is_checked() -> None:
     assert "tears apart her dress" in build_undress_prompt([])
+
+
+def test_undress_duration_scales_with_accumulated_garments() -> None:
+    assert calculate_undress_duration(["dress"]) == (4.0, 97)
+    assert calculate_undress_duration(["dress", "bra"]) == (8.0, 193)
+    assert calculate_undress_duration(["dress", "bra", "panties"]) == (12.0, 289)
+
+
+def test_undress_duration_uses_one_garment_when_selection_is_empty() -> None:
+    assert calculate_undress_duration([]) == (4.0, 97)
