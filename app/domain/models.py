@@ -86,6 +86,7 @@ class ImageToVideoCreate:
     seconds: float
     fps: int
     length_frames: int
+    workflow_key: str = "image2vid"
 
 @dataclass(frozen=True)
 class PromptDraft:

@@ -67,11 +67,12 @@ class ImageToVideoService:
         return target.name
 
     def create_and_enqueue(self, req: ImageToVideoCreate) -> ImageToVideoResult:
+        workflow_key = req.workflow_key if req.workflow_key in {"image2vid", "undress"} else "image2vid"
         pack_id = self.store.create_pack(
-            category="image2vid",
+            category=workflow_key,
             variant=req.source_category,
             requested_n=1,
-            notes=req.title or req.prompt_text or "image2vid",
+            notes=req.title or req.prompt_text or workflow_key,
         )
 
         rng = random.Random()
@@ -80,7 +81,7 @@ class ImageToVideoService:
         for _ in range(15):
             seed = rng.randint(0, 2**31 - 1)
             candidate = _hash_signature(
-                "image2vid",
+                workflow_key,
                 req.source_category,
                 req.source_prompt_id,
                 req.source_image,
@@ -94,13 +95,13 @@ class ImageToVideoService:
             )
             if self.store.try_register_combo(
                 combo_key=candidate,
-                category="image2vid",
+                category=workflow_key,
                 variant=req.source_category,
             ):
                 signature = candidate
                 break
         if signature is None or seed is None:
-            raise RuntimeError("No se pudo registrar una combinación única para image2vid.")
+            raise RuntimeError(f"No se pudo registrar una combinación única para {workflow_key}.")
 
         source_image = self._prepare_source_image(req.source_image)
 
@@ -108,14 +109,14 @@ class ImageToVideoService:
         created_at = datetime.now().isoformat(timespec="seconds")
         meta = {
             "combo": {
-                "category": "image2vid",
+                "category": workflow_key,
                 "variant": req.source_category,
                 "ratio": req.ratio,
                 "ratio_tag": ratio_tag,
                 "width": req.width,
                 "height": req.height,
             },
-            "workflow": "image2vid",
+            "workflow": workflow_key,
             "seed": seed,
             "width": req.width,
             "height": req.height,
