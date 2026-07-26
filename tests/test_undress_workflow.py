@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from app.config.undress import UNDRESS_GARMENTS, UNDRESS_PROMPT_TEMPLATE, build_undress_prompt
+from app.config.undress import UNDRESS_GARMENTS, build_undress_prompt
 
 
 def test_undress_workflow_mappings_target_existing_nodes() -> None:
@@ -17,20 +17,28 @@ def test_undress_workflow_mappings_target_existing_nodes() -> None:
     assert workflow[mapping["prompt_pos"]["node_id"]]["class_type"] == "CLIPTextEncode"
     assert workflow[mapping["output_base"]["node_id"]]["class_type"] == "VHS_VideoCombine"
     assert workflow["63"]["inputs"]["start_image"] == [mapping["load_image"]["node_id"], 0]
+    fixed_prompt = workflow[mapping["prompt_pos"]["node_id"]]["inputs"]["text"]
+    assert "Masturbating, showing her pussy" not in fixed_prompt
+    assert "tears apart her dress then pulls it down to fall away" in fixed_prompt
 
 
 def test_undress_prompt_only_substitutes_the_selected_garment() -> None:
-    prompts = [UNDRESS_PROMPT_TEMPLATE.format(garment=garment) for garment in UNDRESS_GARMENTS]
+    prompts = [build_undress_prompt([garment]) for garment in UNDRESS_GARMENTS]
 
     assert len(set(prompts)) == len(UNDRESS_GARMENTS)
-    assert "tears apart her shirt and pants" in prompts[-1]
-    assert all("Masturbating, showing her pussy, \nShe seductively" in prompt for prompt in prompts)
+    assert "tears apart her shirt and pants then pulls it down to fall away" in prompts[-1]
+    assert all("Masturbating, showing her pussy" not in prompt for prompt in prompts)
 
 
 def test_undress_prompt_accumulates_checked_garments() -> None:
     prompt = build_undress_prompt(["panties", "t-shirt", "skirt"])
 
-    assert "tears apart her panties, t-shirt, and skirt" in prompt
+    assert (
+        "effortlessly tears apart her panties then pulls it down to fall away, "
+        "effortlessly tears apart her t-shirt then pulls it down to fall away, and "
+        "effortlessly tears apart her skirt then pulls it down to fall away"
+    ) in prompt
+    assert prompt.count("then pulls it down to fall away") == 3
 
 
 def test_undress_prompt_uses_default_when_no_garment_is_checked() -> None:
