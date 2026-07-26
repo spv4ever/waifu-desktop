@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import requests
+from pathlib import Path
 from typing import Any
+
+import requests
 
 from app.config.settings import settings
 
@@ -11,6 +13,34 @@ class ComfyClient:
         resolved_base_url = base_url or settings.comfyui_base_url
         self.base_url = resolved_base_url.rstrip("/")
         self.timeout = settings.comfyui_request_timeout
+
+    def upload_image(self, image_path: str | Path, *, overwrite: bool = True) -> str:
+        """Upload an image to this ComfyUI instance and return its LoadImage name."""
+        path = Path(image_path)
+        url = f"{self.base_url}/upload/image"
+        with path.open("rb") as image_file:
+            response = requests.post(
+                url,
+                files={"image": (path.name, image_file)},
+                data={"type": "input", "overwrite": str(overwrite).lower()},
+                timeout=self.timeout,
+            )
+        if not response.ok:
+            raise RuntimeError(
+                f"ComfyUI /upload/image error {response.status_code}: {response.text}"
+            )
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise RuntimeError(
+                f"ComfyUI devolvió una respuesta no JSON al subir la imagen: {response.text}"
+            ) from exc
+
+        name = str(payload.get("name") or "").strip()
+        if not name:
+            raise RuntimeError(f"ComfyUI no devolvió el nombre de la imagen subida: {payload}")
+        subfolder = str(payload.get("subfolder") or "").strip().strip("/\\")
+        return f"{subfolder}/{name}" if subfolder else name
 
     def submit_prompt(self, workflow: dict[str, Any]) -> str:
         """
