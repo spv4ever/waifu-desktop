@@ -3,6 +3,8 @@ UNDRESS_GARMENTS = (
     "tank top",
     "bra",
     "bikini top",
+    "bikini",
+    "bikini buttom",
     "panties",
     "t-shirt",
     "skirt",
@@ -26,20 +28,13 @@ UNDRESS_PROMPT_TEMPLATE = (
 
 
 def format_undress_garments(garments: list[str] | tuple[str, ...]) -> str:
-    """Return a complete undressing action for every selected garment."""
+    """Return one undressing action with the selected garments comma-separated."""
     cleaned = [garment.strip() for garment in garments if garment.strip()]
     if not cleaned:
         cleaned = [UNDRESS_GARMENTS[0]]
 
-    actions = [
-        f"effortlessly tears apart her {garment} then pulls it down to fall away"
-        for garment in cleaned
-    ]
-    if len(actions) == 1:
-        return actions[0]
-    if len(actions) == 2:
-        return " and ".join(actions)
-    return f"{', '.join(actions[:-1])}, and {actions[-1]}"
+    garment_text = ", ".join(cleaned)
+    return f"effortlessly tears apart her {garment_text} then pulls it down to fall away"
 
 
 def build_undress_prompt(garments: list[str] | tuple[str, ...]) -> str:
