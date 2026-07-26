@@ -112,7 +112,7 @@ class ImageToVideoService:
         created_at = datetime.now().isoformat(timespec="seconds")
         meta = {
             "combo": {
-                "category": "image2vid",
+                "category": workflow_key,
                 "variant": req.source_category,
                 "ratio": req.ratio,
                 "ratio_tag": ratio_tag,
