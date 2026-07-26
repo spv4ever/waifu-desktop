@@ -35,15 +35,19 @@ def test_undress_prompt_only_substitutes_the_selected_garment() -> None:
     assert all("Masturbating, showing her pussy" not in prompt for prompt in prompts)
 
 
-def test_undress_prompt_accumulates_checked_garments() -> None:
+def test_undress_prompt_lists_checked_garments_in_one_action() -> None:
     prompt = build_undress_prompt(["panties", "t-shirt", "skirt"])
 
     assert (
-        "effortlessly tears apart her panties then pulls it down to fall away, "
-        "effortlessly tears apart her t-shirt then pulls it down to fall away, and "
-        "effortlessly tears apart her skirt then pulls it down to fall away"
+        "effortlessly tears apart her panties, t-shirt, skirt "
+        "then pulls it down to fall away"
     ) in prompt
-    assert prompt.count("then pulls it down to fall away") == 3
+    assert prompt.count("then pulls it down to fall away") == 1
+
+
+def test_undress_garments_include_requested_bikini_options() -> None:
+    assert "bikini" in UNDRESS_GARMENTS
+    assert "bikini buttom" in UNDRESS_GARMENTS
 
 
 def test_undress_prompt_uses_default_when_no_garment_is_checked() -> None:
