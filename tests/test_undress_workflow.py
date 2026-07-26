@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from app.config.undress import UNDRESS_GARMENTS, UNDRESS_PROMPT_TEMPLATE
+from app.config.undress import UNDRESS_GARMENTS, UNDRESS_PROMPT_TEMPLATE, build_undress_prompt
 
 
 def test_undress_workflow_mappings_target_existing_nodes() -> None:
@@ -25,3 +25,13 @@ def test_undress_prompt_only_substitutes_the_selected_garment() -> None:
     assert len(set(prompts)) == len(UNDRESS_GARMENTS)
     assert "tears apart her shirt and pants" in prompts[-1]
     assert all("Masturbating, showing her pussy, \nShe seductively" in prompt for prompt in prompts)
+
+
+def test_undress_prompt_accumulates_checked_garments() -> None:
+    prompt = build_undress_prompt(["panties", "t-shirt", "skirt"])
+
+    assert "tears apart her panties, t-shirt, and skirt" in prompt
+
+
+def test_undress_prompt_uses_default_when_no_garment_is_checked() -> None:
+    assert "tears apart her dress" in build_undress_prompt([])
