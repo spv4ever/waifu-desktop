@@ -905,9 +905,21 @@ class SQLiteStore(BaseStore):
         with get_connection() as conn:
             row = conn.execute(
                 """
-                SELECT title, prompt_text, base_image_json, upscale_image_json, meta_json
-                FROM prompt_item
-                WHERE id=?
+                SELECT
+                    p.title,
+                    p.prompt_text,
+                    p.base_image_json,
+                    p.upscale_image_json,
+                    p.meta_json,
+                    (
+                        SELECT q.output_json
+                        FROM queue_job q
+                        WHERE q.prompt_item_id = p.id AND q.output_json IS NOT NULL
+                        ORDER BY q.id DESC
+                        LIMIT 1
+                    ) AS output_json
+                FROM prompt_item p
+                WHERE p.id=?
                 """,
                 (prompt_id,),
             ).fetchone()

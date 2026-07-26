@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 SAVE_NODE_BASE = "19"
@@ -133,4 +134,28 @@ def extract_video_output(entry: dict[str, Any]) -> dict[str, Any] | None:
             if media:
                 return media
 
+    return None
+
+
+def extract_saved_video_output(
+    *, base_media_json: str | None, history_json: str | None
+) -> dict[str, Any] | None:
+    """Resolve a video saved directly on a prompt or in a legacy queue history."""
+    if base_media_json:
+        try:
+            media = json.loads(base_media_json)
+        except (TypeError, ValueError):
+            media = None
+        if isinstance(media, dict) and str(media.get("filename", "")).lower().endswith(
+            (".mp4", ".webm", ".mov", ".mkv", ".gif")
+        ):
+            return media
+
+    if history_json:
+        try:
+            history = json.loads(history_json)
+        except (TypeError, ValueError):
+            return None
+        if isinstance(history, dict):
+            return extract_video_output(history)
     return None

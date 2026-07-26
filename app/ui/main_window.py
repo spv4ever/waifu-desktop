@@ -23,6 +23,7 @@ from app.config.app_config import load_app_config
 from app.config.waifu_catalog import load_waifu_catalog
 from app.data.storage import get_store
 from app.services.output_paths import build_output_path
+from app.services.comfy_history_parser import extract_saved_video_output
 from app.services.pack_service import PackService
 from app.services.dollimages_pack_service import DollimagesPackService
 from app.services.file_open import open_file, open_folder_and_select
@@ -237,6 +238,8 @@ class MainWindow(QMainWindow):
         self.open_up_action = file_menu.addAction("Abrir Upscale")
         self.open_folder_base_action = file_menu.addAction("Abrir Carpeta (Base)")
         self.open_folder_up_action = file_menu.addAction("Abrir Carpeta (Upscale)")
+        self.open_video_action = file_menu.addAction("Abrir Video")
+        self.open_folder_video_action = file_menu.addAction("Abrir Carpeta (Video)")
         file_menu.addSeparator()
         self.exit_action = file_menu.addAction("Salir")
         self.exit_action.triggered.connect(self.close)
@@ -1438,6 +1441,8 @@ class MainWindow(QMainWindow):
         self.open_up_action.triggered.connect(lambda: self.open_selected("upscale"))
         self.open_folder_base_action.triggered.connect(lambda: self.open_selected("folder_base"))
         self.open_folder_up_action.triggered.connect(lambda: self.open_selected("folder_upscale"))
+        self.open_video_action.triggered.connect(lambda: self.open_selected("video"))
+        self.open_folder_video_action.triggered.connect(lambda: self.open_selected("folder_video"))
         # Selection changes => enable/disable + preview update
         self.table.itemSelectionChanged.connect(self._sync_current_cell_to_selection)
         self.table.itemSelectionChanged.connect(self.update_actions_state)
@@ -1448,6 +1453,8 @@ class MainWindow(QMainWindow):
         self.open_up_action.setEnabled(False)
         self.open_folder_base_action.setEnabled(False)
         self.open_folder_up_action.setEnabled(False)
+        self.open_video_action.setEnabled(False)
+        self.open_folder_video_action.setEnabled(False)
         self.mark_reel_priority_action.setEnabled(False)
         self.mark_reel_discard_action.setEnabled(False)
         self.clear_reel_flags_action.setEnabled(False)
@@ -3699,6 +3706,8 @@ class MainWindow(QMainWindow):
             self.open_up_action.setEnabled(False)
             self.open_folder_base_action.setEnabled(False)
             self.open_folder_up_action.setEnabled(False)
+            self.open_video_action.setEnabled(False)
+            self.open_folder_video_action.setEnabled(False)
             self.mark_reel_priority_action.setEnabled(False)
             self.mark_reel_discard_action.setEnabled(False)
             self.clear_reel_flags_action.setEnabled(False)
@@ -3706,13 +3715,17 @@ class MainWindow(QMainWindow):
             return
 
         r = self.store.get_prompt_item_media(pid)
-        has_base = bool(r and r.get("base_image_json"))
+        is_image2vid = bool(r and self._workflow_key_from_row(r) == "image2vid")
+        has_base = bool(r and r.get("base_image_json") and not is_image2vid)
         has_up = bool(r and r.get("upscale_image_json"))
+        video = self._video_output_from_row(r)
 
         self.open_base_action.setEnabled(has_base)
         self.open_folder_base_action.setEnabled(has_base)
         self.open_up_action.setEnabled(has_up)
         self.open_folder_up_action.setEnabled(has_up)
+        self.open_video_action.setEnabled(video is not None)
+        self.open_folder_video_action.setEnabled(video is not None)
         self.mark_reel_priority_action.setEnabled(True)
         self.mark_reel_discard_action.setEnabled(True)
         self.clear_reel_flags_action.setEnabled(True)
@@ -3965,6 +3978,7 @@ class MainWindow(QMainWindow):
         base = json.loads(r["base_image_json"]) if r.get("base_image_json") else None
         up = json.loads(r["upscale_image_json"]) if r.get("upscale_image_json") else None
         workflow_key = self._workflow_key_from_row(r)
+        video = self._video_output_from_row(r)
 
         try:
             if mode == "base":
@@ -3987,11 +4001,28 @@ class MainWindow(QMainWindow):
                     raise RuntimeError("Este item no tiene upscale_image_json.")
                 open_folder_and_select(build_output_path(up, workflow_key=workflow_key))
 
+            elif mode in {"video", "folder_video"}:
+                if not video:
+                    raise RuntimeError("Este item no tiene un video generado.")
+                video_path = build_output_path(video, workflow_key="image2vid")
+                if mode == "video":
+                    open_file(video_path)
+                else:
+                    open_folder_and_select(video_path)
+
             else:
                 raise RuntimeError("Modo desconocido.")
 
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
+
+    def _video_output_from_row(self, row: dict[str, Any] | None) -> dict[str, Any] | None:
+        if not row or self._workflow_key_from_row(row) != "image2vid":
+            return None
+        return extract_saved_video_output(
+            base_media_json=row.get("base_image_json"),
+            history_json=row.get("output_json"),
+        )
 
     def closeEvent(self, event) -> None:
         try:
