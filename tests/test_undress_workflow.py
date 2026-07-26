@@ -10,6 +10,7 @@ from app.config.undress import (
     build_undress_prompt,
     calculate_undress_duration,
 )
+from app.services.workflow_service import WorkflowService
 
 
 def test_undress_workflow_mappings_target_existing_nodes() -> None:
@@ -57,3 +58,26 @@ def test_undress_duration_scales_with_accumulated_garments() -> None:
 
 def test_undress_duration_uses_one_garment_when_selection_is_empty() -> None:
     assert calculate_undress_duration([]) == (4.0, 97)
+
+
+def test_undress_workflow_receives_scaled_video_length() -> None:
+    workflow = json.loads(Path("resources/workflows/undress.json").read_text(encoding="utf-8"))
+
+    updated = WorkflowService().apply_overrides(
+        workflow,
+        prompt_text="prompt",
+        negative_text="negative",
+        seed=123,
+        steps=None,
+        width=480,
+        height=768,
+        length=193,
+        filename_prefix_base="undress/test",
+        filename_prefix_upscale="",
+        checkpoint_base=None,
+        checkpoint_refiner=None,
+        load_image="source.png",
+        mapping_key="comfyui_workflow_undress",
+    )
+
+    assert updated["63"]["inputs"]["length"] == 193
