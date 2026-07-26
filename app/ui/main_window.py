@@ -80,6 +80,14 @@ IMAGE2VID_MIN_NEGATIVE_PROMPT = (
     "畸形的，毁容的，形态畸形的肢体，手指融合，静止不动的画面，杂乱的背景，三条腿，背景人很多，倒着走"
 )
 
+UNDRESS_CLOTHING_OPTIONS = ("dress", "tank top", "bra", "bikini top", "attire", "shirt and pants")
+UNDRESS_PROMPT_TEMPLATE = (
+    "A seductive woman effortlessly tears apart her {clothing}, then pulls it down to fall away, "
+    "exposing her naked breasts and nude body. Masturbating, showing her pussy, \n"
+    "She seductively swaying rhythmically from side to side, her body twisting to reveal each "
+    "contour and curve in a hypnotic display."
+)
+
 
 
 class BulkYoutubeVideoThread(QThread):
@@ -311,6 +319,7 @@ class MainWindow(QMainWindow):
         self.open_dollimages_pack_btn = QPushButton("Crear Pack Dollimages")
         self.open_dollimages_manual_prompt_btn = QPushButton("Prompt Manual Dollimages")
         self.open_image2vid_btn = QPushButton("Image2Vid WAN 2.2")
+        self.open_undress_btn = QPushButton("Undress")
         self.open_anime_v5_btn = QPushButton("Anime V5")
         self.open_bulk_images_btn = QPushButton("Bulk Images")
         self.open_reel_btn = QPushButton("Reel Instagram")
@@ -325,6 +334,7 @@ class MainWindow(QMainWindow):
             self.open_dollimages_pack_btn,
             self.open_dollimages_manual_prompt_btn,
             self.open_image2vid_btn,
+            self.open_undress_btn,
             self.open_anime_v5_btn,
             self.open_bulk_images_btn,
             self.open_reel_btn,
@@ -936,6 +946,32 @@ class MainWindow(QMainWindow):
 
         image2vid_dialog_layout.addWidget(image2vid_group)
 
+        self.undress_dialog = QDialog(self)
+        self.undress_dialog.setWindowTitle("Undress")
+        self.undress_dialog.setModal(False)
+        undress_dialog_layout = QVBoxLayout(self.undress_dialog)
+        undress_group = QGroupBox("Generar vídeo Undress desde una imagen de la cola")
+        undress_layout = QGridLayout(undress_group)
+        undress_layout.addWidget(QLabel("Imagen origen:"), 0, 0)
+        self.undress_source_label = QLabel("Sin imagen seleccionada")
+        self.undress_source_label.setStyleSheet("color: #9aa0a6;")
+        undress_layout.addWidget(self.undress_source_label, 0, 1, 1, 3)
+        self.undress_select_source_btn = QPushButton("Escoger imagen de la cola")
+        undress_layout.addWidget(self.undress_select_source_btn, 0, 4)
+        undress_layout.addWidget(QLabel("Prenda:"), 1, 0)
+        self.undress_clothing_combo = QComboBox()
+        self.undress_clothing_combo.addItems(UNDRESS_CLOTHING_OPTIONS)
+        undress_layout.addWidget(self.undress_clothing_combo, 1, 1)
+        undress_layout.addWidget(QLabel("Formato fijo: 480x720 · 5 s"), 1, 2, 1, 3)
+        undress_layout.addWidget(QLabel("Prompt:"), 2, 0)
+        self.undress_prompt_preview = QPlainTextEdit()
+        self.undress_prompt_preview.setReadOnly(True)
+        self.undress_prompt_preview.setFixedHeight(120)
+        undress_layout.addWidget(self.undress_prompt_preview, 2, 1, 1, 4)
+        self.undress_generate_btn = QPushButton("Enviar Undress a cola")
+        undress_layout.addWidget(self.undress_generate_btn, 3, 3, 1, 2)
+        undress_dialog_layout.addWidget(undress_group)
+
         self.image2vid_source_picker_dialog = QDialog(self)
         self.image2vid_source_picker_dialog.setWindowTitle("Seleccionar imagen origen")
         self.image2vid_source_picker_dialog.setModal(True)
@@ -1487,6 +1523,10 @@ class MainWindow(QMainWindow):
         self.open_dollimages_pack_btn.clicked.connect(self.dollimages_dialog.show)
         self.open_dollimages_manual_prompt_btn.clicked.connect(self.dollimages_manual_dialog.show)
         self.open_image2vid_btn.clicked.connect(self.open_image2vid_dialog)
+        self.open_undress_btn.clicked.connect(self.open_undress_dialog)
+        self.undress_select_source_btn.clicked.connect(self.open_image2vid_source_picker)
+        self.undress_clothing_combo.currentTextChanged.connect(self._update_undress_prompt)
+        self.undress_generate_btn.clicked.connect(self.generate_undress)
         self.open_anime_v5_btn.clicked.connect(self.anime_v5_dialog.show)
         self.open_bulk_images_btn.clicked.connect(self.open_bulk_images_prompt_window)
         self.anime_v5_generate_btn.clicked.connect(self.generate_anime_v5)
@@ -1584,6 +1624,7 @@ class MainWindow(QMainWindow):
         self._populate_manual_prompt_selectors()
         self._populate_dollimages_groups()
         self._update_image2vid_labels()
+        self._update_undress_prompt()
         self._update_dollimages_reel_availability()
         self._update_nsfw_controls()
         self._update_dollimages_workflow_controls()
@@ -2908,6 +2949,52 @@ class MainWindow(QMainWindow):
         self._update_image2vid_labels()
         self.image2vid_dialog.show()
 
+    def open_undress_dialog(self) -> None:
+        self._set_image2vid_source_from_current_selection(show_warning=False)
+        self._update_undress_prompt()
+        self.undress_dialog.show()
+
+    def _update_undress_prompt(self) -> None:
+        clothing = self.undress_clothing_combo.currentText() or UNDRESS_CLOTHING_OPTIONS[0]
+        self.undress_prompt_preview.setPlainText(UNDRESS_PROMPT_TEMPLATE.format(clothing=clothing))
+
+    def generate_undress(self) -> None:
+        source_info = self.image2vid_selected_source or {}
+        if not isinstance(source_info, dict) or not source_info.get("local_path"):
+            QMessageBox.warning(self, "Undress", "Debes seleccionar una imagen local de la cola.")
+            return
+
+        source_category = str(source_info.get("source_category") or "waifu")
+        source_prompt_id = int(source_info.get("prompt_id") or 0)
+        clothing = self.undress_clothing_combo.currentText() or UNDRESS_CLOTHING_OPTIONS[0]
+        req = ImageToVideoCreate(
+            source_category=source_category,
+            source_prompt_id=source_prompt_id,
+            source_url=str(source_info.get("url") or "").strip(),
+            source_image=str(source_info.get("local_path") or "").strip(),
+            title=f"Undress {clothing} #{source_prompt_id}",
+            prompt_text=UNDRESS_PROMPT_TEMPLATE.format(clothing=clothing),
+            negative_text=IMAGE2VID_MIN_NEGATIVE_PROMPT,
+            ratio="2:3",
+            width=480,
+            height=720,
+            seconds=5.0,
+            fps=32,
+            length_frames=80,
+            workflow_key="undress",
+        )
+        try:
+            result = self.image2vid_service.create_and_enqueue(req)
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", f"No se pudo encolar Undress\n{exc}")
+            return
+        QMessageBox.information(
+            self,
+            "Undress",
+            f"Vídeo en cola. Pack #{result.pack_id} · Prompt #{result.created_prompt_item_ids[0]}",
+        )
+        self.refresh()
+
     def _image2vid_ratio_dimensions(self, ratio: str) -> tuple[int, int]:
         mapping = {
             "1:1": (720, 720),
@@ -3004,6 +3091,19 @@ class MainWindow(QMainWindow):
             if not isinstance(meta, dict):
                 continue
 
+            local_path = ""
+            media_raw = row.get("upscale_image_json") or row.get("base_image_json")
+            if media_raw:
+                try:
+                    media_json = json.loads(media_raw)
+                except (TypeError, json.JSONDecodeError):
+                    media_json = None
+                if isinstance(media_json, dict):
+                    workflow_key = str(meta.get("workflow") or "waifu")
+                    candidate = build_output_path(media_json, workflow_key=workflow_key)
+                    if candidate.exists() and candidate.suffix.lower() not in {".mp4", ".webm", ".mov", ".mkv", ".gif"}:
+                        local_path = str(candidate)
+
             waifu_urls = [
                 str(image.get("url") or "").strip()
                 for image in meta.get("waifu_cloudinary_images", [])
@@ -3023,6 +3123,7 @@ class MainWindow(QMainWindow):
                         "category": str(meta.get("category") or meta.get("workflow") or "waifu"),
                         "variant": str(meta.get("combo", {}).get("variant") or meta.get("dollimages_typology") or "?"),
                         "url": current_waifu_url,
+                        "local_path": local_path,
                         "title": f"{title} #{image_index}" if len(waifu_urls) > 1 else title,
                     }
                 )
@@ -3034,6 +3135,20 @@ class MainWindow(QMainWindow):
                         "category": str(meta.get("category") or meta.get("workflow") or "dollimages"),
                         "variant": str(meta.get("combo", {}).get("variant") or meta.get("dollimages_typology") or "?"),
                         "url": doll_url,
+                        "local_path": local_path,
+                        "title": title,
+                    }
+                )
+
+            if local_path and not waifu_urls and not doll_url:
+                options.append(
+                    {
+                        "prompt_id": prompt_id,
+                        "source_category": str(meta.get("workflow") or "waifu"),
+                        "category": str(meta.get("category") or meta.get("workflow") or "waifu"),
+                        "variant": str(meta.get("combo", {}).get("variant") or meta.get("dollimages_typology") or "?"),
+                        "url": "",
+                        "local_path": local_path,
                         "title": title,
                     }
                 )
@@ -3124,11 +3239,13 @@ class MainWindow(QMainWindow):
         source = self.image2vid_selected_source
         if not source:
             self.image2vid_source_label.setText("Sin imagen seleccionada")
+            self.undress_source_label.setText("Sin imagen seleccionada")
             return
 
         self.image2vid_source_label.setText(
             f"[{source['source_category']}] #{source['prompt_id']} - {source['title']}"
         )
+        self.undress_source_label.setText(self.image2vid_source_label.text())
 
     def open_image2vid_source_picker(self) -> None:
         if not self._image2vid_source_options:
@@ -3154,6 +3271,15 @@ class MainWindow(QMainWindow):
             return
 
         image_url = str(option.get("url") or "").strip()
+        local_path = str(option.get("local_path") or "").strip()
+        if local_path:
+            pixmap = QPixmap(local_path)
+            if not pixmap.isNull():
+                self.image2vid_source_preview.setPixmap(
+                    pixmap.scaled(self.image2vid_source_preview.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                )
+                self.image2vid_source_preview.setText("")
+                return
         if not image_url:
             self.image2vid_source_preview.setPixmap(QPixmap())
             self.image2vid_source_preview.setText("Imagen sin URL")
