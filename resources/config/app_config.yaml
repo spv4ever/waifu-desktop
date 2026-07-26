@@ -237,6 +237,10 @@ comfyui_workflow_image2vid:
     node_id: "98"
     input: "height"
 
+  length:
+    node_id: "98"
+    input: "length"
+
   output_base:
     node_id: "108"
     input: "filename_prefix"
@@ -261,6 +265,9 @@ comfyui_workflow_undress:
   height:
     node_id: "63"
     input: "height"
+  length:
+    node_id: "63"
+    input: "length"
   output_base:
     node_id: "73"
     input: "filename_prefix"

@@ -763,6 +763,11 @@ class QueueWorker:
                 steps=steps,  # None si lock_steps=true -> workflow_service NO debe tocar steps
                 width=width,
                 height=height,
+                length=(
+                    int(meta.get("image2vid_length") or 81)
+                    if workflow_key in {"image2vid", "undress"}
+                    else None
+                ),
                 filename_prefix_base=base_prefix,
                 filename_prefix_upscale=upscale_prefix,
                 checkpoint_base=checkpoint_base,
@@ -771,14 +776,6 @@ class QueueWorker:
                 faceswap_enabled=faceswap_enabled,
                 mapping_key=mapping_key,
             )
-
-            if workflow_key == "image2vid":
-                image2vid_length = int(meta.get("image2vid_length") or 81)
-                node_98 = wf.get("98") if isinstance(wf, dict) else None
-                if isinstance(node_98, dict):
-                    inputs = node_98.get("inputs")
-                    if isinstance(inputs, dict):
-                        inputs["length"] = image2vid_length
 
             try:
                 remote_id = comfy_client.submit_prompt(wf)

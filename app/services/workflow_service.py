@@ -49,6 +49,7 @@ class WorkflowService:
             steps: int | None,
             width: int | None,
             height: int | None,
+            length: int | None,
             filename_prefix_base: str,
             filename_prefix_upscale: str,
             checkpoint_base: str | None,
@@ -98,6 +99,8 @@ class WorkflowService:
             set_input_for_nodes(mapping["width"]["node_id"], mapping["width"]["input"], int(width))
         if height is not None and mapping.get("height"):
             set_input_for_nodes(mapping["height"]["node_id"], mapping["height"]["input"], int(height))
+        if length is not None and mapping.get("length"):
+            set_input_for_nodes(mapping["length"]["node_id"], mapping["length"]["input"], int(length))
 
         if mapping.get("output_base"):
             set_input_for_nodes(mapping["output_base"]["node_id"], mapping["output_base"]["input"], filename_prefix_base)
