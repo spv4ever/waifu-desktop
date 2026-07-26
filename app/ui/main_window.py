@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 from app.config.app_config import load_app_config
 from app.config.waifu_catalog import load_waifu_catalog
-from app.config.undress import UNDRESS_GARMENTS, UNDRESS_PROMPT_TEMPLATE
+from app.config.undress import UNDRESS_GARMENTS, build_undress_prompt
 from app.data.storage import get_store
 from app.services.output_paths import build_output_path
 from app.services.comfy_history_parser import extract_saved_video_output
@@ -951,10 +951,15 @@ class MainWindow(QMainWindow):
         undress_layout.addWidget(self.undress_source_label, 0, 1, 1, 3)
         self.undress_select_source_btn = QPushButton("Usar selección actual")
         undress_layout.addWidget(self.undress_select_source_btn, 0, 4)
-        undress_layout.addWidget(QLabel("Prenda:"), 1, 0)
-        self.undress_garment_combo = QComboBox()
-        self.undress_garment_combo.addItems(UNDRESS_GARMENTS)
-        undress_layout.addWidget(self.undress_garment_combo, 1, 1)
+        undress_layout.addWidget(QLabel("Prendas:"), 1, 0, Qt.AlignTop)
+        self.undress_garment_list = QListWidget()
+        self.undress_garment_list.setFixedHeight(150)
+        for index, garment in enumerate(UNDRESS_GARMENTS):
+            item = QListWidgetItem(garment)
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked if index == 0 else Qt.Unchecked)
+            self.undress_garment_list.addItem(item)
+        undress_layout.addWidget(self.undress_garment_list, 1, 1)
         undress_layout.addWidget(QLabel("Formato fijo: 480x768 · 97 frames · 24 fps"), 1, 2, 1, 3)
         undress_layout.addWidget(QLabel("Prompt fijo:"), 2, 0)
         self.undress_prompt_preview = QPlainTextEdit()
@@ -1572,7 +1577,7 @@ class MainWindow(QMainWindow):
         self.image2vid_ratio_combo.currentIndexChanged.connect(self._update_image2vid_labels)
         self.image2vid_seconds_spin.valueChanged.connect(self._update_image2vid_labels)
         self.undress_select_source_btn.clicked.connect(self._set_undress_source_from_current_selection)
-        self.undress_garment_combo.currentTextChanged.connect(self._update_undress_prompt)
+        self.undress_garment_list.itemChanged.connect(self._update_undress_prompt)
         self.image2vid_reload_sources_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_select_source_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_pick_prompt_btn.clicked.connect(self.open_image2vid_prompt_picker)
@@ -2947,9 +2952,17 @@ class MainWindow(QMainWindow):
         self._update_undress_prompt()
         self.undress_dialog.show()
 
-    def _update_undress_prompt(self) -> None:
-        garment = self.undress_garment_combo.currentText().strip() or UNDRESS_GARMENTS[0]
-        self.undress_prompt_preview.setPlainText(UNDRESS_PROMPT_TEMPLATE.format(garment=garment))
+    def _selected_undress_garments(self) -> list[str]:
+        return [
+            self.undress_garment_list.item(index).text()
+            for index in range(self.undress_garment_list.count())
+            if self.undress_garment_list.item(index).checkState() == Qt.Checked
+        ]
+
+    def _update_undress_prompt(self, _item: QListWidgetItem | None = None) -> None:
+        self.undress_prompt_preview.setPlainText(
+            build_undress_prompt(self._selected_undress_garments())
+        )
 
     def _set_undress_source_from_current_selection(self, show_warning: bool = True) -> None:
         source = self._selected_image2vid_source_from_browser()
@@ -2973,9 +2986,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Undress", "Debes seleccionar una imagen local de la cola.")
             return
 
-        prompt = UNDRESS_PROMPT_TEMPLATE.format(
-            garment=self.undress_garment_combo.currentText().strip() or UNDRESS_GARMENTS[0]
-        )
+        prompt = build_undress_prompt(self._selected_undress_garments())
         source_category = str(source.get("source_category") or "waifu")
         source_prompt_id = int(source.get("prompt_id") or 0)
         req = ImageToVideoCreate(
