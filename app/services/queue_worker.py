@@ -911,11 +911,14 @@ class QueueWorker:
                 self._emit_progress()
 
                 video_output = extract_video_output(entry) if workflow_key == "image2vid" else None
+                primary_output = video_output if workflow_key == "image2vid" else base_img
 
                 # Guardar outputs en prompt_item
                 self.store.set_prompt_outputs(
                     item_id=prompt_item_id,
-                    base_image_json=json.dumps(base_img, ensure_ascii=False) if base_img and workflow_key != "image2vid" else None,
+                    base_image_json=(
+                        json.dumps(primary_output, ensure_ascii=False) if primary_output else None
+                    ),
                     upscale_image_json=json.dumps(up_img, ensure_ascii=False) if up_img and workflow_key != "image2vid" else None,
                 )
 
