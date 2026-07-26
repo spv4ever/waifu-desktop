@@ -245,6 +245,29 @@ comfyui_workflow_image2vid:
     node_id: "97"
     input: "image"
 
+comfyui_workflow_undress:
+  prompt_pos:
+    node_id: "6"
+    input: "text"
+  prompt_neg:
+    node_id: "7"
+    input: "text"
+  seed:
+    node_id: ["74", "75"]
+    input: "noise_seed"
+  width:
+    node_id: "63"
+    input: "width"
+  height:
+    node_id: "63"
+    input: "height"
+  output_base:
+    node_id: "73"
+    input: "filename_prefix"
+  load_image:
+    node_id: "62"
+    input: "image"
+
 krea2_ratios:
   "1:1": [704, 704]
   "9:16": [528, 928]

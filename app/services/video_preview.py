@@ -11,7 +11,15 @@ def resolve_video_preview_url(
 ) -> str | None:
     """Return a playable local URI, falling back to the uploaded video URL."""
     if video:
-        video_path = build_output_path(video, workflow_key="image2vid")
+        workflow_key = "image2vid"
+        if row.get("meta_json"):
+            try:
+                preview_meta = json.loads(row["meta_json"])
+            except (TypeError, ValueError):
+                preview_meta = {}
+            if isinstance(preview_meta, dict):
+                workflow_key = str(preview_meta.get("workflow") or workflow_key)
+        video_path = build_output_path(video, workflow_key=workflow_key)
         if video_path.exists():
             return video_path.resolve().as_uri()
 
