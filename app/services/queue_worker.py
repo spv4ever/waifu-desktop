@@ -600,7 +600,7 @@ class QueueWorker:
         checkpoint_refiner = checkpoints.get("refiner")
         workflow_key = str(meta.get("workflow") or "waifu")
         use_dollimages_comfy = workflow_key in {"dollimages", "dollimagesz", "anime_v5", "krea2"}
-        if workflow_key == "image2vid":
+        if workflow_key in {"image2vid", "undress"}:
             use_dollimages_comfy = True
         comfy_client = self.dollimages_comfy if use_dollimages_comfy and self.dollimages_comfy else self.comfy
 
@@ -665,9 +665,12 @@ class QueueWorker:
             height = int(meta.get("height") or combo.get("height") or 1408)
             seed = meta.get("seed")
             mapping_key = "comfyui_workflow_anime_v5"
-        elif workflow_key == "image2vid":
+        elif workflow_key in {"image2vid", "undress"}:
             source_category = str(meta.get("image2vid_source_category") or "waifu").strip().lower()
-            folder = sanitize_relpath(f"image2vid/{'dollimages' if source_category == 'dollimages' else 'waifu'}")
+            source_folder = "undress" if workflow_key == "undress" else (
+                "dollimages" if source_category == "dollimages" else "waifu"
+            )
+            folder = sanitize_relpath(f"image2vid/{source_folder}")
             base_name = sanitize_segment(f"{prompt_item_id}")
             base_prefix = sanitize_relpath(f"{folder}/{base_name}")
             upscale_prefix = base_prefix
@@ -684,7 +687,7 @@ class QueueWorker:
                 except ValueError as exc:
                     self.store.mark_failed(job_id, str(exc))
                     return "PROCESSED"
-            mapping_key = "comfyui_workflow_image2vid"
+            mapping_key = f"comfyui_workflow_{workflow_key}"
         else:
             # -------------------------
             # PATH / NAMING (Jerarquía correcta)
@@ -730,7 +733,7 @@ class QueueWorker:
             wf = self.workflow.load_template(workflow_key=workflow_key)
 
             if (
-                workflow_key == "image2vid"
+                workflow_key in {"image2vid", "undress"}
                 and reference_image
                 and not reference_image.startswith(("http://", "https://"))
             ):
@@ -910,8 +913,9 @@ class QueueWorker:
                 self.store.set_backend_status(job_id, "Completado")
                 self._emit_progress()
 
-                video_output = extract_video_output(entry) if workflow_key == "image2vid" else None
-                primary_output = video_output if workflow_key == "image2vid" else base_img
+                is_video_workflow = workflow_key in {"image2vid", "undress"}
+                video_output = extract_video_output(entry) if is_video_workflow else None
+                primary_output = video_output if is_video_workflow else base_img
 
                 # Guardar outputs en prompt_item
                 self.store.set_prompt_outputs(
@@ -919,13 +923,13 @@ class QueueWorker:
                     base_image_json=(
                         json.dumps(primary_output, ensure_ascii=False) if primary_output else None
                     ),
-                    upscale_image_json=json.dumps(up_img, ensure_ascii=False) if up_img and workflow_key != "image2vid" else None,
+                    upscale_image_json=json.dumps(up_img, ensure_ascii=False) if up_img and not is_video_workflow else None,
                 )
 
                 self.store.mark_done(job_id)
                 self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="DONE")
 
-                if workflow_key == "image2vid":
+                if is_video_workflow:
                     self._upload_image2vid_to_cloudinary(
                         prompt_item_id=prompt_item_id,
                         meta=meta,

@@ -66,9 +66,13 @@ class ImageToVideoService:
         validate_image_file(target)
         return target.name
 
-    def create_and_enqueue(self, req: ImageToVideoCreate) -> ImageToVideoResult:
+    def create_and_enqueue(
+        self, req: ImageToVideoCreate, *, workflow_key: str = "image2vid"
+    ) -> ImageToVideoResult:
+        if workflow_key not in {"image2vid", "undress"}:
+            raise ValueError(f"Workflow de vídeo no soportado: {workflow_key}")
         pack_id = self.store.create_pack(
-            category="image2vid",
+            category=workflow_key,
             variant=req.source_category,
             requested_n=1,
             notes=req.title or req.prompt_text or "image2vid",
@@ -80,7 +84,7 @@ class ImageToVideoService:
         for _ in range(15):
             seed = rng.randint(0, 2**31 - 1)
             candidate = _hash_signature(
-                "image2vid",
+                workflow_key,
                 req.source_category,
                 req.source_prompt_id,
                 req.source_image,
@@ -94,7 +98,7 @@ class ImageToVideoService:
             )
             if self.store.try_register_combo(
                 combo_key=candidate,
-                category="image2vid",
+                category=workflow_key,
                 variant=req.source_category,
             ):
                 signature = candidate
@@ -115,7 +119,7 @@ class ImageToVideoService:
                 "width": req.width,
                 "height": req.height,
             },
-            "workflow": "image2vid",
+            "workflow": workflow_key,
             "seed": seed,
             "width": req.width,
             "height": req.height,
