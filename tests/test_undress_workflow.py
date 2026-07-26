@@ -6,6 +6,7 @@ from pathlib import Path
 import yaml
 
 from app.config.undress import (
+    UNDRESS_ALL_CLOTHES,
     UNDRESS_GARMENTS,
     build_undress_prompt,
     calculate_undress_duration,
@@ -50,8 +51,26 @@ def test_undress_garments_include_requested_bikini_options() -> None:
     assert "bikini buttom" in UNDRESS_GARMENTS
 
 
+def test_undress_generic_option_removes_all_clothes() -> None:
+    assert UNDRESS_GARMENTS[0] == UNDRESS_ALL_CLOTHES
+    assert (
+        "tears apart all her clothes then pulls them down to fall away"
+        in build_undress_prompt([UNDRESS_ALL_CLOTHES])
+    )
+
+
+def test_undress_generic_option_overrides_individual_garments() -> None:
+    garments = ["dress", UNDRESS_ALL_CLOTHES, "panties"]
+
+    prompt = build_undress_prompt(garments)
+
+    assert "all her clothes" in prompt
+    assert "her dress" not in prompt
+    assert calculate_undress_duration(garments) == (4.0, 97)
+
+
 def test_undress_prompt_uses_default_when_no_garment_is_checked() -> None:
-    assert "tears apart her dress" in build_undress_prompt([])
+    assert "tears apart all her clothes" in build_undress_prompt([])
 
 
 def test_undress_duration_scales_with_accumulated_garments() -> None:

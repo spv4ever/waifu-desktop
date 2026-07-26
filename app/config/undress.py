@@ -1,4 +1,7 @@
+UNDRESS_ALL_CLOTHES = "all clothes"
+
 UNDRESS_GARMENTS = (
+    UNDRESS_ALL_CLOTHES,
     "dress",
     "tank top",
     "bra",
@@ -33,6 +36,9 @@ def format_undress_garments(garments: list[str] | tuple[str, ...]) -> str:
     if not cleaned:
         cleaned = [UNDRESS_GARMENTS[0]]
 
+    if UNDRESS_ALL_CLOTHES in cleaned:
+        return "effortlessly tears apart all her clothes then pulls them down to fall away"
+
     garment_text = ", ".join(cleaned)
     return f"effortlessly tears apart her {garment_text} then pulls it down to fall away"
 
@@ -48,7 +54,8 @@ def calculate_undress_duration(
     garments: list[str] | tuple[str, ...],
 ) -> tuple[float, int]:
     """Scale the video duration so every accumulated garment gets four seconds."""
-    garment_count = max(sum(bool(garment.strip()) for garment in garments), 1)
+    cleaned = [garment.strip() for garment in garments if garment.strip()]
+    garment_count = 1 if UNDRESS_ALL_CLOTHES in cleaned else max(len(cleaned), 1)
     seconds = UNDRESS_SECONDS_PER_GARMENT * garment_count
     # Wan lengths include the initial frame: four seconds at 24 fps is 97 frames.
     frames = int(seconds * UNDRESS_FPS) + 1
