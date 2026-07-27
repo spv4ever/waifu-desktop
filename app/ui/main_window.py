@@ -1138,7 +1138,7 @@ class MainWindow(QMainWindow):
         self.video_montage_dialog.setModal(False)
         self.video_montage_dialog.resize(760, 460)
         video_montage_layout = QVBoxLayout(self.video_montage_dialog)
-        video_montage_group = QGroupBox("Concatenar vídeos con fundido y música aleatoria")
+        video_montage_group = QGroupBox("Concatenar vídeos con transiciones y música aleatoria")
         video_montage_grid = QGridLayout(video_montage_group)
         video_montage_grid.setHorizontalSpacing(10)
         video_montage_grid.setVerticalSpacing(8)
@@ -1162,12 +1162,33 @@ class MainWindow(QMainWindow):
         self.video_montage_ratio_combo.addItem("Horizontal 16:9", "16:9")
         video_montage_grid.addWidget(self.video_montage_ratio_combo, 2, 1)
 
-        video_montage_grid.addWidget(QLabel("Fundido entre vídeos:"), 2, 2)
+        video_montage_grid.addWidget(QLabel("Duración transición:"), 2, 2)
         self.video_montage_transition_spin = QDoubleSpinBox()
         self.video_montage_transition_spin.setRange(0.0, 5.0)
         self.video_montage_transition_spin.setSingleStep(0.25)
         self.video_montage_transition_spin.setValue(0.75)
         video_montage_grid.addWidget(self.video_montage_transition_spin, 2, 3)
+
+        video_montage_grid.addWidget(QLabel("Efecto:"), 3, 0)
+        self.video_montage_transition_type_combo = QComboBox()
+        for label, value in (
+            ("Fundido cruzado", "fade"),
+            ("Disolución", "dissolve"),
+            ("Fundido a negro", "fadeblack"),
+            ("Fundido a blanco", "fadewhite"),
+            ("Deslizar izquierda", "slideleft"),
+            ("Deslizar derecha", "slideright"),
+            ("Barrido izquierda", "wipeleft"),
+            ("Barrido derecha", "wiperight"),
+            ("Círculo abrir", "circleopen"),
+            ("Círculo cerrar", "circleclose"),
+            ("Pixelado", "pixelize"),
+        ):
+            self.video_montage_transition_type_combo.addItem(label, value)
+        self.video_montage_transition_type_combo.setToolTip(
+            "Fundido cruzado desvanece el vídeo actual mientras aparece el siguiente."
+        )
+        video_montage_grid.addWidget(self.video_montage_transition_type_combo, 3, 1, 1, 3)
 
         self.video_montage_fade_out_checkbox = QCheckBox("Fundido final")
         self.video_montage_fade_out_checkbox.setChecked(True)
@@ -3685,6 +3706,7 @@ class MainWindow(QMainWindow):
 
         ratio = str(self.video_montage_ratio_combo.currentData() or "9:16")
         transition_seconds = float(self.video_montage_transition_spin.value())
+        transition_type = str(self.video_montage_transition_type_combo.currentData() or "fade")
         fade_out = self.video_montage_fade_out_checkbox.isChecked()
 
         try:
@@ -3692,6 +3714,7 @@ class MainWindow(QMainWindow):
                 source_videos=source_videos,
                 ratio=ratio,
                 transition_seconds=transition_seconds,
+                transition_type=transition_type,
                 fade_out=fade_out,
             )
         except Exception as exc:
