@@ -229,6 +229,7 @@ class MainWindow(QMainWindow):
         self._image2vid_filtered_source_options: list[dict[str, Any]] = []
         self._image2vid_prompt_templates: list[dict[str, Any]] = []
         self._image2vid_selected_prompt_templates: list[dict[str, Any]] = []
+        self._image2vid_checked_prompt_template_ids: set[int] = set()
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -1056,21 +1057,26 @@ class MainWindow(QMainWindow):
         prompt_filter_row.addWidget(QLabel("Total:"))
         self.image2vid_prompt_count_label = QLabel("0")
         prompt_filter_row.addWidget(self.image2vid_prompt_count_label)
+        self.image2vid_prompt_select_all_btn = QPushButton("Seleccionar todos")
+        self.image2vid_prompt_clear_all_btn = QPushButton("Deseleccionar todos")
+        prompt_filter_row.addWidget(self.image2vid_prompt_select_all_btn)
+        prompt_filter_row.addWidget(self.image2vid_prompt_clear_all_btn)
         prompt_filter_row.addStretch(1)
         prompt_picker_layout.addLayout(prompt_filter_row)
         prompt_picker_layout.addWidget(
-            QLabel("Selecciona varias filas con Ctrl o Mayús para crear un vídeo por cada prompt.")
+            QLabel("Marca los prompts que quieras usar para crear un vídeo por cada uno.")
         )
 
-        self.image2vid_prompt_table = QTableWidget(0, 2)
-        self.image2vid_prompt_table.setHorizontalHeaderLabels(["Título", "Prompt tipo"])
+        self.image2vid_prompt_table = QTableWidget(0, 3)
+        self.image2vid_prompt_table.setHorizontalHeaderLabels(["✓", "Título", "Prompt tipo"])
         self.image2vid_prompt_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.image2vid_prompt_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.image2vid_prompt_table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.image2vid_prompt_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.image2vid_prompt_table.verticalHeader().setVisible(False)
         prompt_header = self.image2vid_prompt_table.horizontalHeader()
         prompt_header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        prompt_header.setSectionResizeMode(1, QHeaderView.Stretch)
+        prompt_header.setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        prompt_header.setSectionResizeMode(2, QHeaderView.Stretch)
         prompt_picker_layout.addWidget(self.image2vid_prompt_table, 1)
 
         prompt_picker_actions = QHBoxLayout()
@@ -1603,10 +1609,10 @@ class MainWindow(QMainWindow):
         self.image2vid_source_cancel_btn.clicked.connect(self.image2vid_source_picker_dialog.reject)
         self.image2vid_prompt_cancel_btn.clicked.connect(self.image2vid_prompt_picker_dialog.reject)
         self.image2vid_prompt_apply_btn.clicked.connect(self._apply_selected_image2vid_prompt_template)
+        self.image2vid_prompt_select_all_btn.clicked.connect(self._select_all_image2vid_prompt_templates)
+        self.image2vid_prompt_clear_all_btn.clicked.connect(self._clear_all_image2vid_prompt_templates)
         self.image2vid_prompt_search_input.textChanged.connect(self._filter_image2vid_prompt_templates)
-        self.image2vid_prompt_table.itemDoubleClicked.connect(
-            lambda _item: self._apply_selected_image2vid_prompt_template()
-        )
+        self.image2vid_prompt_table.itemChanged.connect(self._on_image2vid_prompt_check_changed)
         self.image2vid_source_apply_btn.clicked.connect(self._apply_selected_image2vid_source)
         self.image2vid_source_table.itemSelectionChanged.connect(self._update_image2vid_source_preview)
         self.image2vid_source_table.itemDoubleClicked.connect(
@@ -3338,6 +3344,7 @@ class MainWindow(QMainWindow):
 
     def _filter_image2vid_prompt_templates(self) -> None:
         query = self.image2vid_prompt_search_input.text().strip().lower()
+        self.image2vid_prompt_table.blockSignals(True)
         self.image2vid_prompt_table.setRowCount(0)
 
         for template in self._image2vid_prompt_templates:
@@ -3346,32 +3353,52 @@ class MainWindow(QMainWindow):
                 continue
             row = self.image2vid_prompt_table.rowCount()
             self.image2vid_prompt_table.insertRow(row)
+            check_item = QTableWidgetItem()
+            check_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsUserCheckable)
+            check_item.setCheckState(
+                Qt.Checked if int(template["id"]) in self._image2vid_checked_prompt_template_ids else Qt.Unchecked
+            )
             title_item = QTableWidgetItem(str(template["title"]))
             title_item.setData(Qt.UserRole, int(template["id"]))
-            self.image2vid_prompt_table.setItem(row, 0, title_item)
-            self.image2vid_prompt_table.setItem(row, 1, QTableWidgetItem(str(template["prompt_text"])))
+            self.image2vid_prompt_table.setItem(row, 0, check_item)
+            self.image2vid_prompt_table.setItem(row, 1, title_item)
+            self.image2vid_prompt_table.setItem(row, 2, QTableWidgetItem(str(template["prompt_text"])))
 
+        self.image2vid_prompt_table.blockSignals(False)
         self.image2vid_prompt_count_label.setText(str(self.image2vid_prompt_table.rowCount()))
-        if self.image2vid_prompt_table.rowCount() > 0:
-            self.image2vid_prompt_table.selectRow(0)
+
+    def _on_image2vid_prompt_check_changed(self, item: QTableWidgetItem) -> None:
+        if item.column() != 0:
+            return
+        title_item = self.image2vid_prompt_table.item(item.row(), 1)
+        if title_item is None:
+            return
+        template_id = int(title_item.data(Qt.UserRole))
+        if item.checkState() == Qt.Checked:
+            self._image2vid_checked_prompt_template_ids.add(template_id)
+        else:
+            self._image2vid_checked_prompt_template_ids.discard(template_id)
+
+    def _select_all_image2vid_prompt_templates(self) -> None:
+        self._image2vid_checked_prompt_template_ids = {
+            int(template["id"]) for template in self._image2vid_prompt_templates
+        }
+        self._filter_image2vid_prompt_templates()
+
+    def _clear_all_image2vid_prompt_templates(self) -> None:
+        self._image2vid_checked_prompt_template_ids.clear()
+        self._filter_image2vid_prompt_templates()
 
     def _apply_selected_image2vid_prompt_template(self) -> None:
-        selected_rows = self.image2vid_prompt_table.selectionModel().selectedRows()
-        if not selected_rows:
+        if not self._image2vid_checked_prompt_template_ids:
             QMessageBox.warning(self, "Prompts tipo video", "Selecciona un prompt tipo.")
             return
 
-        selected_templates: list[dict[str, Any]] = []
-        for selected_row in sorted(selected_rows, key=lambda index: index.row()):
-            row = selected_row.row()
-            title_item = self.image2vid_prompt_table.item(row, 0)
-            prompt_item = self.image2vid_prompt_table.item(row, 1)
-            if title_item and prompt_item:
-                selected_templates.append({
-                    "id": title_item.data(Qt.UserRole),
-                    "title": title_item.text().strip(),
-                    "prompt_text": prompt_item.text().strip(),
-                })
+        selected_templates = [
+            template.copy()
+            for template in self._image2vid_prompt_templates
+            if int(template["id"]) in self._image2vid_checked_prompt_template_ids
+        ]
         if not selected_templates:
             return
         self._image2vid_selected_prompt_templates = selected_templates
