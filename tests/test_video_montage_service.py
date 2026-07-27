@@ -59,6 +59,40 @@ def test_create_montage_seeks_audio_before_input_and_records_offset(tmp_path, mo
     assert metadata["audio_start_seconds"] == 37.25
 
 
+def test_create_montage_crossfades_overlapping_videos(tmp_path, monkeypatch):
+    source_paths = [tmp_path / name for name in ("one.mp4", "two.mp4", "three.mp4")]
+    for path in source_paths:
+        path.write_bytes(b"video")
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    service = VideoMontageService()
+    monkeypatch.setattr("app.services.video_montage_service.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(service, "_probe_duration", lambda path: 4.0)
+    monkeypatch.setattr(service, "_create_folder", lambda: output_dir)
+    monkeypatch.setattr(service, "_select_audio_track", lambda: None)
+    captured = {}
+
+    def _fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+
+    monkeypatch.setattr("app.services.video_montage_service.subprocess.run", _fake_run)
+
+    result = service.create_montage(
+        source_videos=source_paths,
+        ratio="16:9",
+        transition_seconds=1.0,
+        transition_type="dissolve",
+    )
+
+    filter_complex = captured["cmd"][captured["cmd"].index("-filter_complex") + 1]
+    assert "xfade=transition=dissolve:duration=1.000:offset=3.000" in filter_complex
+    assert "xfade=transition=dissolve:duration=1.000:offset=6.000" in filter_complex
+    assert "color=c=black" not in filter_complex
+    assert result.duration_seconds == 10.0
+    metadata = json.loads((output_dir / "montaje.json").read_text(encoding="utf-8"))
+    assert metadata["transition_type"] == "dissolve"
+
+
 def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_path, monkeypatch):
     audio_dir = tmp_path / "resources" / "audio_relax"
     audio_dir.mkdir(parents=True)

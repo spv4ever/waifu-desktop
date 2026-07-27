@@ -67,6 +67,7 @@ class VideoMontageService:
     _YOUTUBE_4K_SIZE = (3840, 2160)
     _YOUTUBE_IMAGE_SECONDS = 8.0
     _YOUTUBE_TRANSITIONS = {"fade", "fadeblack", "fadewhite", "distance", "wipeleft", "wiperight", "wipeup", "wipedown", "slideleft", "slideright", "slideup", "slidedown", "circleopen", "circleclose", "dissolve", "pixelize"}
+    _VIDEO_TRANSITIONS = _YOUTUBE_TRANSITIONS
     _FFMPEG_TIME_RE = re.compile(r"time=(\d+):(\d+):(\d+(?:\.\d+)?)")
 
     def _emit_progress(self, progress_callback: Callable[[str], None] | None, message: str) -> None:
@@ -448,6 +449,7 @@ class VideoMontageService:
         source_videos: list[str | Path],
         ratio: str,
         transition_seconds: float | None = None,
+        transition_type: str = "fade",
         fade_out: bool = True,
     ) -> VideoMontageResult:
         if ratio not in self._RATIO_SIZES:
@@ -467,9 +469,14 @@ class VideoMontageService:
             raise RuntimeError("No se encontró ffmpeg en el sistema para renderizar el montaje.")
 
         transition_seconds = self._TRANSITION_SECONDS if transition_seconds is None else max(float(transition_seconds), 0.0)
+        clean_transition = str(transition_type or "fade").strip().lower()
+        if clean_transition not in self._VIDEO_TRANSITIONS:
+            raise ValueError("Tipo de transición no soportado.")
         width, height = self._RATIO_SIZES[ratio]
         durations = [self._probe_duration(path) for path in paths]
-        total_duration = sum(durations) + (transition_seconds * max(len(paths) - 1, 0))
+        if transition_seconds > 0 and any(duration <= transition_seconds for duration in durations):
+            raise ValueError("La transición debe durar menos que cada vídeo del montaje.")
+        total_duration = sum(durations) - (transition_seconds * max(len(paths) - 1, 0))
         fade_out_start = max(total_duration - self._FADE_OUT_SECONDS, 0.0) if fade_out else 0.0
 
         folder = self._create_folder()
@@ -494,7 +501,6 @@ class VideoMontageService:
             ]
 
         filter_parts: list[str] = []
-        concat_labels: list[str] = []
         for idx, duration in enumerate(durations):
             label = f"v{idx}"
             filters = (
@@ -503,31 +509,33 @@ class VideoMontageService:
                 f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,"
                 f"setsar=1,fps={self._FPS},format=yuv420p"
             )
-            if transition_seconds > 0:
-                if idx > 0:
-                    filters += f",fade=t=in:st=0:d={min(transition_seconds, duration / 2):.3f}"
-                if idx < len(paths) - 1:
-                    fade_start = max(duration - min(transition_seconds, duration / 2), 0.0)
-                    filters += f",fade=t=out:st={fade_start:.3f}:d={min(transition_seconds, duration / 2):.3f}"
             filter_parts.append(f"{filters}[{label}]")
-            concat_labels.append(f"[{label}]")
-            if idx < len(paths) - 1 and transition_seconds > 0:
-                black_label = f"bt{idx}"
-                filter_parts.append(f"color=c=black:s={width}x{height}:d={transition_seconds:.3f}:r={self._FPS},format=yuv420p[{black_label}]")
-                concat_labels.append(f"[{black_label}]")
 
-        segment_count = len(concat_labels)
-        filter_parts.append(f"{''.join(concat_labels)}concat=n={segment_count}:v=1:a=0[vc]")
+        if transition_seconds > 0:
+            current_label = "v0"
+            current_duration = durations[0]
+            for idx in range(1, len(paths)):
+                output_label = "vc" if idx == len(paths) - 1 else f"vx{idx}"
+                offset = current_duration - transition_seconds
+                filter_parts.append(
+                    f"[{current_label}][v{idx}]xfade=transition={clean_transition}:"
+                    f"duration={transition_seconds:.3f}:offset={offset:.3f}[{output_label}]"
+                )
+                current_label = output_label
+                current_duration += durations[idx] - transition_seconds
+        else:
+            concat_labels = "".join(f"[v{idx}]" for idx in range(len(paths)))
+            filter_parts.append(f"{concat_labels}concat=n={len(paths)}:v=1:a=0[vc]")
         if fade_out:
             filter_parts.append(f"[vc]fade=t=out:st={fade_out_start:.3f}:d={self._FADE_OUT_SECONDS}[v]")
         else:
             filter_parts.append("[vc]format=yuv420p[v]")
 
         if audio_input_index is not None:
-            filter_parts.append(
-                f"[{audio_input_index}:a]atrim=0:{total_duration:.3f},asetpts=PTS-STARTPTS,volume=0.5,"
-                f"afade=t=out:st={fade_out_start:.3f}:d={self._FADE_OUT_SECONDS}[a]"
-            )
+            audio_filters = f"[{audio_input_index}:a]atrim=0:{total_duration:.3f},asetpts=PTS-STARTPTS,volume=0.5"
+            if fade_out:
+                audio_filters += f",afade=t=out:st={fade_out_start:.3f}:d={self._FADE_OUT_SECONDS}"
+            filter_parts.append(f"{audio_filters}[a]")
 
         cmd += ["-filter_complex", ";".join(filter_parts), "-map", "[v]"]
         if audio_input_index is not None:
@@ -548,6 +556,7 @@ class VideoMontageService:
             "ratio": ratio,
             "size": {"width": width, "height": height},
             "transition_seconds": transition_seconds,
+            "transition_type": clean_transition,
             "duration_seconds": total_duration,
             "audio": str(audio_path) if audio_path else None,
             "audio_start_seconds": audio_start_time if audio_path else None,
