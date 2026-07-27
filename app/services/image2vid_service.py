@@ -69,15 +69,47 @@ class ImageToVideoService:
     def create_and_enqueue(
         self, req: ImageToVideoCreate, *, workflow_key: str = "image2vid"
     ) -> ImageToVideoResult:
+        return self.create_many_and_enqueue([req], workflow_key=workflow_key)
+
+    def create_many_and_enqueue(
+        self, requests: list[ImageToVideoCreate], *, workflow_key: str = "image2vid"
+    ) -> ImageToVideoResult:
         if workflow_key not in {"image2vid", "undress"}:
             raise ValueError(f"Workflow de vídeo no soportado: {workflow_key}")
+        if not requests:
+            raise ValueError("Debes indicar al menos un prompt para Image2Vid.")
+        first = requests[0]
         pack_id = self.store.create_pack(
             category=workflow_key,
-            variant=req.source_category,
-            requested_n=1,
-            notes=req.title or req.prompt_text or "image2vid",
+            variant=first.source_category,
+            requested_n=len(requests),
+            notes=first.title or first.prompt_text or "image2vid",
         )
 
+        source_image = self._prepare_source_image(first.source_image)
+        prompt_item_ids: list[int] = []
+        queue_job_ids: list[int] = []
+        for req in requests:
+            prompt_item_id, job_id = self._enqueue_request(
+                req, pack_id=pack_id, source_image=source_image, workflow_key=workflow_key
+            )
+            prompt_item_ids.append(prompt_item_id)
+            queue_job_ids.append(job_id)
+
+        return ImageToVideoResult(
+            pack_id=pack_id,
+            created_prompt_item_ids=prompt_item_ids,
+            created_queue_job_ids=queue_job_ids,
+        )
+
+    def _enqueue_request(
+        self,
+        req: ImageToVideoCreate,
+        *,
+        pack_id: int,
+        source_image: str,
+        workflow_key: str,
+    ) -> tuple[int, int]:
         rng = random.Random()
         signature = None
         seed = None
@@ -105,8 +137,6 @@ class ImageToVideoService:
                 break
         if signature is None or seed is None:
             raise RuntimeError("No se pudo registrar una combinación única para image2vid.")
-
-        source_image = self._prepare_source_image(req.source_image)
 
         ratio_tag = f"{req.width}x{req.height}"
         created_at = datetime.now().isoformat(timespec="seconds")
@@ -145,8 +175,4 @@ class ImageToVideoService:
         )
         job_id = self.store.create_queue_job(prompt_item_id=prompt_item_id, priority=100)
 
-        return ImageToVideoResult(
-            pack_id=pack_id,
-            created_prompt_item_ids=[prompt_item_id],
-            created_queue_job_ids=[job_id],
-        )
+        return prompt_item_id, job_id

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from functools import partial
+from dataclasses import replace
 from typing import Any
 from urllib.error import URLError
 from urllib.request import urlopen
@@ -227,6 +228,7 @@ class MainWindow(QMainWindow):
         self._image2vid_source_options: list[dict[str, Any]] = []
         self._image2vid_filtered_source_options: list[dict[str, Any]] = []
         self._image2vid_prompt_templates: list[dict[str, Any]] = []
+        self._image2vid_selected_prompt_templates: list[dict[str, Any]] = []
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -932,15 +934,23 @@ class MainWindow(QMainWindow):
         self.image2vid_pick_prompt_btn = QPushButton("Usar prompt tipo...")
         image2vid_layout.addWidget(self.image2vid_pick_prompt_btn, 3, 6)
 
-        image2vid_layout.addWidget(QLabel("Prompt -:"), 4, 0)
+        image2vid_layout.addWidget(QLabel("Repeticiones por prompt:"), 4, 0)
+        self.image2vid_prompt_repetitions_spin = QSpinBox()
+        self.image2vid_prompt_repetitions_spin.setRange(1, 100)
+        self.image2vid_prompt_repetitions_spin.setValue(1)
+        image2vid_layout.addWidget(self.image2vid_prompt_repetitions_spin, 4, 1)
+        self.image2vid_selected_prompts_label = QLabel("Prompt manual")
+        image2vid_layout.addWidget(self.image2vid_selected_prompts_label, 4, 2, 1, 5)
+
+        image2vid_layout.addWidget(QLabel("Prompt -:"), 5, 0)
         self.image2vid_negative_input = QPlainTextEdit()
         self.image2vid_negative_input.setPlaceholderText("Prompt negativo")
         self.image2vid_negative_input.setPlainText(IMAGE2VID_MIN_NEGATIVE_PROMPT)
         self.image2vid_negative_input.setFixedHeight(90)
-        image2vid_layout.addWidget(self.image2vid_negative_input, 4, 1, 1, 6)
+        image2vid_layout.addWidget(self.image2vid_negative_input, 5, 1, 1, 6)
 
         self.image2vid_generate_btn = QPushButton("Enviar Image2Vid a cola")
-        image2vid_layout.addWidget(self.image2vid_generate_btn, 5, 5, 1, 2)
+        image2vid_layout.addWidget(self.image2vid_generate_btn, 6, 5, 1, 2)
 
         image2vid_dialog_layout.addWidget(image2vid_group)
 
@@ -1048,11 +1058,14 @@ class MainWindow(QMainWindow):
         prompt_filter_row.addWidget(self.image2vid_prompt_count_label)
         prompt_filter_row.addStretch(1)
         prompt_picker_layout.addLayout(prompt_filter_row)
+        prompt_picker_layout.addWidget(
+            QLabel("Selecciona varias filas con Ctrl o Mayús para crear un vídeo por cada prompt.")
+        )
 
         self.image2vid_prompt_table = QTableWidget(0, 2)
         self.image2vid_prompt_table.setHorizontalHeaderLabels(["Título", "Prompt tipo"])
         self.image2vid_prompt_table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.image2vid_prompt_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.image2vid_prompt_table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.image2vid_prompt_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.image2vid_prompt_table.verticalHeader().setVisible(False)
         prompt_header = self.image2vid_prompt_table.horizontalHeader()
@@ -1063,7 +1076,7 @@ class MainWindow(QMainWindow):
         prompt_picker_actions = QHBoxLayout()
         prompt_picker_actions.addStretch(1)
         self.image2vid_prompt_cancel_btn = QPushButton("Cancelar")
-        self.image2vid_prompt_apply_btn = QPushButton("Usar prompt")
+        self.image2vid_prompt_apply_btn = QPushButton("Usar prompts seleccionados")
         prompt_picker_actions.addWidget(self.image2vid_prompt_cancel_btn)
         prompt_picker_actions.addWidget(self.image2vid_prompt_apply_btn)
         prompt_picker_layout.addLayout(prompt_picker_actions)
@@ -3348,11 +3361,26 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Prompts tipo video", "Selecciona un prompt tipo.")
             return
 
-        row = selected_rows[0].row()
-        prompt_item = self.image2vid_prompt_table.item(row, 1)
-        if not prompt_item:
+        selected_templates: list[dict[str, Any]] = []
+        for selected_row in sorted(selected_rows, key=lambda index: index.row()):
+            row = selected_row.row()
+            title_item = self.image2vid_prompt_table.item(row, 0)
+            prompt_item = self.image2vid_prompt_table.item(row, 1)
+            if title_item and prompt_item:
+                selected_templates.append({
+                    "id": title_item.data(Qt.UserRole),
+                    "title": title_item.text().strip(),
+                    "prompt_text": prompt_item.text().strip(),
+                })
+        if not selected_templates:
             return
-        self.image2vid_positive_input.setPlainText(prompt_item.text().strip())
+        self._image2vid_selected_prompt_templates = selected_templates
+        self.image2vid_positive_input.setPlainText(selected_templates[0]["prompt_text"])
+        count = len(selected_templates)
+        self.image2vid_selected_prompts_label.setText(
+            f"{count} prompt{'s' if count != 1 else ''} "
+            f"seleccionado{'s' if count != 1 else ''}"
+        )
         self.image2vid_prompt_picker_dialog.accept()
 
     def generate_image2vid(self) -> None:
@@ -3365,7 +3393,8 @@ class MainWindow(QMainWindow):
         negative = self.image2vid_negative_input.toPlainText().strip()
         if IMAGE2VID_MIN_NEGATIVE_PROMPT not in negative:
             negative = f"{IMAGE2VID_MIN_NEGATIVE_PROMPT}, {negative}" if negative else IMAGE2VID_MIN_NEGATIVE_PROMPT
-        if not positive:
+        selected_templates = self._image2vid_selected_prompt_templates
+        if not positive and not selected_templates:
             QMessageBox.warning(self, "Image2Vid", "El prompt positivo es obligatorio.")
             return
 
@@ -3381,7 +3410,7 @@ class MainWindow(QMainWindow):
         source_image = str(source_info.get("local_path") or "").strip()
         title = self.image2vid_title_input.text().strip() or f"Image2Vid {source_category} #{source_prompt_id}"
 
-        req = ImageToVideoCreate(
+        base_req = ImageToVideoCreate(
             source_category=source_category,
             source_prompt_id=source_prompt_id,
             source_url=source_url,
@@ -3397,12 +3426,24 @@ class MainWindow(QMainWindow):
             length_frames=length_frames,
         )
 
+        prompt_specs = selected_templates or [{"title": title, "prompt_text": positive}]
+        repetitions = int(self.image2vid_prompt_repetitions_spin.value())
+        requests = [
+            replace(
+                base_req,
+                title=(str(spec["title"]).strip() or title),
+                prompt_text=str(spec["prompt_text"]).strip(),
+            )
+            for spec in prompt_specs
+            for _ in range(repetitions)
+        ]
+
         try:
-            result = self.image2vid_service.create_and_enqueue(req)
+            result = self.image2vid_service.create_many_and_enqueue(requests)
             QMessageBox.information(
                 self,
                 "Image2Vid",
-                f"Video en cola. Pack #{result.pack_id} · Prompt #{result.created_prompt_item_ids[0]}",
+                f"{len(result.created_prompt_item_ids)} vídeo(s) en cola. Pack #{result.pack_id}",
             )
             self.refresh()
         except Exception as exc:
