@@ -202,3 +202,57 @@ def test_create_bulk_images_youtube_video_reports_progress(tmp_path, monkeypatch
     assert any("Seleccionando" in event for event in events)
     assert any("ETA" in event for event in events)
     assert events[-1].startswith("Vídeo creado correctamente:")
+
+
+def test_create_bulk_images_youtube_video_joins_two_tracks_before_rendering(tmp_path, monkeypatch):
+    audio_dir = tmp_path / "resources" / "audio_relax"
+    audio_dir.mkdir(parents=True)
+    first_audio = audio_dir / "rain.mp3"
+    second_audio = audio_dir / "forest.mp3"
+    first_audio.write_bytes(b"first")
+    second_audio.write_bytes(b"second")
+    image_path = tmp_path / "image.png"
+    image_path.write_bytes(b"image")
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    class Store:
+        def select_unused_bulk_images_for_youtube_video(self, *, bulk_category):
+            return [
+                {"id": index, "base_image_json": json.dumps({"filename": image_path.name}), "upscale_image_json": None}
+                for index in range(1, 4)
+            ]
+
+        def mark_prompt_items_used_in_reel(self, prompt_item_ids):
+            self.marked = list(prompt_item_ids)
+
+    service = VideoMontageService()
+    monkeypatch.setattr(service, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(service, "_probe_duration", lambda path: 5.0 if path == first_audio else 7.0)
+    monkeypatch.setattr(service, "_create_folder", lambda: output_dir)
+    monkeypatch.setattr("app.services.video_montage_service.get_store", lambda: Store())
+    monkeypatch.setattr("app.services.video_montage_service.build_output_path", lambda image_json: image_path)
+    monkeypatch.setattr("app.services.video_montage_service.shutil.which", lambda name: f"/usr/bin/{name}")
+    commands = []
+
+    def _fake_run(cmd, **kwargs):
+        commands.append(cmd)
+        Path(cmd[-1]).write_bytes(b"rendered")
+
+    monkeypatch.setattr("app.services.video_montage_service.subprocess.run", _fake_run)
+
+    result = service.create_bulk_images_youtube_video(
+        bulk_category="Nature Wallpaper",
+        audio_filename=first_audio.name,
+        second_audio_filename=second_audio.name,
+    )
+
+    merged_audio = output_dir / "tema_final_rain_forest.mp3"
+    assert commands[0][-1] == str(merged_audio)
+    merge_filter = commands[0][commands[0].index("-filter_complex") + 1]
+    assert "[a0][a1]concat=n=2:v=0:a=1[a]" in merge_filter
+    assert str(merged_audio) in commands[1]
+    assert result.audio_path == merged_audio
+    assert result.duration_seconds == 12.0
+    metadata = json.loads((output_dir / "bulk_images_youtube_rain_forest.json").read_text(encoding="utf-8"))
+    assert metadata["source_audios"] == [str(first_audio), str(second_audio)]

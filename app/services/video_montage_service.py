@@ -263,6 +263,7 @@ class VideoMontageService:
         *,
         bulk_category: str,
         audio_filename: str | Path,
+        second_audio_filename: str | Path | None = None,
         image_display_seconds: float | None = None,
         transition_seconds: float | None = None,
         transition_type: str = "fade",
@@ -270,6 +271,9 @@ class VideoMontageService:
         clean_category = str(bulk_category).strip()
         audio_path = self._resolve_audio_relax_track(audio_filename)
         audio_duration = self._probe_duration(audio_path)
+        if second_audio_filename:
+            second_audio_path = self._resolve_audio_relax_track(second_audio_filename)
+            audio_duration += self._probe_duration(second_audio_path)
         if audio_duration <= 0:
             raise ValueError("No se pudo calcular la duración del MP3 seleccionado.")
         transition_seconds = self._TRANSITION_SECONDS if transition_seconds is None else max(float(transition_seconds), 0.0)
@@ -298,21 +302,26 @@ class VideoMontageService:
         *,
         bulk_category: str,
         audio_filename: str | Path,
+        second_audio_filename: str | Path | None = None,
         image_display_seconds: float | None = None,
         transition_seconds: float | None = None,
         resolution: str = "4k",
         transition_type: str = "fade",
         progress_callback: Callable[[str], None] | None = None,
     ) -> BulkImagesYoutubeVideoResult:
-        """Crea un vídeo 16:9 con imágenes no usadas de Bulk Images y una canción MP3 completa."""
+        """Crea un vídeo 16:9 usando uno o dos temas MP3 completos."""
         clean_category = str(bulk_category).strip()
         if not clean_category:
             raise ValueError("Selecciona una categoría de Bulk Images.")
 
         self._emit_progress(progress_callback, "Validando audio seleccionado...")
-        audio_path = self._resolve_audio_relax_track(audio_filename)
-        audio_duration = self._probe_duration(audio_path)
-        self._emit_progress(progress_callback, f"Audio: {audio_path.name} · duración {audio_duration:.1f}s")
+        source_audio_paths = [self._resolve_audio_relax_track(audio_filename)]
+        if second_audio_filename:
+            source_audio_paths.append(self._resolve_audio_relax_track(second_audio_filename))
+        source_audio_durations = [self._probe_duration(path) for path in source_audio_paths]
+        audio_duration = sum(source_audio_durations)
+        audio_names = " + ".join(path.name for path in source_audio_paths)
+        self._emit_progress(progress_callback, f"Audio: {audio_names} · duración final {audio_duration:.1f}s")
         if audio_duration <= 0:
             raise ValueError("No se pudo calcular la duración del MP3 seleccionado.")
 
@@ -343,10 +352,40 @@ class VideoMontageService:
         width, height = self._YOUTUBE_4K_SIZE if resolution.lower() == "4k" else self._RATIO_SIZES["16:9"]
         self._emit_progress(progress_callback, f"Preparando render {width}x{height} con transición {clean_transition}...")
         folder = self._create_folder()
-        audio_theme_slug = self._safe_filename_segment(audio_path.stem)
+        audio_theme_slug = "_".join(self._safe_filename_segment(path.stem) for path in source_audio_paths)
         output_stem = f"bulk_images_youtube_{audio_theme_slug}"
         output_path = folder / f"{output_stem}.mp4"
         paths = [path for _, path, _ in selected]
+
+        audio_path = source_audio_paths[0]
+        if len(source_audio_paths) == 2:
+            audio_path = folder / f"tema_final_{audio_theme_slug}.mp3"
+            self._emit_progress(progress_callback, "Uniendo los dos temas en el tema final...")
+            merge_cmd = [ffmpeg_path, "-y"]
+            for source_path in source_audio_paths:
+                merge_cmd += ["-i", str(source_path)]
+            merge_cmd += [
+                "-filter_complex",
+                "[0:a]aformat=sample_rates=44100:channel_layouts=stereo[a0];"
+                "[1:a]aformat=sample_rates=44100:channel_layouts=stereo[a1];"
+                "[a0][a1]concat=n=2:v=0:a=1[a]",
+                "-map",
+                "[a]",
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "192k",
+                str(audio_path),
+            ]
+            subprocess.run(
+                merge_cmd,
+                cwd=str(folder),
+                check=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
 
         cmd = [ffmpeg_path, "-y"]
         for path in paths:
@@ -418,6 +457,7 @@ class VideoMontageService:
         metadata = {
             "bulk_category": clean_category,
             "audio": str(audio_path),
+            "source_audios": [str(path) for path in source_audio_paths],
             "duration_seconds": audio_duration,
             "image_display_seconds": image_display_seconds,
             "transition_seconds": transition_seconds,
