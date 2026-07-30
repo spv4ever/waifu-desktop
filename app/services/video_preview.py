@@ -9,7 +9,7 @@ from app.services.output_paths import build_output_path
 def resolve_video_preview_url(
     *, row: dict[str, Any], video: dict[str, Any] | None
 ) -> str | None:
-    """Return a playable local URI, falling back to the uploaded video URL."""
+    """Return a playable URI only when the rendered video exists locally."""
     if video:
         workflow_key = "image2vid"
         if row.get("meta_json"):
@@ -23,11 +23,4 @@ def resolve_video_preview_url(
         if video_path.exists():
             return video_path.resolve().as_uri()
 
-    if row.get("meta_json"):
-        try:
-            meta = json.loads(row["meta_json"])
-        except (TypeError, ValueError):
-            meta = {}
-        if isinstance(meta, dict):
-            return str(meta.get("image2vid_cloudinary_url") or "").strip() or None
     return None

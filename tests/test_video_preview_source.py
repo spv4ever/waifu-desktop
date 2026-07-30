@@ -9,22 +9,22 @@ def test_video_preview_prefers_saved_local_video(tmp_path, monkeypatch):
     monkeypatch.setattr("app.services.video_preview.build_output_path", lambda *args, **kwargs: video_path)
 
     result = resolve_video_preview_url(
-        row={"meta_json": '{"image2vid_cloudinary_url": "https://example.com/remote.mp4"}'},
+        row={"meta_json": "{}"},
         video={"filename": video_path.name},
     )
 
     assert result == video_path.resolve().as_uri()
 
 
-def test_video_preview_falls_back_to_cloudinary_when_local_video_is_missing(monkeypatch):
+def test_video_preview_does_not_use_remote_url_when_local_video_is_missing(monkeypatch):
     monkeypatch.setattr(
         "app.services.video_preview.build_output_path",
         lambda *args, **kwargs: Path("missing-video.mp4"),
     )
 
     result = resolve_video_preview_url(
-        row={"meta_json": '{"image2vid_cloudinary_url": "https://example.com/remote.mp4"}'},
+        row={"meta_json": "{}"},
         video={"filename": "missing-video.mp4"},
     )
 
-    assert result == "https://example.com/remote.mp4"
+    assert result is None

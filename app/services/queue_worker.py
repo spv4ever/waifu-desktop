@@ -5,7 +5,6 @@ import random
 import shutil
 import subprocess
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Literal, Any, Callable
 
@@ -14,14 +13,6 @@ import requests
 from app.data.storage import get_store
 from app.config.settings import settings
 from app.services.comfy_client import ComfyClient
-from app.services.cloudinary_uploader import (
-    CloudinaryUploadError,
-    upload_dollimages_image,
-    upload_dollimages_video,
-    upload_anime_image,
-    upload_waifu_image,
-    upload_waifu_video,
-)
 from app.services.image_validation import validate_image_file
 from app.services.output_paths import build_output_path
 from app.services.workflow_service import WorkflowService
@@ -36,21 +27,6 @@ from app.services.comfy_history_parser import (
 
 
 WorkerResult = Literal["PROCESSED", "PAUSED", "EMPTY"]
-
-
-def _select_dollimages_upload_images(
-    *,
-    base_images: list[dict[str, Any]],
-    up_images: list[dict[str, Any]],
-    base_img: dict[str, Any] | None,
-    up_img: dict[str, Any] | None,
-) -> list[dict[str, Any]]:
-    """Prioriza todas las imágenes upscale y conserva el lote completo."""
-    selected_images = up_images or base_images
-    if selected_images:
-        return selected_images
-    fallback_image = up_img or base_img
-    return [fallback_image] if fallback_image else []
 
 
 def _build_bulk_images_output_prefixes(
@@ -111,248 +87,6 @@ class QueueWorker:
     def _emit_progress(self) -> None:
         if self._progress_callback:
             self._progress_callback()
-
-    def _upload_dollimages_to_cloudinary(
-        self,
-        *,
-        prompt_item_id: int,
-        meta: dict[str, Any],
-        checkpoint_base: str | None,
-        image_json: dict[str, Any] | None = None,
-        image_jsons: list[dict[str, Any]] | None = None,
-        title: str,
-    ) -> None:
-        images = image_jsons if image_jsons is not None else ([image_json] if image_json else [])
-        images = [image for image in images if image]
-        if not images:
-            self._log(f"[WORKER] Dollimages sin imagen para subir prompt_item_id={prompt_item_id}")
-            return
-
-        uploaded_images = meta.get("cloudinary_images")
-        if isinstance(uploaded_images, list) and len(uploaded_images) >= len(images):
-            return
-        if meta.get("cloudinary_url") and len(images) == 1:
-            return
-
-        created_at = str(meta.get("created_at") or "").strip()
-        if not created_at:
-            created_at = datetime.now().isoformat(timespec="seconds")
-
-        workflow_key = str(meta.get("workflow") or "dollimages")
-        successful_uploads: list[dict[str, Any]] = []
-        for index, current_image_json in enumerate(images, start=1):
-            try:
-                image_path = build_output_path(current_image_json, workflow_key=workflow_key)
-                payload = upload_dollimages_image(
-                    image_path=image_path,
-                    title=f"{title or 'Dollimages'} #{index}" if len(images) > 1 else title or "Dollimages",
-                    checkpoint=checkpoint_base,
-                    version=settings.dollimages_version or None,
-                    created_at=created_at,
-                )
-            except (CloudinaryUploadError, OSError, ValueError) as exc:
-                self._log(
-                    f"[WORKER] Cloudinary error prompt_item_id={prompt_item_id} "
-                    f"imagen={index}/{len(images)}: {exc}"
-                )
-                continue
-
-            successful_uploads.append(
-                {
-                    "url": payload.get("secure_url") or payload.get("url"),
-                    "public_id": payload.get("public_id"),
-                    "image_json": current_image_json,
-                }
-            )
-
-        if not successful_uploads:
-            return
-
-        first_upload = successful_uploads[0]
-        updates = {
-            "cloudinary_url": first_upload.get("url"),
-            "cloudinary_public_id": first_upload.get("public_id"),
-            "cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
-            "cloudinary_images": successful_uploads,
-        }
-        self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
-
-    def _upload_waifu_to_cloudinary(
-        self,
-        *,
-        prompt_item_id: int,
-        meta: dict[str, Any],
-        checkpoint_base: str | None,
-        image_json: dict[str, Any] | None = None,
-        image_jsons: list[dict[str, Any]] | None = None,
-        title: str,
-    ) -> None:
-        images = image_jsons if image_jsons is not None else ([image_json] if image_json else [])
-        images = [image for image in images if image]
-        if not images:
-            self._log(f"[WORKER] Waifu sin imagen para subir prompt_item_id={prompt_item_id}")
-            return
-
-        uploaded_images = meta.get("waifu_cloudinary_images")
-        if isinstance(uploaded_images, list) and len(uploaded_images) >= len(images):
-            return
-        if meta.get("waifu_cloudinary_url") and len(images) == 1:
-            return
-
-        created_at = str(meta.get("created_at") or "").strip()
-        if not created_at:
-            created_at = datetime.now().isoformat(timespec="seconds")
-
-        successful_uploads: list[dict[str, Any]] = []
-        for index, current_image_json in enumerate(images, start=1):
-            try:
-                image_path = build_output_path(current_image_json, workflow_key="waifu")
-                payload = upload_waifu_image(
-                    image_path=image_path,
-                    title=f"{title or 'Waifu'} #{index}" if len(images) > 1 else title or "Waifu",
-                    checkpoint=checkpoint_base,
-                    version=settings.waifu_version or None,
-                    created_at=created_at,
-                )
-            except (CloudinaryUploadError, OSError, ValueError) as exc:
-                self._log(
-                    f"[WORKER] Cloudinary error prompt_item_id={prompt_item_id} "
-                    f"imagen={index}/{len(images)}: {exc}"
-                )
-                continue
-
-            successful_uploads.append(
-                {
-                    "url": payload.get("secure_url") or payload.get("url"),
-                    "public_id": payload.get("public_id"),
-                    "image_json": current_image_json,
-                }
-            )
-
-        if not successful_uploads:
-            return
-
-        first_upload = successful_uploads[0]
-        updates = {
-            "waifu_cloudinary_url": first_upload.get("url"),
-            "waifu_cloudinary_public_id": first_upload.get("public_id"),
-            "waifu_cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
-            "waifu_cloudinary_images": successful_uploads,
-        }
-        self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
-
-
-    def _upload_anime_to_cloudinary(
-        self,
-        *,
-        prompt_item_id: int,
-        meta: dict[str, Any],
-        checkpoint_base: str | None,
-        image_json: dict[str, Any] | None = None,
-        image_jsons: list[dict[str, Any]] | None = None,
-        title: str,
-    ) -> None:
-        images = image_jsons if image_jsons is not None else ([image_json] if image_json else [])
-        images = [image for image in images if image]
-        if not images:
-            self._log(f"[WORKER] Anime sin imagen para subir prompt_item_id={prompt_item_id}")
-            return
-
-        uploaded_images = meta.get("anime_cloudinary_images")
-        if isinstance(uploaded_images, list) and len(uploaded_images) >= len(images):
-            return
-        if meta.get("anime_cloudinary_url") and len(images) == 1:
-            return
-
-        created_at = str(meta.get("created_at") or "").strip() or datetime.now().isoformat(timespec="seconds")
-        content_rating = str(meta.get("anime_v5_content_rating") or "sfw").strip().lower()
-        if content_rating not in {"sfw", "nsfw"}:
-            content_rating = "sfw"
-        version_base = str(settings.waifu_version or "anime").strip() or "anime"
-        upload_version = f"{version_base} {content_rating}"
-        successful_uploads: list[dict[str, Any]] = []
-        for index, current_image_json in enumerate(images, start=1):
-            try:
-                image_path = build_output_path(current_image_json, workflow_key="anime_v5")
-                payload = upload_anime_image(
-                    image_path=image_path,
-                    title=f"{title or 'Anime'} #{index}" if len(images) > 1 else title or "Anime",
-                    checkpoint=checkpoint_base,
-                    version=upload_version,
-                    created_at=created_at,
-                )
-            except (CloudinaryUploadError, OSError, ValueError) as exc:
-                self._log(
-                    f"[WORKER] Cloudinary anime error prompt_item_id={prompt_item_id} "
-                    f"imagen={index}/{len(images)}: {exc}"
-                )
-                continue
-
-            successful_uploads.append(
-                {
-                    "url": payload.get("secure_url") or payload.get("url"),
-                    "public_id": payload.get("public_id"),
-                    "image_json": current_image_json,
-                }
-            )
-
-        if not successful_uploads:
-            return
-
-        first_upload = successful_uploads[0]
-        self.store.update_prompt_item_meta(
-            prompt_id=prompt_item_id,
-            updates={
-                "anime_cloudinary_url": first_upload.get("url"),
-                "anime_cloudinary_public_id": first_upload.get("public_id"),
-                "anime_cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
-                "anime_cloudinary_images": successful_uploads,
-            },
-        )
-
-    def _upload_image2vid_to_cloudinary(
-        self,
-        *,
-        prompt_item_id: int,
-        meta: dict[str, Any],
-        video_json: dict[str, Any] | None,
-        title: str,
-    ) -> None:
-        if not video_json:
-            self._log(f"[WORKER] Image2Vid sin video para subir prompt_item_id={prompt_item_id}")
-            return
-        if meta.get("image2vid_cloudinary_url"):
-            return
-        created_at = str(meta.get("created_at") or "").strip()
-        if not created_at:
-            created_at = datetime.now().isoformat(timespec="seconds")
-        source_category = str(meta.get("image2vid_source_category") or "waifu").strip().lower()
-
-        try:
-            video_path = build_output_path(video_json, workflow_key="image2vid")
-            video_path = self._add_reel_music_to_image2vid(video_path=video_path)
-            if source_category == "dollimages":
-                payload = upload_dollimages_video(
-                    video_path=video_path,
-                    title=title or "Dollimages Image2Vid",
-                    created_at=created_at,
-                )
-            else:
-                payload = upload_waifu_video(
-                    video_path=video_path,
-                    title=title or "Waifu Image2Vid",
-                    created_at=created_at,
-                )
-        except (CloudinaryUploadError, OSError, ValueError) as exc:
-            self._log(f"[WORKER] Cloudinary video error prompt_item_id={prompt_item_id}: {exc}")
-            return
-
-        updates = {
-            "image2vid_cloudinary_url": payload.get("secure_url") or payload.get("url"),
-            "image2vid_cloudinary_public_id": payload.get("public_id"),
-            "image2vid_cloudinary_uploaded_at": datetime.now().isoformat(timespec="seconds"),
-        }
-        self.store.update_prompt_item_meta(prompt_id=prompt_item_id, updates=updates)
 
     def _pick_reel_audio_for_duration(self, *, duration_seconds: float) -> tuple[Path, float, bool] | None:
         repo_root = Path(__file__).resolve().parents[2]
@@ -926,55 +660,6 @@ class QueueWorker:
                 self.store.mark_done(job_id)
                 self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="DONE")
 
-                if is_video_workflow:
-                    self._upload_image2vid_to_cloudinary(
-                        prompt_item_id=prompt_item_id,
-                        meta=meta,
-                        video_json=video_output,
-                        title=str(item.get("title") or ""),
-                    )
-                elif workflow_key in {"dollimages", "dollimagesz", "krea2"}:
-                    self._upload_dollimages_to_cloudinary(
-                        prompt_item_id=prompt_item_id,
-                        meta=meta,
-                        checkpoint_base=checkpoint_base,
-                        image_json=up_img or base_img,
-                        image_jsons=_select_dollimages_upload_images(
-                            base_images=base_images,
-                            up_images=up_images,
-                            base_img=base_img,
-                            up_img=up_img,
-                        ),
-                        title=str(item.get("title") or ""),
-                    )
-                elif workflow_key == "anime_v5":
-                    self._upload_anime_to_cloudinary(
-                        prompt_item_id=prompt_item_id,
-                        meta=meta,
-                        checkpoint_base=checkpoint_base,
-                        image_json=base_img or up_img,
-                        image_jsons=_select_dollimages_upload_images(
-                            base_images=base_images,
-                            up_images=up_images,
-                            base_img=base_img,
-                            up_img=up_img,
-                        ),
-                        title=str(item.get("title") or ""),
-                    )
-                else:
-                    self._upload_waifu_to_cloudinary(
-                        prompt_item_id=prompt_item_id,
-                        meta=meta,
-                        checkpoint_base=checkpoint_base,
-                        image_json=base_img or up_img,
-                        image_jsons=_select_dollimages_upload_images(
-                            base_images=base_images,
-                            up_images=up_images,
-                            base_img=base_img,
-                            up_img=up_img,
-                        ),
-                        title=str(item.get("title") or ""),
-                    )
 
                 self._log(f"[WORKER] COMPLETED job_id={job_id} remote_id={remote_id}")
                 break

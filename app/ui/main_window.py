@@ -5,8 +5,6 @@ from pathlib import Path
 from functools import partial
 from dataclasses import replace
 from typing import Any
-from urllib.error import URLError
-from urllib.request import urlopen
 
 from PySide6.QtCore import Qt, QDateTime, QDate, QTime, QTimer, QUrl, QThread, Signal
 from PySide6.QtGui import QPixmap
@@ -1456,7 +1454,7 @@ class MainWindow(QMainWindow):
 
         self.base_video_player = QMediaPlayer(self)
         self.base_video_audio = QAudioOutput(self)
-        # Keep preview audio enabled so Cloudinary videos with music can be validated in-app.
+        # Keep preview audio enabled so locally rendered videos with music can be validated in-app.
         self.base_video_audio.setVolume(1.0)
         self.base_video_player.setAudioOutput(self.base_video_audio)
         self.base_video_player.setVideoOutput(self.base_video_widget)
@@ -3160,49 +3158,42 @@ class MainWindow(QMainWindow):
 
         options: list[dict[str, Any]] = []
         for row in rows:
-            meta_raw = row.get("meta_json")
-            if not meta_raw:
-                continue
-            try:
-                meta = json.loads(meta_raw)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(meta, dict):
+            prompt_id = int(row.get("id") or 0)
+            media = self.store.get_prompt_item_media(prompt_id)
+            if not media:
                 continue
 
-            waifu_urls = [
-                str(image.get("url") or "").strip()
-                for image in meta.get("waifu_cloudinary_images", [])
-                if isinstance(image, dict) and str(image.get("url") or "").strip()
-            ]
-            waifu_url = str(meta.get("waifu_cloudinary_url") or "").strip()
-            if waifu_url and waifu_url not in waifu_urls:
-                waifu_urls.insert(0, waifu_url)
-            doll_url = str(meta.get("cloudinary_url") or "").strip()
-            prompt_id = int(row.get("id") or 0)
-            title = str(row.get("title") or "").strip() or f"Prompt {prompt_id}"
-            for image_index, current_waifu_url in enumerate(waifu_urls, start=1):
-                options.append(
-                    {
-                        "prompt_id": prompt_id,
-                        "source_category": "waifu",
-                        "category": str(meta.get("category") or meta.get("workflow") or "waifu"),
-                        "variant": str(meta.get("combo", {}).get("variant") or meta.get("dollimages_typology") or "?"),
-                        "url": current_waifu_url,
-                        "title": f"{title} #{image_index}" if len(waifu_urls) > 1 else title,
-                    }
-                )
-            if doll_url:
-                options.append(
-                    {
-                        "prompt_id": prompt_id,
-                        "source_category": "dollimages",
-                        "category": str(meta.get("category") or meta.get("workflow") or "dollimages"),
-                        "variant": str(meta.get("combo", {}).get("variant") or meta.get("dollimages_typology") or "?"),
-                        "url": doll_url,
-                        "title": title,
-                    }
-                )
+            try:
+                image_json = json.loads(media.get("upscale_image_json") or media.get("base_image_json") or "null")
+            except (TypeError, json.JSONDecodeError):
+                continue
+            if not image_json:
+                continue
+
+            workflow_key = self._workflow_key_from_row(media)
+            image_path = build_output_path(image_json, workflow_key=workflow_key)
+            if not image_path.exists():
+                continue
+
+            try:
+                meta = json.loads(media.get("meta_json") or "{}")
+            except (TypeError, json.JSONDecodeError):
+                meta = {}
+            if not isinstance(meta, dict):
+                meta = {}
+
+            source_category = str(meta.get("category") or meta.get("workflow") or workflow_key or "waifu")
+            options.append(
+                {
+                    "prompt_id": prompt_id,
+                    "source_category": source_category,
+                    "category": source_category,
+                    "variant": str(meta.get("combo", {}).get("variant") or meta.get("dollimages_typology") or "?"),
+                    "url": "",
+                    "local_path": str(image_path),
+                    "title": str(media.get("title") or "").strip() or f"Prompt {prompt_id}",
+                }
+            )
 
         self._image2vid_source_options = options
         self._refresh_image2vid_filter_options()
@@ -3319,24 +3310,11 @@ class MainWindow(QMainWindow):
             self.image2vid_source_preview.setText("Selecciona una imagen")
             return
 
-        image_url = str(option.get("url") or "").strip()
-        if not image_url:
+        image_path = str(option.get("local_path") or "").strip()
+        pixmap = QPixmap(image_path)
+        if not image_path or pixmap.isNull():
             self.image2vid_source_preview.setPixmap(QPixmap())
-            self.image2vid_source_preview.setText("Imagen sin URL")
-            return
-
-        try:
-            with urlopen(image_url, timeout=6) as response:
-                image_bytes = response.read()
-        except (URLError, TimeoutError, ValueError):
-            self.image2vid_source_preview.setPixmap(QPixmap())
-            self.image2vid_source_preview.setText("No se pudo cargar la vista previa")
-            return
-
-        pixmap = QPixmap()
-        if not pixmap.loadFromData(image_bytes):
-            self.image2vid_source_preview.setPixmap(QPixmap())
-            self.image2vid_source_preview.setText("Formato de imagen no soportado")
+            self.image2vid_source_preview.setText("No se pudo cargar la imagen local")
             return
 
         scaled = pixmap.scaled(

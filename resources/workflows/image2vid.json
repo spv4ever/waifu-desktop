@@ -315,16 +315,5 @@
     "_meta": {
       "title": "Power Lora Loader (rgthree)"
     }
-  },
-  "117": {
-    "inputs": {
-      "image": "https://res.cloudinary.com/dkraqqtpb/image/upload/v1770668903/keikoprompts/KeikoLover/2026-02-09/KeikoLover_00438_.png",
-      "keep_alpha_channel": false,
-      "output_mode": false
-    },
-    "class_type": "LoadImageFromUrl",
-    "_meta": {
-      "title": "Load Image From URL"
-    }
   }
 }

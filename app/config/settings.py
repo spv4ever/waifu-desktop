@@ -41,18 +41,5 @@ class Settings:
     reel_dollimages_handle: str = os.getenv("REEL_DOLLIMAGES_HANDLE", "@dollimages")
     reel_library_name: str = os.getenv("REEL_LIBRARY_NAME", "Library Waifu")
 
-    # Cloudinary (dollimages uploads)
-    cloudinary_cloud_name: str = os.getenv("CLOUDINARY_CLOUD_NAME", "")
-    cloudinary_api_key: str = os.getenv("CLOUDINARY_API_KEY", "")
-    cloudinary_api_secret: str = os.getenv("CLOUDINARY_API_SECRET", "")
-    cloudinary_dollimages_folder: str = os.getenv("CLOUDINARY_DOLLIMAGES_FOLDER", "dollimages")
-    dollimages_version: str = os.getenv("DOLLIMAGES_VERSION", "")
-
-    # Cloudinary (waifu uploads)
-    cloudinary_waifu_cloud_name: str = os.getenv("CLOUDINARY_WAIFU_CLOUD_NAME", "")
-    cloudinary_waifu_api_key: str = os.getenv("CLOUDINARY_WAIFU_API_KEY", "")
-    cloudinary_waifu_api_secret: str = os.getenv("CLOUDINARY_WAIFU_API_SECRET", "")
-    cloudinary_waifu_folder: str = os.getenv("CLOUDINARY_WAIFU_FOLDER", "waifu")
-    waifu_version: str = os.getenv("WAIFU_VERSION", "")
 
 settings = Settings()
