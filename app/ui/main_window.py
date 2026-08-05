@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import tempfile
 from functools import partial
 from dataclasses import replace
 from typing import Any
@@ -957,7 +958,7 @@ class MainWindow(QMainWindow):
         self.undress_dialog.setWindowTitle("Undress")
         self.undress_dialog.setModal(False)
         undress_dialog_layout = QVBoxLayout(self.undress_dialog)
-        undress_group = QGroupBox("Generar vídeo Undress desde una imagen de la cola")
+        undress_group = QGroupBox("Generar vídeo Undress desde una imagen de la cola, disco o portapapeles")
         undress_layout = QGridLayout(undress_group)
         undress_layout.addWidget(QLabel("Imagen origen:"), 0, 0)
         self.undress_source_label = QLabel("Sin imagen seleccionada")
@@ -965,6 +966,10 @@ class MainWindow(QMainWindow):
         undress_layout.addWidget(self.undress_source_label, 0, 1, 1, 3)
         self.undress_select_source_btn = QPushButton("Usar selección actual")
         undress_layout.addWidget(self.undress_select_source_btn, 0, 4)
+        self.undress_select_file_btn = QPushButton("Cargar desde disco")
+        undress_layout.addWidget(self.undress_select_file_btn, 0, 5)
+        self.undress_paste_source_btn = QPushButton("Pegar portapapeles")
+        undress_layout.addWidget(self.undress_paste_source_btn, 0, 6)
         undress_layout.addWidget(QLabel("Prendas:"), 1, 0, Qt.AlignTop)
         self.undress_garment_list = QListWidget()
         self.undress_garment_list.setFixedHeight(150)
@@ -975,14 +980,14 @@ class MainWindow(QMainWindow):
             self.undress_garment_list.addItem(item)
         undress_layout.addWidget(self.undress_garment_list, 1, 1)
         self.undress_format_label = QLabel()
-        undress_layout.addWidget(self.undress_format_label, 1, 2, 1, 3)
+        undress_layout.addWidget(self.undress_format_label, 1, 2, 1, 5)
         undress_layout.addWidget(QLabel("Prompt fijo:"), 2, 0)
         self.undress_prompt_preview = QPlainTextEdit()
         self.undress_prompt_preview.setReadOnly(True)
         self.undress_prompt_preview.setFixedHeight(110)
-        undress_layout.addWidget(self.undress_prompt_preview, 2, 1, 1, 4)
+        undress_layout.addWidget(self.undress_prompt_preview, 2, 1, 1, 6)
         self.undress_generate_btn = QPushButton("Enviar Undress a cola")
-        undress_layout.addWidget(self.undress_generate_btn, 3, 3, 1, 2)
+        undress_layout.addWidget(self.undress_generate_btn, 3, 5, 1, 2)
         undress_dialog_layout.addWidget(undress_group)
         self._update_undress_prompt()
 
@@ -1627,6 +1632,8 @@ class MainWindow(QMainWindow):
         self.image2vid_ratio_combo.currentIndexChanged.connect(self._update_image2vid_labels)
         self.image2vid_seconds_spin.valueChanged.connect(self._update_image2vid_labels)
         self.undress_select_source_btn.clicked.connect(self._set_undress_source_from_current_selection)
+        self.undress_select_file_btn.clicked.connect(self._set_undress_source_from_disk)
+        self.undress_paste_source_btn.clicked.connect(self._set_undress_source_from_clipboard)
         self.undress_garment_list.itemChanged.connect(self._update_undress_prompt)
         self.image2vid_reload_sources_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_select_source_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
@@ -3019,6 +3026,16 @@ class MainWindow(QMainWindow):
             f"Formato: 480x768 · {frames} frames · {UNDRESS_FPS} fps · {seconds:g} s"
         )
 
+    def _set_undress_external_source(self, *, local_path: str, title: str, source_category: str) -> None:
+        self.undress_selected_source = {
+            "source_category": source_category,
+            "prompt_id": 0,
+            "title": title,
+            "local_path": local_path,
+            "url": "",
+        }
+        self.undress_source_label.setText(f"[{source_category}] {title}")
+
     def _set_undress_source_from_current_selection(self, show_warning: bool = True) -> None:
         source = self._selected_image2vid_source_from_browser()
         self.undress_selected_source = source
@@ -3032,13 +3049,53 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(
                 self,
                 "Undress",
-                "Selecciona en la cola un prompt con una imagen generada disponible.",
+                "Selecciona una imagen generada de la cola, cárgala desde disco o pégala desde el portapapeles.",
             )
+
+    def _set_undress_source_from_disk(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Cargar imagen para Undress",
+            "",
+            "Imágenes (*.png *.jpg *.jpeg *.webp *.bmp);;Todos los archivos (*)",
+        )
+        if not file_path:
+            return
+        self._set_undress_external_source(
+            local_path=file_path,
+            title=Path(file_path).name,
+            source_category="disco",
+        )
+
+    def _set_undress_source_from_clipboard(self) -> None:
+        image = QApplication.clipboard().image()
+        if image.isNull():
+            QMessageBox.warning(self, "Undress", "El portapapeles no contiene una imagen.")
+            return
+        clipboard_dir = Path(tempfile.gettempdir()) / "waifu-desktop-undress"
+        clipboard_dir.mkdir(parents=True, exist_ok=True)
+        target = clipboard_dir / "clipboard_undress.png"
+        counter = 1
+        while target.exists():
+            target = clipboard_dir / f"clipboard_undress_{counter}.png"
+            counter += 1
+        if not image.save(str(target), "PNG"):
+            QMessageBox.warning(self, "Undress", "No se pudo guardar la imagen del portapapeles.")
+            return
+        self._set_undress_external_source(
+            local_path=str(target),
+            title=target.name,
+            source_category="portapapeles",
+        )
 
     def generate_undress(self) -> None:
         source = getattr(self, "undress_selected_source", None) or {}
         if not source.get("local_path"):
-            QMessageBox.warning(self, "Undress", "Debes seleccionar una imagen local de la cola.")
+            QMessageBox.warning(
+                self,
+                "Undress",
+                "Debes seleccionar una imagen local de la cola, de disco o del portapapeles.",
+            )
             return
 
         garments = self._selected_undress_garments()
@@ -3046,12 +3103,20 @@ class MainWindow(QMainWindow):
         seconds, length_frames = calculate_undress_duration(garments)
         source_category = str(source.get("source_category") or "waifu")
         source_prompt_id = int(source.get("prompt_id") or 0)
+        source_title = str(
+            source.get("title") or Path(str(source.get("local_path") or "")).name
+        ).strip()
+        title = (
+            f"Undress {source_category} #{source_prompt_id}"
+            if source_prompt_id
+            else f"Undress {source_category} {source_title}"
+        )
         req = ImageToVideoCreate(
             source_category=source_category,
             source_prompt_id=source_prompt_id,
             source_url=str(source.get("url") or "").strip(),
             source_image=str(source.get("local_path") or "").strip(),
-            title=f"Undress {source_category} #{source_prompt_id}",
+            title=title,
             prompt_text=prompt,
             negative_text=IMAGE2VID_MIN_NEGATIVE_PROMPT,
             ratio="5:8",
