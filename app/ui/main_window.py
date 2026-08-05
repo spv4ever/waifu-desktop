@@ -178,6 +178,49 @@ class VideoDropList(QListWidget):
     def video_paths(self) -> list[str]:
         return [str(self.item(row).data(Qt.UserRole)) for row in range(self.count())]
 
+
+class ImageDropLabel(QLabel):
+    """Etiqueta que acepta una imagen local arrastrada desde el explorador."""
+
+    imageDropped = Signal(str)
+    _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+
+    def __init__(self, text: str = "") -> None:
+        super().__init__(text)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event) -> None:  # noqa: N802 - Qt API
+        if self._image_path_from_mime(event.mimeData()):
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event) -> None:  # noqa: N802 - Qt API
+        if self._image_path_from_mime(event.mimeData()):
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event) -> None:  # noqa: N802 - Qt API
+        image_path = self._image_path_from_mime(event.mimeData())
+        if not image_path:
+            super().dropEvent(event)
+            return
+        self.imageDropped.emit(str(image_path))
+        event.acceptProposedAction()
+
+    def _image_path_from_mime(self, mime_data) -> Path | None:
+        if not mime_data.hasUrls():
+            return None
+        for url in mime_data.urls():
+            if not url.isLocalFile():
+                continue
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in self._IMAGE_EXTENSIONS:
+                return path
+        return None
+
+
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -961,8 +1004,11 @@ class MainWindow(QMainWindow):
         undress_group = QGroupBox("Generar vídeo Undress desde una imagen de la cola, disco o portapapeles")
         undress_layout = QGridLayout(undress_group)
         undress_layout.addWidget(QLabel("Imagen origen:"), 0, 0)
-        self.undress_source_label = QLabel("Sin imagen seleccionada")
-        self.undress_source_label.setStyleSheet("color: #9aa0a6;")
+        self.undress_source_label = ImageDropLabel("Sin imagen seleccionada · arrastra una imagen aquí")
+        self.undress_source_label.setToolTip("Arrastra aquí una imagen PNG, JPG, WEBP o BMP para cargarla en Undress.")
+        self.undress_source_label.setStyleSheet(
+            "color: #9aa0a6; border: 1px dashed #4b5563; border-radius: 4px; padding: 6px;"
+        )
         undress_layout.addWidget(self.undress_source_label, 0, 1, 1, 3)
         self.undress_select_source_btn = QPushButton("Usar selección actual")
         undress_layout.addWidget(self.undress_select_source_btn, 0, 4)
@@ -1634,6 +1680,7 @@ class MainWindow(QMainWindow):
         self.undress_select_source_btn.clicked.connect(self._set_undress_source_from_current_selection)
         self.undress_select_file_btn.clicked.connect(self._set_undress_source_from_disk)
         self.undress_paste_source_btn.clicked.connect(self._set_undress_source_from_clipboard)
+        self.undress_source_label.imageDropped.connect(self._set_undress_source_from_drop)
         self.undress_garment_list.itemChanged.connect(self._update_undress_prompt)
         self.image2vid_reload_sources_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_select_source_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
@@ -3065,6 +3112,13 @@ class MainWindow(QMainWindow):
             local_path=file_path,
             title=Path(file_path).name,
             source_category="disco",
+        )
+
+    def _set_undress_source_from_drop(self, file_path: str) -> None:
+        self._set_undress_external_source(
+            local_path=file_path,
+            title=Path(file_path).name,
+            source_category="arrastrada",
         )
 
     def _set_undress_source_from_clipboard(self) -> None:
