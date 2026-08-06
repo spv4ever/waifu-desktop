@@ -7,6 +7,7 @@ from app.services.dollimages_prompt_generator import (
     choose_dollimages_prompt_selection,
     fill_dollimages_prompt_tokens,
     load_dollimages_prompt_options,
+    load_dollimages_fantasy_prompt_options,
 )
 
 
@@ -46,3 +47,11 @@ def test_options_json_requires_every_combination_group(tmp_path):
 
     with pytest.raises(ValueError, match="poses"):
         load_dollimages_prompt_options(path)
+
+
+def test_fantasy_options_use_a_dedicated_fantasy_catalog():
+    template, options = load_dollimages_fantasy_prompt_options()
+
+    assert "fantasy" in template
+    assert "elven" in options["girl_types"][0]
+    assert set(options) == set(_options())

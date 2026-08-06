@@ -669,7 +669,10 @@ class MainWindow(QMainWindow):
         doll_layout.addWidget(QLabel("Origen prompts:"), 2, 0)
         self.dollimages_prompt_source_combo = QComboBox()
         self.dollimages_prompt_source_combo.addItem("Listado fijo", "catalog")
-        self.dollimages_prompt_source_combo.addItem("Combinaciones JSON", "combinations")
+        self.dollimages_prompt_source_combo.addItem("Combinación JSON", "combinations")
+        self.dollimages_prompt_source_combo.addItem(
+            "Combinación JSON fantasía", "fantasy_combinations"
+        )
         doll_layout.addWidget(self.dollimages_prompt_source_combo, 2, 1)
 
         self.dollimages_combination_count_label = QLabel("Combinaciones:")
@@ -1796,7 +1799,10 @@ class MainWindow(QMainWindow):
         self.dollimages_checkpoint_combo.setEnabled(checkpoint_allowed)
 
     def _update_dollimages_prompt_source_controls(self) -> None:
-        combinations = self.dollimages_prompt_source_combo.currentData() == "combinations"
+        combinations = self.dollimages_prompt_source_combo.currentData() in {
+            "combinations",
+            "fantasy_combinations",
+        }
         self.dollimages_combination_count_label.setEnabled(combinations)
         self.dollimages_combination_count_spin.setEnabled(combinations)
         self.dollimages_group_combo.setEnabled(not combinations)

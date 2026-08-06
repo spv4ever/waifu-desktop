@@ -1,0 +1,70 @@
+{
+  "template": "[girl_type], single female fantasy character, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], epic cinematic composition, intricate details, realistic anatomy, detailed eyes, sharp focus.",
+  "girl_types": [
+    "an elven ranger with long silver hair and pointed ears",
+    "a powerful sorceress with flowing violet hair",
+    "a celestial guardian with luminous golden eyes",
+    "a fierce dragon warrior with subtle iridescent scales",
+    "a mysterious dark elf with braided white hair",
+    "a graceful forest nymph with leaf-adorned auburn hair",
+    "an ice queen with crystalline blue hair",
+    "a steampunk adventurer with copper goggles and curly brown hair"
+  ],
+  "poses": [
+    "standing heroically with one hand resting on her weapon",
+    "casting a swirling magical spell",
+    "walking confidently through the enchanted landscape",
+    "looking back over her shoulder with her cape flowing",
+    "kneeling beside an ancient glowing rune",
+    "floating gracefully above the ground",
+    "drawing an ornate enchanted bow",
+    "raising a luminous staff toward the sky"
+  ],
+  "outfits": [
+    "ornate elven armor decorated with silver filigree",
+    "a flowing enchanted gown embroidered with constellations",
+    "layered leather ranger armor with emerald accents",
+    "regal dark armor with a dramatic velvet cape",
+    "a delicate dress woven from leaves and wildflowers",
+    "crystalline ice armor with a translucent cape",
+    "a fitted steampunk explorer outfit with brass details",
+    "ceremonial dragon-scale armor with ruby accents"
+  ],
+  "locations": [
+    "in an ancient enchanted forest filled with glowing fireflies",
+    "inside a vast crystal palace beneath the northern lights",
+    "on the battlements of a floating castle above the clouds",
+    "among ruined temples covered in luminous magical runes",
+    "beside a moonlit lake surrounded by giant flowers",
+    "inside a grand arcane library with levitating books",
+    "on a volcanic mountain overlooking a dragon kingdom",
+    "in a bustling steampunk city of brass towers and airships"
+  ],
+  "expressions": [
+    "with a determined heroic gaze",
+    "with a serene otherworldly expression",
+    "with a subtle mischievous smile",
+    "with an intense magical focus",
+    "with a proud regal expression"
+  ],
+  "lighting": [
+    "ethereal moonlight with luminous magical particles",
+    "dramatic golden light breaking through storm clouds",
+    "soft bioluminescent forest lighting",
+    "cinematic firelight with cool rim lighting",
+    "radiant spell light illuminating her face"
+  ],
+  "shots": [
+    "full-body fantasy character portrait",
+    "three-quarter body cinematic portrait",
+    "medium heroic portrait",
+    "wide epic environmental portrait"
+  ],
+  "styles": [
+    "premium cinematic fantasy photography",
+    "epic high-fantasy concept art with photorealistic rendering",
+    "dark fantasy editorial styling",
+    "enchanted fairy-tale realism",
+    "luxury fantasy character design"
+  ]
+}

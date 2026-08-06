@@ -16,8 +16,12 @@ from app.services.path_utils import unique_suffixed_path
 from app.services.dollimages_prompt_generator import (
     choose_dollimages_prompt_selection,
     fill_dollimages_prompt_tokens,
+    load_dollimages_fantasy_prompt_options,
     load_dollimages_prompt_options,
 )
+
+
+COMBINATION_PROMPT_SOURCES = {"combinations", "fantasy_combinations"}
 
 
 @dataclass(frozen=True)
@@ -81,7 +85,7 @@ class DollimagesPackService:
         conn,
         req: DollimagesPackCreate,
     ) -> DollimagesPackCreateResult:
-        if req.prompt_source not in {"catalog", "combinations"}:
+        if req.prompt_source not in {"catalog", *COMBINATION_PROMPT_SOURCES}:
             raise ValueError("El origen de prompts Dollimages no es válido.")
         faceswap_enabled = req.faceswap_enabled
         reference_image = req.reference_image
@@ -104,8 +108,13 @@ class DollimagesPackService:
             if req.prompt_source == "catalog"
             else []
         )
-        if req.prompt_source == "combinations":
-            template, options = load_dollimages_prompt_options()
+        if req.prompt_source in COMBINATION_PROMPT_SOURCES:
+            loader = (
+                load_dollimages_fantasy_prompt_options
+                if req.prompt_source == "fantasy_combinations"
+                else load_dollimages_prompt_options
+            )
+            template, options = loader()
             combination_count = max(1, int(req.combination_count))
         else:
             template, options, combination_count = "", {}, 0
@@ -126,7 +135,7 @@ class DollimagesPackService:
 
         requested_prompts = (
             combination_count
-            if req.prompt_source == "combinations"
+            if req.prompt_source in COMBINATION_PROMPT_SOURCES
             else len(catalog_prompts)
         )
         pack_id = self.store.create_pack(
@@ -142,7 +151,7 @@ class DollimagesPackService:
         created_at = datetime.now().isoformat(timespec="seconds")
 
         generated_prompts = []
-        if req.prompt_source == "combinations":
+        if req.prompt_source in COMBINATION_PROMPT_SOURCES:
             for index in range(combination_count):
                 selection = choose_dollimages_prompt_selection(rng, options)
                 generated_prompts.append(
