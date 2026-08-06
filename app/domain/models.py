@@ -28,6 +28,8 @@ class DollimagesPackCreate:
     reference_image: Optional[str] = None
     group_name: Optional[str] = None
     faceswap_enabled: bool = True
+    prompt_source: str = "catalog"
+    combination_count: int = 1
 
 
 @dataclass(frozen=True)

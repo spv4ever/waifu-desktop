@@ -13,6 +13,11 @@ from app.data.storage import get_store
 from app.domain.models import DollimagesPackCreate
 from app.services.image_validation import validate_image_file
 from app.services.path_utils import unique_suffixed_path
+from app.services.dollimages_prompt_generator import (
+    choose_dollimages_prompt_selection,
+    fill_dollimages_prompt_tokens,
+    load_dollimages_prompt_options,
+)
 
 
 @dataclass(frozen=True)
@@ -42,7 +47,9 @@ class DollimagesPackService:
         self.store = get_store()
         self.app_cfg = load_app_config()
 
-    def _default_canvas(self, *, workflow_key: str = "dollimages", ratio: str = "3:4") -> tuple[int, int]:
+    def _default_canvas(
+        self, *, workflow_key: str = "dollimages", ratio: str = "3:4"
+    ) -> tuple[int, int]:
         if workflow_key == "krea2":
             ratios = self.app_cfg.raw.get("krea2_ratios", {})
             if ratio in ratios:
@@ -56,7 +63,9 @@ class DollimagesPackService:
     def _prepare_reference_image(self, reference_path: str) -> str:
         src = Path(reference_path)
         if not src.exists():
-            raise FileNotFoundError(f"Imagen de referencia no encontrada: {reference_path}")
+            raise FileNotFoundError(
+                f"Imagen de referencia no encontrada: {reference_path}"
+            )
         validate_image_file(src)
         input_dir = Path(settings.comfyui_input_dir)
         input_dir.mkdir(parents=True, exist_ok=True)
@@ -72,6 +81,8 @@ class DollimagesPackService:
         conn,
         req: DollimagesPackCreate,
     ) -> DollimagesPackCreateResult:
+        if req.prompt_source not in {"catalog", "combinations"}:
+            raise ValueError("El origen de prompts Dollimages no es válido.")
         faceswap_enabled = req.faceswap_enabled
         reference_image = req.reference_image
         checkpoint_base = req.checkpoint_base
@@ -83,13 +94,22 @@ class DollimagesPackService:
         if faceswap_enabled and not reference_image:
             raise ValueError("La imagen de referencia es obligatoria.")
 
-        prompts = [
-            row
-            for row in self.store.list_dollimage_prompts(include_disabled=False)
-            if row.typology == req.typology
-            and (req.group_name is None or row.group_name == req.group_name)
-        ]
-        if not prompts:
+        catalog_prompts = (
+            [
+                row
+                for row in self.store.list_dollimage_prompts(include_disabled=False)
+                if row.typology == req.typology
+                and (req.group_name is None or row.group_name == req.group_name)
+            ]
+            if req.prompt_source == "catalog"
+            else []
+        )
+        if req.prompt_source == "combinations":
+            template, options = load_dollimages_prompt_options()
+            combination_count = max(1, int(req.combination_count))
+        else:
+            template, options, combination_count = "", {}, 0
+        if req.prompt_source == "catalog" and not catalog_prompts:
             if req.group_name:
                 raise ValueError(
                     f"No hay prompts para la tipología seleccionada en el grupo '{req.group_name}'."
@@ -99,13 +119,20 @@ class DollimagesPackService:
         reference_name = ""
         if reference_image:
             reference_name = self._prepare_reference_image(reference_image)
-        width, height = self._default_canvas(workflow_key=req.workflow_key, ratio=req.ratio)
+        width, height = self._default_canvas(
+            workflow_key=req.workflow_key, ratio=req.ratio
+        )
         ratio_tag = req.ratio if req.workflow_key == "krea2" else f"{width}x{height}"
 
+        requested_prompts = (
+            combination_count
+            if req.prompt_source == "combinations"
+            else len(catalog_prompts)
+        )
         pack_id = self.store.create_pack(
             category="dollimages",
             variant=req.typology,
-            requested_n=req.repetitions * len(prompts),
+            requested_n=req.repetitions * requested_prompts,
             notes=req.manual_text or "",
         )
 
@@ -114,14 +141,37 @@ class DollimagesPackService:
         rng = random.Random()
         created_at = datetime.now().isoformat(timespec="seconds")
 
-        for prompt in prompts:
+        generated_prompts = []
+        if req.prompt_source == "combinations":
+            for index in range(combination_count):
+                selection = choose_dollimages_prompt_selection(rng, options)
+                generated_prompts.append(
+                    (
+                        f"Combinación {index + 1}: {selection.girl_type}",
+                        fill_dollimages_prompt_tokens(template, selection),
+                        f"combination-{index + 1}",
+                        selection.as_meta(),
+                    )
+                )
+        else:
+            generated_prompts = [
+                (prompt.title, prompt.prompt_text, str(prompt.id), None)
+                for prompt in catalog_prompts
+            ]
+
+        for (
+            prompt_title,
+            base_prompt_text,
+            prompt_id,
+            selection_meta,
+        ) in generated_prompts:
             for repetition in range(req.repetitions):
                 signature = None
                 seed = None
                 for _ in range(10):
                     seed = rng.randint(0, 2**31 - 1)
                     candidate = _hash_signature(
-                        prompt.id,
+                        prompt_id,
                         req.typology,
                         req.workflow_key,
                         req.ratio,
@@ -138,7 +188,9 @@ class DollimagesPackService:
                         signature = candidate
                         break
                 if signature is None or seed is None:
-                    raise RuntimeError("No se pudo registrar una combinación única para Dollimages.")
+                    raise RuntimeError(
+                        "No se pudo registrar una combinación única para Dollimages."
+                    )
 
                 meta = {
                     "combo": {
@@ -155,10 +207,12 @@ class DollimagesPackService:
                     "height": height,
                     "reference_image": reference_name,
                     "faceswap_enabled": faceswap_enabled,
-                    "dollimages_prompt_id": prompt.id,
+                    "dollimages_prompt_id": prompt_id,
                     "dollimages_typology": req.typology,
                     "dollimages_group": req.group_name or "",
                     "created_at": created_at,
+                    "dollimages_prompt_source": req.prompt_source,
+                    "dollimages_prompt_selection": selection_meta,
                 }
 
                 if checkpoint_base:
@@ -167,11 +221,11 @@ class DollimagesPackService:
                         "refiner": checkpoint_base,
                     }
 
-                prompt_text = _append_manual_text(prompt.prompt_text, req.manual_text)
+                prompt_text = _append_manual_text(base_prompt_text, req.manual_text)
 
                 prompt_item_id = self.store.create_prompt_item(
                     pack_id=pack_id,
-                    title=prompt.title,
+                    title=prompt_title,
                     prompt_text=prompt_text,
                     negative_text="",
                     meta=meta,
@@ -180,7 +234,9 @@ class DollimagesPackService:
                 )
 
                 created_prompt_item_ids.append(prompt_item_id)
-                job_id = self.store.create_queue_job(prompt_item_id=prompt_item_id, priority=100)
+                job_id = self.store.create_queue_job(
+                    prompt_item_id=prompt_item_id, priority=100
+                )
                 created_queue_job_ids.append(job_id)
 
         return DollimagesPackCreateResult(
