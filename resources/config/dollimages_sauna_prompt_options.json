@@ -1,0 +1,62 @@
+{
+  "template": "RAW wellness photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], tasteful spa setting, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long wavy hair",
+    "an adult blonde woman with a sleek bob",
+    "an adult red-haired woman with natural freckles",
+    "an adult woman with long black hair",
+    "an adult athletic woman with a high ponytail",
+    "an adult woman with shoulder-length silver hair"
+  ],
+  "poses": [
+    "standing confidently with one hand on her hip",
+    "walking naturally toward the camera",
+    "sitting gracefully and looking at the camera",
+    "looking back over her shoulder",
+    "leaning casually against a nearby surface",
+    "standing in profile with her face toward the camera"
+  ],
+  "outfits": [
+    "a modest white spa towel wrap",
+    "an elegant one-piece swimsuit with a linen robe",
+    "a neutral spa robe tied securely at the waist",
+    "a tasteful high-waisted swimsuit with a cotton towel",
+    "a minimalist black one-piece swimsuit",
+    "a soft terrycloth robe with spa slippers"
+  ],
+  "locations": [
+    "inside a modern cedar sauna",
+    "in a traditional Finnish lakeside sauna",
+    "beside a panoramic glass sauna overlooking snowy mountains",
+    "in a luxury wellness spa relaxation room",
+    "on a wooden sauna terrace beside a calm lake",
+    "inside a softly steaming Nordic spa"
+  ],
+  "expressions": [
+    "with a warm confident smile",
+    "with a relaxed natural expression",
+    "with a playful subtle smile",
+    "with a calm direct gaze",
+    "with a joyful candid expression"
+  ],
+  "lighting": [
+    "warm indirect amber sauna lighting",
+    "soft daylight through a frosted window",
+    "gentle candlelight with warm wooden reflections",
+    "diffused luxury spa lighting",
+    "cool window light balanced with a warm interior glow"
+  ],
+  "shots": [
+    "full-body lifestyle photograph",
+    "three-quarter body editorial photograph",
+    "medium portrait photograph",
+    "wide environmental portrait"
+  ],
+  "styles": [
+    "tasteful luxury wellness campaign photography",
+    "premium Nordic spa editorial photography",
+    "serene self-care lifestyle photography",
+    "minimalist wellness magazine photography",
+    "cinematic Scandinavian hospitality photography"
+  ]
+}

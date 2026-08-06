@@ -7,9 +7,21 @@ from pathlib import Path
 from typing import Mapping
 
 DEFAULT_OPTIONS_PATH = Path("resources/config/dollimages_prompt_options.json")
-FANTASY_OPTIONS_PATH = Path(
-    "resources/config/dollimages_fantasy_prompt_options.json"
-)
+FANTASY_OPTIONS_PATH = Path("resources/config/dollimages_fantasy_prompt_options.json")
+THEMED_OPTIONS_PATHS = {
+    "fantasy_combinations": FANTASY_OPTIONS_PATH,
+    "summer_combinations": Path(
+        "resources/config/dollimages_summer_prompt_options.json"
+    ),
+    "bikini_combinations": Path(
+        "resources/config/dollimages_bikini_prompt_options.json"
+    ),
+    "snow_combinations": Path("resources/config/dollimages_snow_prompt_options.json"),
+    "sauna_combinations": Path("resources/config/dollimages_sauna_prompt_options.json"),
+    "travel_combinations": Path(
+        "resources/config/dollimages_travel_prompt_options.json"
+    ),
+}
 REQUIRED_GROUPS = (
     "girl_types",
     "poses",
@@ -70,6 +82,17 @@ def load_dollimages_prompt_options(
 def load_dollimages_fantasy_prompt_options() -> tuple[str, dict[str, list[str]]]:
     """Load the dedicated fantasy combinations catalog."""
     return load_dollimages_prompt_options(FANTASY_OPTIONS_PATH)
+
+
+def load_dollimages_themed_prompt_options(
+    prompt_source: str,
+) -> tuple[str, dict[str, list[str]]]:
+    """Load a dedicated combination catalog by its UI/source identifier."""
+    try:
+        path = THEMED_OPTIONS_PATHS[prompt_source]
+    except KeyError as exc:
+        raise ValueError(f"El tema Dollimages '{prompt_source}' no es válido.") from exc
+    return load_dollimages_prompt_options(path)
 
 
 def choose_dollimages_prompt_selection(

@@ -1,0 +1,62 @@
+{
+  "template": "RAW winter photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], visible winter atmosphere, photorealistic, realistic anatomy, detailed eyes, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long wavy hair",
+    "an adult blonde woman with a sleek bob",
+    "an adult red-haired woman with natural freckles",
+    "an adult woman with long black hair",
+    "an adult athletic woman with a high ponytail",
+    "an adult woman with shoulder-length silver hair"
+  ],
+  "poses": [
+    "standing confidently with one hand on her hip",
+    "walking naturally toward the camera",
+    "sitting gracefully and looking at the camera",
+    "looking back over her shoulder",
+    "leaning casually against a nearby surface",
+    "standing in profile with her face toward the camera"
+  ],
+  "outfits": [
+    "a fitted white ski suit with faux-fur trim",
+    "a long wool coat with a knitted scarf and gloves",
+    "a colorful insulated jacket with snow pants",
+    "a cream cable-knit sweater with winter boots",
+    "an elegant red parka with a fur-lined hood",
+    "a sophisticated belted winter coat and earmuffs"
+  ],
+  "locations": [
+    "in a snow-covered Alpine village",
+    "beside a frozen lake surrounded by mountains",
+    "among snowy pine trees after fresh snowfall",
+    "outside a luxury glass chalet",
+    "on a scenic ski slope in the Swiss Alps",
+    "beneath the northern lights in Finnish Lapland"
+  ],
+  "expressions": [
+    "with a warm confident smile",
+    "with a relaxed natural expression",
+    "with a playful subtle smile",
+    "with a calm direct gaze",
+    "with a joyful candid expression"
+  ],
+  "lighting": [
+    "crisp blue winter daylight",
+    "soft overcast light reflected by fresh snow",
+    "warm chalet window light at blue hour",
+    "golden sunrise across the snowy mountains",
+    "cinematic moonlight beneath the aurora"
+  ],
+  "shots": [
+    "full-body lifestyle photograph",
+    "three-quarter body editorial photograph",
+    "medium portrait photograph",
+    "wide environmental portrait"
+  ],
+  "styles": [
+    "premium winter fashion editorial photography",
+    "cinematic alpine travel photography",
+    "luxury ski campaign photography",
+    "cozy seasonal lifestyle photography",
+    "high-end outdoor magazine photography"
+  ]
+}

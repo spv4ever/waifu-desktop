@@ -1,0 +1,66 @@
+{
+  "template": "RAW travel photograph of [girl_type], single adult female traveler, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], recognizable landmark clearly visible, photorealistic, realistic anatomy, detailed eyes, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long wavy hair",
+    "an adult blonde woman with a sleek bob",
+    "an adult red-haired woman with natural freckles",
+    "an adult woman with long black hair",
+    "an adult athletic woman with a high ponytail",
+    "an adult woman with shoulder-length silver hair"
+  ],
+  "poses": [
+    "standing confidently with one hand on her hip",
+    "walking naturally toward the camera",
+    "sitting gracefully and looking at the camera",
+    "looking back over her shoulder",
+    "leaning casually against a nearby surface",
+    "standing in profile with her face toward the camera"
+  ],
+  "outfits": [
+    "a chic trench coat with comfortable ankle boots",
+    "an elegant casual dress with a small travel bag",
+    "tailored trousers with a silk blouse and sunglasses",
+    "a stylish denim jacket with a flowing midi skirt",
+    "a refined neutral jumpsuit with practical shoes",
+    "a lightweight blazer with a fitted top and wide-leg trousers"
+  ],
+  "locations": [
+    "near the Eiffel Tower in Paris",
+    "overlooking the Colosseum in Rome",
+    "at Shibuya Crossing in Tokyo",
+    "beside the Sydney Opera House",
+    "in front of the Taj Mahal in Agra",
+    "on a viewpoint above Santorini and the Aegean Sea",
+    "near Big Ben and Westminster Bridge in London",
+    "overlooking the Golden Gate Bridge in San Francisco",
+    "at the Petra Treasury in Jordan",
+    "near the pyramids of Giza in Egypt"
+  ],
+  "expressions": [
+    "with a warm confident smile",
+    "with a relaxed natural expression",
+    "with a playful subtle smile",
+    "with a calm direct gaze",
+    "with a joyful candid expression"
+  ],
+  "lighting": [
+    "soft early-morning landmark lighting",
+    "warm golden-hour travel light",
+    "bright natural city daylight",
+    "cinematic blue-hour illumination",
+    "soft overcast editorial lighting"
+  ],
+  "shots": [
+    "full-body lifestyle photograph",
+    "three-quarter body editorial photograph",
+    "medium portrait photograph",
+    "wide environmental portrait"
+  ],
+  "styles": [
+    "premium destination campaign photography",
+    "cinematic travel editorial photography",
+    "luxury tourism magazine photography",
+    "authentic urban travel photography",
+    "high-end globetrotter lifestyle photography"
+  ]
+}

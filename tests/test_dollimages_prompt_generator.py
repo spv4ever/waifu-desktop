@@ -4,10 +4,12 @@ import random
 import pytest
 
 from app.services.dollimages_prompt_generator import (
+    THEMED_OPTIONS_PATHS,
     choose_dollimages_prompt_selection,
     fill_dollimages_prompt_tokens,
     load_dollimages_prompt_options,
     load_dollimages_fantasy_prompt_options,
+    load_dollimages_themed_prompt_options,
 )
 
 
@@ -64,3 +66,17 @@ def test_fantasy_options_use_a_dedicated_fantasy_catalog():
         for term in ("illustration", "concept art", "3d render")
     )
     assert set(options) == set(_options())
+
+
+@pytest.mark.parametrize("prompt_source", THEMED_OPTIONS_PATHS)
+def test_every_themed_catalog_is_complete_and_photographic(prompt_source):
+    template, options = load_dollimages_themed_prompt_options(prompt_source)
+
+    assert "photograph" in template.lower()
+    assert set(options) == set(_options())
+    assert all(len(values) >= 4 for values in options.values())
+
+
+def test_unknown_themed_catalog_is_rejected():
+    with pytest.raises(ValueError, match="no es válido"):
+        load_dollimages_themed_prompt_options("unknown_combinations")
