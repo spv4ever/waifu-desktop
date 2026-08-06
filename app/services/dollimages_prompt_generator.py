@@ -7,6 +7,9 @@ from pathlib import Path
 from typing import Mapping
 
 DEFAULT_OPTIONS_PATH = Path("resources/config/dollimages_prompt_options.json")
+FANTASY_OPTIONS_PATH = Path(
+    "resources/config/dollimages_fantasy_prompt_options.json"
+)
 REQUIRED_GROUPS = (
     "girl_types",
     "poses",
@@ -62,6 +65,11 @@ def load_dollimages_prompt_options(
             )
         options[group] = cleaned
     return template, options
+
+
+def load_dollimages_fantasy_prompt_options() -> tuple[str, dict[str, list[str]]]:
+    """Load the dedicated fantasy combinations catalog."""
+    return load_dollimages_prompt_options(FANTASY_OPTIONS_PATH)
 
 
 def choose_dollimages_prompt_selection(

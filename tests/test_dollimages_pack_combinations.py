@@ -80,3 +80,48 @@ def test_dollimages_pack_builds_requested_combinations(monkeypatch):
         store.items[0]["meta"]["dollimages_prompt_selection"]["girl_type"]
         == "a test woman"
     )
+
+
+def test_dollimages_pack_uses_fantasy_json_for_fantasy_combinations(monkeypatch):
+    store = FakeStore()
+    options = {
+        key: [f"fantasy {key}"]
+        for key in (
+            "girl_types", "poses", "outfits", "locations", "expressions",
+            "lighting", "shots", "styles",
+        )
+    }
+    monkeypatch.setattr(dollimages_pack_service, "get_store", lambda: store)
+    monkeypatch.setattr(
+        dollimages_pack_service,
+        "load_app_config",
+        lambda: SimpleNamespace(
+            raw={"dollimages_defaults": {"width": 832, "height": 1216}}
+        ),
+    )
+    monkeypatch.setattr(
+        dollimages_pack_service,
+        "load_dollimages_fantasy_prompt_options",
+        lambda: (
+            "[girl_type], [pose], [outfit], [location], [expression], [lighting], [shot], [style]",
+            options,
+        ),
+    )
+
+    result = dollimages_pack_service.DollimagesPackService().create_pack_and_enqueue(
+        None,
+        DollimagesPackCreate(
+            typology="sfw",
+            repetitions=1,
+            workflow_key="krea2",
+            prompt_source="fantasy_combinations",
+            combination_count=2,
+        ),
+    )
+
+    assert len(result.created_prompt_item_ids) == 2
+    assert all(
+        item["meta"]["dollimages_prompt_source"] == "fantasy_combinations"
+        for item in store.items
+    )
+    assert all("fantasy girl_types" in item["prompt_text"] for item in store.items)
