@@ -1,5 +1,5 @@
 {
-  "template": "[girl_type], single female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], cinematic composition, photorealistic, highly detailed, realistic anatomy, detailed eyes, sharp focus.",
+  "template": "RAW glamour photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], alluring but non-explicit mood, elegant sensuality, fully covered intimate areas, cinematic composition, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
   "girl_types": [
     "an elegant brunette woman with long wavy hair",
     "a confident blonde woman with a sleek bob haircut",
@@ -11,24 +11,24 @@
     "a petite woman with a short dark pixie cut"
   ],
   "poses": [
-    "standing confidently with one hand on her hip",
-    "walking toward the camera with an editorial stride",
-    "sitting gracefully with her legs crossed",
-    "looking back over her shoulder",
-    "leaning casually against a railing",
+    "standing confidently with one hand on her hip and an elegant hip tilt",
+    "walking toward the camera with a confident editorial stride",
+    "sitting gracefully with crossed legs and poised posture",
+    "looking back over her shoulder with a captivating gaze",
+    "leaning casually against a railing with a refined silhouette",
     "standing in profile with her face turned toward the camera",
-    "resting one hand lightly in her hair",
-    "kneeling gracefully with an upright posture"
+    "resting one hand lightly in her hair with relaxed confidence",
+    "kneeling gracefully with an upright, fashion-forward posture"
   ],
   "outfits": [
-    "an elegant fitted cocktail dress",
-    "a tailored blazer with a matching pencil skirt",
-    "a luxury designer swimsuit",
-    "a fitted knit dress",
-    "a silk blouse with high-waisted trousers",
-    "a modern athletic set",
-    "a flowing resort dress",
-    "a leather jacket with a fitted top and skirt"
+    "an elegant body-skimming cocktail dress with a tasteful neckline",
+    "a tailored blazer over a satin camisole with a matching pencil skirt",
+    "a luxury designer swimsuit with an elegant wrap",
+    "a fitted off-the-shoulder knit dress",
+    "a silk blouse with high-waisted tailored trousers",
+    "a sleek modern athletic set with a cropped jacket",
+    "a flowing resort dress with a refined thigh-high slit",
+    "a leather jacket over a fitted top with a high-waisted skirt"
   ],
   "locations": [
     "on a luxury rooftop overlooking the city at sunset",
@@ -41,11 +41,11 @@
     "inside a luxurious hotel suite"
   ],
   "expressions": [
-    "with a warm confident smile",
-    "with a calm sophisticated expression",
-    "with a playful subtle smile",
-    "with an intense direct gaze",
-    "with a relaxed natural expression"
+    "with a warm, magnetic smile",
+    "with a calm and captivating expression",
+    "with a playful, flirtatious half-smile",
+    "with an intense, confident direct gaze",
+    "with a relaxed expression and softly parted lips"
   ],
   "lighting": [
     "soft golden-hour lighting",
@@ -61,10 +61,10 @@
     "wide environmental portrait"
   ],
   "styles": [
-    "luxury fashion editorial styling",
-    "cinematic glamour photography",
-    "premium lifestyle campaign photography",
-    "modern magazine cover photography",
-    "minimalist high-fashion photography"
+    "sensual luxury fashion editorial photography",
+    "cinematic glamour photography with tasteful allure",
+    "premium lifestyle campaign photography with sophisticated sex appeal",
+    "polished magazine cover photography, seductive but non-explicit",
+    "minimalist high-fashion photography with elegant sensuality"
   ]
 }

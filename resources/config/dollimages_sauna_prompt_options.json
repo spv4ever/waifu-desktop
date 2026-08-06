@@ -1,5 +1,5 @@
 {
-  "template": "RAW wellness photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], tasteful spa setting, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
+  "template": "RAW wellness glamour photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], intimate and alluring but non-explicit mood, tasteful spa setting, securely covered intimate areas, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
   "girl_types": [
     "an adult brunette woman with long wavy hair",
     "an adult blonde woman with a sleek bob",
@@ -9,20 +9,20 @@
     "an adult woman with shoulder-length silver hair"
   ],
   "poses": [
-    "standing confidently with one hand on her hip",
-    "walking naturally toward the camera",
-    "sitting gracefully and looking at the camera",
-    "looking back over her shoulder",
-    "leaning casually against a nearby surface",
+    "standing confidently with one hand on her hip and relaxed shoulders",
+    "walking naturally toward the camera with poised posture",
+    "sitting gracefully with crossed legs and looking at the camera",
+    "looking back over her shoulder with a captivating gaze",
+    "leaning casually against a cedar wall with an elegant silhouette",
     "standing in profile with her face toward the camera"
   ],
   "outfits": [
-    "a modest white spa towel wrap",
-    "an elegant one-piece swimsuit with a linen robe",
-    "a neutral spa robe tied securely at the waist",
-    "a tasteful high-waisted swimsuit with a cotton towel",
-    "a minimalist black one-piece swimsuit",
-    "a soft terrycloth robe with spa slippers"
+    "a securely wrapped white spa towel styled as an elegant strapless wrap",
+    "an elegant one-piece swimsuit with a loosely draped linen robe",
+    "a satin-trimmed spa robe tied securely at the waist",
+    "a tasteful high-waisted swimsuit with a cotton towel over the shoulders",
+    "a minimalist black one-piece swimsuit with a low back",
+    "a soft terrycloth robe styled off one shoulder while remaining fully covered"
   ],
   "locations": [
     "inside a modern cedar sauna",
@@ -33,11 +33,11 @@
     "inside a softly steaming Nordic spa"
   ],
   "expressions": [
-    "with a warm confident smile",
-    "with a relaxed natural expression",
-    "with a playful subtle smile",
-    "with a calm direct gaze",
-    "with a joyful candid expression"
+    "with a warm, magnetic smile",
+    "with a relaxed and alluring expression",
+    "with a playful, flirtatious half-smile",
+    "with a calm, confident direct gaze",
+    "with a joyful and intimate candid expression"
   ],
   "lighting": [
     "warm indirect amber sauna lighting",
@@ -53,10 +53,10 @@
     "wide environmental portrait"
   ],
   "styles": [
-    "tasteful luxury wellness campaign photography",
-    "premium Nordic spa editorial photography",
-    "serene self-care lifestyle photography",
-    "minimalist wellness magazine photography",
-    "cinematic Scandinavian hospitality photography"
+    "tasteful luxury wellness campaign photography with elegant sensuality",
+    "premium Nordic spa editorial photography with sophisticated allure",
+    "serene self-care lifestyle photography with intimate glamour",
+    "minimalist wellness magazine photography, seductive but non-explicit",
+    "cinematic Scandinavian hospitality photography with a warm, alluring mood"
   ]
 }
