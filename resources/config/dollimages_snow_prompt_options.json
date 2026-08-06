@@ -1,5 +1,5 @@
 {
-  "template": "RAW winter photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], visible winter atmosphere, photorealistic, realistic anatomy, detailed eyes, sharp focus.",
+  "template": "RAW winter glamour photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], alluring but non-explicit mood, fully covered intimate areas, visible winter atmosphere, photorealistic, realistic anatomy, detailed eyes, sharp focus.",
   "girl_types": [
     "an adult brunette woman with long wavy hair",
     "an adult blonde woman with a sleek bob",
@@ -9,20 +9,20 @@
     "an adult woman with shoulder-length silver hair"
   ],
   "poses": [
-    "standing confidently with one hand on her hip",
-    "walking naturally toward the camera",
-    "sitting gracefully and looking at the camera",
-    "looking back over her shoulder",
-    "leaning casually against a nearby surface",
+    "standing confidently with one hand on her hip and an elegant hip tilt",
+    "walking naturally toward the camera with poised posture",
+    "sitting gracefully with crossed legs and looking at the camera",
+    "looking back over her shoulder with a captivating gaze",
+    "leaning casually against a nearby surface with a refined silhouette",
     "standing in profile with her face toward the camera"
   ],
   "outfits": [
-    "a fitted white ski suit with faux-fur trim",
-    "a long wool coat with a knitted scarf and gloves",
-    "a colorful insulated jacket with snow pants",
-    "a cream cable-knit sweater with winter boots",
-    "an elegant red parka with a fur-lined hood",
-    "a sophisticated belted winter coat and earmuffs"
+    "a curve-skimming white ski suit with faux-fur trim",
+    "a fitted belted wool coat with a knitted scarf and heeled boots",
+    "a colorful fitted insulated jacket with sleek snow pants",
+    "a cream off-the-shoulder cable-knit sweater with fitted trousers and winter boots",
+    "an elegant belted red parka with a faux-fur-lined hood",
+    "a sophisticated figure-flattering winter coat with leather gloves and earmuffs"
   ],
   "locations": [
     "in a snow-covered Alpine village",
@@ -33,11 +33,11 @@
     "beneath the northern lights in Finnish Lapland"
   ],
   "expressions": [
-    "with a warm confident smile",
-    "with a relaxed natural expression",
-    "with a playful subtle smile",
-    "with a calm direct gaze",
-    "with a joyful candid expression"
+    "with a warm, magnetic smile",
+    "with a relaxed and captivating expression",
+    "with a playful, flirtatious half-smile",
+    "with a calm, confident direct gaze",
+    "with a joyful, alluring candid expression"
   ],
   "lighting": [
     "crisp blue winter daylight",
@@ -53,10 +53,10 @@
     "wide environmental portrait"
   ],
   "styles": [
-    "premium winter fashion editorial photography",
-    "cinematic alpine travel photography",
-    "luxury ski campaign photography",
-    "cozy seasonal lifestyle photography",
-    "high-end outdoor magazine photography"
+    "premium winter fashion editorial photography with elegant sensuality",
+    "cinematic alpine travel photography with sophisticated allure",
+    "luxury ski campaign photography with polished glamour",
+    "cozy seasonal lifestyle photography with subtle sex appeal",
+    "high-end outdoor magazine photography, seductive but non-explicit"
   ]
 }

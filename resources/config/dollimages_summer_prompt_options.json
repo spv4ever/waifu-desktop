@@ -1,5 +1,5 @@
 {
-  "template": "RAW summer photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
+  "template": "RAW summer glamour photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], alluring but non-explicit mood, fully covered intimate areas, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
   "girl_types": [
     "an adult brunette woman with long wavy hair",
     "an adult blonde woman with a sleek bob",
@@ -9,20 +9,20 @@
     "an adult woman with shoulder-length silver hair"
   ],
   "poses": [
-    "standing confidently with one hand on her hip",
-    "walking naturally toward the camera",
-    "sitting gracefully and looking at the camera",
-    "looking back over her shoulder",
-    "leaning casually against a nearby surface",
+    "standing confidently with one hand on her hip and an elegant hip tilt",
+    "walking naturally toward the camera with a confident stride",
+    "sitting gracefully with crossed legs and looking at the camera",
+    "looking back over her shoulder with a captivating gaze",
+    "leaning casually against a nearby surface with relaxed poise",
     "standing in profile with her face toward the camera"
   ],
   "outfits": [
-    "a breezy white linen dress with sandals",
-    "a colorful sleeveless sundress and a straw hat",
-    "linen shorts with an elegant lightweight blouse",
-    "a flowing floral maxi dress",
-    "a chic summer romper with woven accessories",
-    "a light resort dress with a sun hat"
+    "a breezy white linen mini dress with sandals",
+    "a colorful fitted sundress with a tasteful neckline and straw hat",
+    "high-waisted linen shorts with an off-the-shoulder blouse",
+    "a flowing floral maxi dress with an elegant thigh-high slit",
+    "a chic fitted summer romper with woven accessories",
+    "a light backless resort dress with a sun hat"
   ],
   "locations": [
     "on a sunny Mediterranean waterfront promenade",
@@ -33,11 +33,11 @@
     "beneath palm trees at a luxury summer resort"
   ],
   "expressions": [
-    "with a warm confident smile",
-    "with a relaxed natural expression",
-    "with a playful subtle smile",
-    "with a calm direct gaze",
-    "with a joyful candid expression"
+    "with a warm, magnetic smile",
+    "with a relaxed and captivating expression",
+    "with a playful, flirtatious half-smile",
+    "with a calm, confident direct gaze",
+    "with a joyful, alluring candid expression"
   ],
   "lighting": [
     "bright natural morning sunlight",
@@ -53,10 +53,10 @@
     "wide environmental portrait"
   ],
   "styles": [
-    "premium summer lifestyle campaign photography",
-    "Mediterranean fashion editorial photography",
-    "bright resort advertising photography",
-    "candid luxury travel photography",
-    "modern seasonal magazine photography"
+    "premium summer lifestyle campaign photography with elegant sensuality",
+    "Mediterranean fashion editorial photography with sophisticated allure",
+    "bright resort advertising photography with polished glamour",
+    "candid luxury travel photography with subtle sex appeal",
+    "modern seasonal magazine photography, seductive but non-explicit"
   ]
 }
