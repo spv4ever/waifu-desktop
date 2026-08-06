@@ -1,62 +1,125 @@
 {
-  "template": "RAW beach glamour photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], alluring but non-explicit mood, tasteful swimwear campaign, fully covered intimate areas, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
+  "template": "RAW luxury beach fashion editorial photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], [details], effortless confidence, magnetic presence, elegant feminine silhouette, subtle ocean mist on the skin, windswept hair, luxury resort atmosphere, premium fashion campaign, tasteful sensuality, fully covered intimate areas, photorealistic, natural skin texture, realistic anatomy, detailed eyes, cinematic depth of field, realistic shadows, sharp focus.",
+
   "girl_types": [
     "an adult brunette woman with long wavy hair",
     "an adult blonde woman with a sleek bob",
     "an adult red-haired woman with natural freckles",
     "an adult woman with long black hair",
     "an adult athletic woman with a high ponytail",
-    "an adult woman with shoulder-length silver hair"
+    "an adult woman with shoulder-length silver hair",
+    "an adult woman with voluminous dark curls",
+    "an adult woman with long honey-blonde hair",
+    "an adult woman with chestnut hair and soft waves",
+    "an adult woman with long straight raven hair"
   ],
+
+  "shots": [
+    "full-body luxury editorial photograph",
+    "three-quarter body fashion photograph",
+    "medium portrait photograph",
+    "wide environmental portrait",
+    "low-angle fashion photograph",
+    "dynamic walking editorial shot",
+    "cinematic beach portrait",
+    "premium resort campaign photograph"
+  ],
+
   "poses": [
-    "standing confidently with one hand on her hip and an elegant hip tilt",
-    "walking naturally toward the camera with confident posture",
-    "sitting gracefully with elongated posture and looking at the camera",
-    "looking back over her shoulder with a captivating gaze",
-    "leaning casually against a nearby surface with a refined silhouette",
-    "standing in profile with her face toward the camera"
+    "standing confidently with a graceful S-curve posture",
+    "walking naturally toward the camera with effortless confidence",
+    "looking back over one shoulder with a captivating gaze",
+    "running one hand through her windswept hair",
+    "adjusting her sunglasses with a relaxed smile",
+    "leaning elegantly against a palm tree with elongated posture",
+    "standing with one leg slightly forward emphasizing an elegant silhouette",
+    "walking barefoot along the shoreline leaving footprints in the sand",
+    "holding the edge of a flowing beach wrap in the ocean breeze",
+    "resting one hand on her hip with relaxed shoulders",
+    "stepping out of shallow crystal-clear water naturally",
+    "turning slightly toward the sunlight with relaxed confidence"
   ],
+
   "outfits": [
-    "a plunging bikini top with a skin-tight beach mini skirt",
-    "a string bikini top with ultra-short low-rise denim shorts",
-    "a lace-trim bikini styled like lingerie with high-cut bottoms",
-    "a low-cut halter bikini top with a micro wrap skirt",
-    "a bandeau bikini top with high-waisted figure-hugging shorts",
-    "a metallic bralette bikini top with an ultra-short pleated skirt"
+    "a luxury triangle bikini with an open white linen shirt",
+    "an elegant high-leg bikini with a flowing beach sarong",
+    "a premium halter bikini with a lightweight wrap skirt",
+    "a chic bandeau bikini with tailored linen shorts",
+    "a sophisticated one-piece swimsuit with tasteful cut-out details",
+    "a metallic bikini styled with an oversized linen shirt",
+    "a modern textured bikini with a sheer beach cover-up",
+    "a minimalist luxury bikini with a lightweight kimono",
+    "a designer bikini with a flowing chiffon wrap",
+    "an elegant swimsuit paired with an open beach shirt"
   ],
+
   "locations": [
     "on a secluded tropical beach",
     "beside a modern infinity pool overlooking the ocean",
-    "on a wooden deck at a Maldives resort",
-    "at a bright Mediterranean beach club",
-    "beside a natural turquoise lagoon",
-    "on a white-sand beach with distant palm trees"
+    "on a wooden deck at a luxury Maldives resort",
+    "at an exclusive Mediterranean beach club",
+    "beside a crystal-clear turquoise lagoon",
+    "on a pristine white-sand beach lined with palm trees",
+    "near elegant beachfront cabanas",
+    "on a luxury yacht anchored in tropical waters",
+    "on sunlit coastal rocks overlooking the sea",
+    "along the shoreline with gentle waves"
   ],
+
   "expressions": [
-    "with a warm, magnetic smile",
+    "with a confident, magnetic smile",
     "with a relaxed and captivating expression",
-    "with a playful, flirtatious half-smile",
-    "with a calm, confident direct gaze",
-    "with a joyful, alluring candid expression"
+    "with a playful, knowing half-smile",
+    "with calm, confident direct eye contact",
+    "with a carefree natural laugh",
+    "with a sophisticated editorial expression",
+    "with an effortless supermodel attitude",
+    "with an elegant, mysterious smile",
+    "with a relaxed sun-kissed glow",
+    "with a warm, inviting expression"
   ],
+
   "lighting": [
-    "soft sunrise light over the water",
     "warm golden-hour beach lighting",
-    "bright diffused coastal daylight",
-    "sunset backlighting with a subtle rim light",
-    "clean luxury campaign lighting"
+    "soft sunrise light reflecting off the ocean",
+    "bright diffused tropical daylight",
+    "cinematic sunset backlighting with soft rim light",
+    "luxury fashion campaign lighting",
+    "soft warm light filtered through palm trees",
+    "clean premium editorial lighting",
+    "golden sunlight creating luminous skin tones",
+    "natural coastal light with sparkling reflections",
+    "warm sunset light creating cinematic depth"
   ],
-  "shots": [
-    "full-body lifestyle photograph",
-    "three-quarter body editorial photograph",
-    "medium portrait photograph",
-    "wide environmental portrait"
-  ],
+
   "styles": [
-    "tasteful luxury swimwear campaign photography with elegant sensuality",
-    "premium beach fashion editorial photography with sophisticated allure",
-    "modern resort catalog photography with polished glamour",
-    "cinematic coastal lifestyle photography with subtle sex appeal",
-    "high-end summer magazine photography, seductive but non-explicit"
+    "high-fashion luxury swimwear editorial",
+    "premium beach fashion campaign",
+    "cinematic luxury resort photography",
+    "editorial supermodel photography with sophisticated glamour",
+    "Vogue-inspired beach editorial",
+    "high-end summer magazine photography",
+    "luxury lifestyle advertising photography",
+    "exclusive resort fashion campaign",
+    "cinematic coastal fashion photography",
+    "premium swimwear catalog photography"
+  ],
+
+  "details": [
+    "windswept hair moving naturally in the sea breeze",
+    "subtle ocean mist creating a fresh glow",
+    "sun-kissed skin with natural highlights",
+    "luxury minimalist jewelry",
+    "soft cinematic depth of field",
+    "premium editorial composition",
+    "natural beach glow",
+    "confident supermodel posture",
+    "elegant feminine body language",
+    "flowing fabric moving in the breeze",
+    "sparkling ocean reflections",
+    "luxurious vacation atmosphere",
+    "natural candid movement",
+    "polished fashion styling",
+    "effortless beach glamour"
   ]
 }
