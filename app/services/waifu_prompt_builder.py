@@ -157,7 +157,23 @@ def _build_combination_prompt(
             pick_count = max(1, min(pick_count, len(items)))
         return ", ".join(rng.sample(items, pick_count)).strip()
     if isinstance(combo_cfg, dict):
-        return str(combo_cfg.get("prompt", "")).strip()
+        parts = [str(combo_cfg.get("prompt", "")).strip()]
+        options = combo_cfg.get("options", [])
+        if isinstance(options, list):
+            choices = [
+                item.strip()
+                for item in options
+                if isinstance(item, str) and item.strip()
+            ]
+            if choices:
+                configured_count = combo_cfg.get("pick_count", 1)
+                try:
+                    option_count = int(configured_count)
+                except (TypeError, ValueError):
+                    option_count = 1
+                option_count = max(1, min(option_count, len(choices)))
+                parts.extend(rng.sample(choices, option_count))
+        return ", ".join(part for part in parts if part).strip()
     raise ValueError("Combinación inválida")
 
 
