@@ -53,5 +53,14 @@ def test_fantasy_options_use_a_dedicated_fantasy_catalog():
     template, options = load_dollimages_fantasy_prompt_options()
 
     assert "fantasy" in template
+    assert "RAW photograph" in template
+    assert "no illustration" in template
     assert "elven" in options["girl_types"][0]
+    assert all("photograph" in style for style in options["styles"])
+    assert not any(
+        term in value.lower()
+        for values in options.values()
+        for value in values
+        for term in ("illustration", "concept art", "3d render")
+    )
     assert set(options) == set(_options())
