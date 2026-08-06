@@ -1,0 +1,62 @@
+{
+  "template": "RAW summer photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long wavy hair",
+    "an adult blonde woman with a sleek bob",
+    "an adult red-haired woman with natural freckles",
+    "an adult woman with long black hair",
+    "an adult athletic woman with a high ponytail",
+    "an adult woman with shoulder-length silver hair"
+  ],
+  "poses": [
+    "standing confidently with one hand on her hip",
+    "walking naturally toward the camera",
+    "sitting gracefully and looking at the camera",
+    "looking back over her shoulder",
+    "leaning casually against a nearby surface",
+    "standing in profile with her face toward the camera"
+  ],
+  "outfits": [
+    "a breezy white linen dress with sandals",
+    "a colorful sleeveless sundress and a straw hat",
+    "linen shorts with an elegant lightweight blouse",
+    "a flowing floral maxi dress",
+    "a chic summer romper with woven accessories",
+    "a light resort dress with a sun hat"
+  ],
+  "locations": [
+    "on a sunny Mediterranean waterfront promenade",
+    "at a colorful coastal farmers market",
+    "in a lavender field in Provence",
+    "at an outdoor cafe beside the sea",
+    "on a sailboat deck in calm turquoise water",
+    "beneath palm trees at a luxury summer resort"
+  ],
+  "expressions": [
+    "with a warm confident smile",
+    "with a relaxed natural expression",
+    "with a playful subtle smile",
+    "with a calm direct gaze",
+    "with a joyful candid expression"
+  ],
+  "lighting": [
+    "bright natural morning sunlight",
+    "warm golden-hour summer light",
+    "soft sunlight filtered through palm leaves",
+    "clear coastal daylight with gentle fill light",
+    "sunset backlighting with a warm rim light"
+  ],
+  "shots": [
+    "full-body lifestyle photograph",
+    "three-quarter body editorial photograph",
+    "medium portrait photograph",
+    "wide environmental portrait"
+  ],
+  "styles": [
+    "premium summer lifestyle campaign photography",
+    "Mediterranean fashion editorial photography",
+    "bright resort advertising photography",
+    "candid luxury travel photography",
+    "modern seasonal magazine photography"
+  ]
+}

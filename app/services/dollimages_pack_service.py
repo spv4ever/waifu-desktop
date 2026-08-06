@@ -16,12 +16,19 @@ from app.services.path_utils import unique_suffixed_path
 from app.services.dollimages_prompt_generator import (
     choose_dollimages_prompt_selection,
     fill_dollimages_prompt_tokens,
-    load_dollimages_fantasy_prompt_options,
     load_dollimages_prompt_options,
+    load_dollimages_themed_prompt_options,
 )
 
-
-COMBINATION_PROMPT_SOURCES = {"combinations", "fantasy_combinations"}
+COMBINATION_PROMPT_SOURCES = {
+    "combinations",
+    "fantasy_combinations",
+    "summer_combinations",
+    "bikini_combinations",
+    "snow_combinations",
+    "sauna_combinations",
+    "travel_combinations",
+}
 
 
 @dataclass(frozen=True)
@@ -109,12 +116,12 @@ class DollimagesPackService:
             else []
         )
         if req.prompt_source in COMBINATION_PROMPT_SOURCES:
-            loader = (
-                load_dollimages_fantasy_prompt_options
-                if req.prompt_source == "fantasy_combinations"
-                else load_dollimages_prompt_options
-            )
-            template, options = loader()
+            if req.prompt_source == "combinations":
+                template, options = load_dollimages_prompt_options()
+            else:
+                template, options = load_dollimages_themed_prompt_options(
+                    req.prompt_source
+                )
             combination_count = max(1, int(req.combination_count))
         else:
             template, options, combination_count = "", {}, 0

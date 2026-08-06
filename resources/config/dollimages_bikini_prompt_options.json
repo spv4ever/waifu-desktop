@@ -1,0 +1,62 @@
+{
+  "template": "RAW beach fashion photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], tasteful swimwear campaign, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long wavy hair",
+    "an adult blonde woman with a sleek bob",
+    "an adult red-haired woman with natural freckles",
+    "an adult woman with long black hair",
+    "an adult athletic woman with a high ponytail",
+    "an adult woman with shoulder-length silver hair"
+  ],
+  "poses": [
+    "standing confidently with one hand on her hip",
+    "walking naturally toward the camera",
+    "sitting gracefully and looking at the camera",
+    "looking back over her shoulder",
+    "leaning casually against a nearby surface",
+    "standing in profile with her face toward the camera"
+  ],
+  "outfits": [
+    "an elegant black one-piece swimsuit",
+    "a colorful high-waisted bikini with a light cover-up",
+    "a sporty two-piece swimsuit",
+    "a minimalist white bikini with a sheer sarong",
+    "a tropical-print bikini with a wide-brimmed hat",
+    "a luxury metallic swimsuit with tasteful accessories"
+  ],
+  "locations": [
+    "on a secluded tropical beach",
+    "beside a modern infinity pool overlooking the ocean",
+    "on a wooden deck at a Maldives resort",
+    "at a bright Mediterranean beach club",
+    "beside a natural turquoise lagoon",
+    "on a white-sand beach with distant palm trees"
+  ],
+  "expressions": [
+    "with a warm confident smile",
+    "with a relaxed natural expression",
+    "with a playful subtle smile",
+    "with a calm direct gaze",
+    "with a joyful candid expression"
+  ],
+  "lighting": [
+    "soft sunrise light over the water",
+    "warm golden-hour beach lighting",
+    "bright diffused coastal daylight",
+    "sunset backlighting with a subtle rim light",
+    "clean luxury campaign lighting"
+  ],
+  "shots": [
+    "full-body lifestyle photograph",
+    "three-quarter body editorial photograph",
+    "medium portrait photograph",
+    "wide environmental portrait"
+  ],
+  "styles": [
+    "tasteful luxury swimwear campaign photography",
+    "premium beach fashion editorial photography",
+    "modern resort catalog photography",
+    "cinematic coastal lifestyle photography",
+    "high-end summer magazine photography"
+  ]
+}

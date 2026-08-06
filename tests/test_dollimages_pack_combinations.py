@@ -87,8 +87,14 @@ def test_dollimages_pack_uses_fantasy_json_for_fantasy_combinations(monkeypatch)
     options = {
         key: [f"fantasy {key}"]
         for key in (
-            "girl_types", "poses", "outfits", "locations", "expressions",
-            "lighting", "shots", "styles",
+            "girl_types",
+            "poses",
+            "outfits",
+            "locations",
+            "expressions",
+            "lighting",
+            "shots",
+            "styles",
         )
     }
     monkeypatch.setattr(dollimages_pack_service, "get_store", lambda: store)
@@ -101,8 +107,8 @@ def test_dollimages_pack_uses_fantasy_json_for_fantasy_combinations(monkeypatch)
     )
     monkeypatch.setattr(
         dollimages_pack_service,
-        "load_dollimages_fantasy_prompt_options",
-        lambda: (
+        "load_dollimages_themed_prompt_options",
+        lambda prompt_source: (
             "[girl_type], [pose], [outfit], [location], [expression], [lighting], [shot], [style]",
             options,
         ),

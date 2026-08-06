@@ -673,6 +673,14 @@ class MainWindow(QMainWindow):
         self.dollimages_prompt_source_combo.addItem(
             "Combinación JSON fantasía", "fantasy_combinations"
         )
+        for label, source in (
+            ("Combinación JSON verano", "summer_combinations"),
+            ("Combinación JSON bikinis", "bikini_combinations"),
+            ("Combinación JSON nieve", "snow_combinations"),
+            ("Combinación JSON saunas", "sauna_combinations"),
+            ("Combinación JSON viajeras", "travel_combinations"),
+        ):
+            self.dollimages_prompt_source_combo.addItem(label, source)
         doll_layout.addWidget(self.dollimages_prompt_source_combo, 2, 1)
 
         self.dollimages_combination_count_label = QLabel("Combinaciones:")
