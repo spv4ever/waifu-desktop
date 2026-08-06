@@ -426,6 +426,28 @@ mood:
 # MODULADORES COMBINABLES
 # =========================
 combinations:
+  normal:
+    label: "Combinación normal"
+    prompt: >
+      adult human anime woman, natural human features, contemporary character,
+      no fantasy traits
+
+  fantasy:
+    label: "Combinación fantasía"
+    prompt: "adult fantasy woman, magical heroine"
+    pick_count: 1
+    options:
+      - elegant elven woman with pointed ears
+      - luminous fairy woman with delicate translucent wings
+      - powerful sorceress woman surrounded by arcane energy
+      - celestial woman with an ethereal aura
+      - dragon woman with subtle horns and iridescent scales
+      - forest nymph woman adorned with leaves and flowers
+      - warrior valkyrie woman in ornate fantasy armor
+      - mermaid woman with shimmering aquatic details
+      - dark elf woman with silver hair and violet eyes
+      - kitsune woman with fox ears and flowing magical tails
+
   nsfw:
     - nsfw
     - little breasts
