@@ -77,6 +77,49 @@ def test_every_themed_catalog_is_complete_and_photographic(prompt_source):
     assert all(len(values) >= 4 for values in options.values())
 
 
+@pytest.mark.parametrize(
+    "prompt_source", ("combinations", *THEMED_OPTIONS_PATHS)
+)
+def test_every_dollimages_outfit_is_sexy_and_avoids_conventional_suits(
+    prompt_source,
+):
+    if prompt_source == "combinations":
+        _, options = load_dollimages_prompt_options()
+    else:
+        _, options = load_dollimages_themed_prompt_options(prompt_source)
+
+    sexy_outfit_terms = (
+        "mini skirt",
+        "micro ",
+        "lingerie",
+        "bralette",
+        "bikini",
+        "shorts",
+        "deep neckline",
+        "plunging neckline",
+    )
+    conventional_suit_terms = (
+        " suit",
+        "jumpsuit",
+        "trousers",
+        "pants",
+        "blazer",
+        "coat",
+        "parka",
+        "armor",
+    )
+
+    assert all(
+        any(term in outfit.lower() for term in sexy_outfit_terms)
+        for outfit in options["outfits"]
+    )
+    assert not any(
+        term in outfit.lower()
+        for outfit in options["outfits"]
+        for term in conventional_suit_terms
+    )
+
+
 def test_unknown_themed_catalog_is_rejected():
     with pytest.raises(ValueError, match="no es válido"):
         load_dollimages_themed_prompt_options("unknown_combinations")
