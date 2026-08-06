@@ -1,0 +1,70 @@
+{
+  "template": "[girl_type], single female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], cinematic composition, photorealistic, highly detailed, realistic anatomy, detailed eyes, sharp focus.",
+  "girl_types": [
+    "an elegant brunette woman with long wavy hair",
+    "a confident blonde woman with a sleek bob haircut",
+    "a striking red-haired woman with natural freckles",
+    "a sophisticated woman with long black hair",
+    "an athletic woman with a high ponytail",
+    "a glamorous woman with shoulder-length silver hair",
+    "a curvy woman with voluminous curly brown hair",
+    "a petite woman with a short dark pixie cut"
+  ],
+  "poses": [
+    "standing confidently with one hand on her hip",
+    "walking toward the camera with an editorial stride",
+    "sitting gracefully with her legs crossed",
+    "looking back over her shoulder",
+    "leaning casually against a railing",
+    "standing in profile with her face turned toward the camera",
+    "resting one hand lightly in her hair",
+    "kneeling gracefully with an upright posture"
+  ],
+  "outfits": [
+    "an elegant fitted cocktail dress",
+    "a tailored blazer with a matching pencil skirt",
+    "a luxury designer swimsuit",
+    "a fitted knit dress",
+    "a silk blouse with high-waisted trousers",
+    "a modern athletic set",
+    "a flowing resort dress",
+    "a leather jacket with a fitted top and skirt"
+  ],
+  "locations": [
+    "on a luxury rooftop overlooking the city at sunset",
+    "on a tropical beach during golden hour",
+    "inside a modern penthouse with panoramic windows",
+    "in a neon-lit city street after rain",
+    "beside a private infinity pool",
+    "inside an elegant photography studio",
+    "on a Mediterranean villa balcony",
+    "inside a luxurious hotel suite"
+  ],
+  "expressions": [
+    "with a warm confident smile",
+    "with a calm sophisticated expression",
+    "with a playful subtle smile",
+    "with an intense direct gaze",
+    "with a relaxed natural expression"
+  ],
+  "lighting": [
+    "soft golden-hour lighting",
+    "cinematic neon rim lighting",
+    "diffused editorial studio lighting",
+    "warm ambient evening lighting",
+    "dramatic soft side lighting"
+  ],
+  "shots": [
+    "full-body fashion photograph",
+    "three-quarter body photograph",
+    "medium portrait photograph",
+    "wide environmental portrait"
+  ],
+  "styles": [
+    "luxury fashion editorial styling",
+    "cinematic glamour photography",
+    "premium lifestyle campaign photography",
+    "modern magazine cover photography",
+    "minimalist high-fashion photography"
+  ]
+}

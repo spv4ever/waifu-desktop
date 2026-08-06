@@ -666,6 +666,22 @@ class MainWindow(QMainWindow):
         self.dollimages_typology_combo.addItem("NSFW", "nsfw")
         doll_layout.addWidget(self.dollimages_typology_combo, 0, 1)
 
+        doll_layout.addWidget(QLabel("Origen prompts:"), 2, 0)
+        self.dollimages_prompt_source_combo = QComboBox()
+        self.dollimages_prompt_source_combo.addItem("Listado fijo", "catalog")
+        self.dollimages_prompt_source_combo.addItem("Combinaciones JSON", "combinations")
+        doll_layout.addWidget(self.dollimages_prompt_source_combo, 2, 1)
+
+        self.dollimages_combination_count_label = QLabel("Combinaciones:")
+        doll_layout.addWidget(self.dollimages_combination_count_label, 2, 2)
+        self.dollimages_combination_count_spin = QSpinBox()
+        self.dollimages_combination_count_spin.setRange(1, 10000)
+        self.dollimages_combination_count_spin.setValue(100)
+        self.dollimages_combination_count_spin.setToolTip(
+            "Cada combinación elige tipo de chica, pose, outfit, ubicación y demás características desde el JSON."
+        )
+        doll_layout.addWidget(self.dollimages_combination_count_spin, 2, 3)
+
         doll_layout.addWidget(QLabel("Imagen referencia:"), 0, 2)
         self.dollimages_reference_input = QLineEdit()
         self.dollimages_reference_input.setPlaceholderText("Selecciona una imagen para faceswap")
@@ -706,10 +722,10 @@ class MainWindow(QMainWindow):
         self.dollimages_ratio_combo.setCurrentText("3:4")
         doll_layout.addWidget(self.dollimages_ratio_combo, 2, 7)
 
-        doll_layout.addWidget(QLabel("Texto manual:"), 2, 0)
+        doll_layout.addWidget(QLabel("Texto manual:"), 3, 0)
         self.dollimages_manual_input = QLineEdit()
         self.dollimages_manual_input.setPlaceholderText("Añade un texto común para todo el pack")
-        doll_layout.addWidget(self.dollimages_manual_input, 2, 1, 1, 5)
+        doll_layout.addWidget(self.dollimages_manual_input, 3, 1, 1, 5)
 
         self.dollimages_generate_btn = QPushButton("Crear Pack Dollimages")
         doll_layout.addWidget(self.dollimages_generate_btn, 3, 6)
@@ -1659,6 +1675,9 @@ class MainWindow(QMainWindow):
         self.dollimages_workflow_combo.currentIndexChanged.connect(
             self._update_dollimages_workflow_controls
         )
+        self.dollimages_prompt_source_combo.currentIndexChanged.connect(
+            self._update_dollimages_prompt_source_controls
+        )
         self.dollimages_manual_workflow_combo.currentIndexChanged.connect(
             self._update_dollimages_manual_workflow_controls
         )
@@ -1730,6 +1749,7 @@ class MainWindow(QMainWindow):
         self._update_dollimages_reel_availability()
         self._update_nsfw_controls()
         self._update_dollimages_workflow_controls()
+        self._update_dollimages_prompt_source_controls()
         self._update_dollimages_manual_workflow_controls()
         self._populate_anime_v5_lists()
         self._populate_anime_v5_reel_selectors()
@@ -1774,6 +1794,12 @@ class MainWindow(QMainWindow):
             faceswap_allowed and self.dollimages_faceswap_check.isChecked()
         )
         self.dollimages_checkpoint_combo.setEnabled(checkpoint_allowed)
+
+    def _update_dollimages_prompt_source_controls(self) -> None:
+        combinations = self.dollimages_prompt_source_combo.currentData() == "combinations"
+        self.dollimages_combination_count_label.setEnabled(combinations)
+        self.dollimages_combination_count_spin.setEnabled(combinations)
+        self.dollimages_group_combo.setEnabled(not combinations)
 
     def _update_dollimages_manual_workflow_controls(self) -> None:
         workflow_key = self.dollimages_manual_workflow_combo.currentData()
@@ -2954,6 +2980,8 @@ class MainWindow(QMainWindow):
         faceswap_enabled = self.dollimages_faceswap_check.isChecked()
         workflow_key = self.dollimages_workflow_combo.currentData()
         ratio = self.dollimages_ratio_combo.currentData()
+        prompt_source = self.dollimages_prompt_source_combo.currentData()
+        combination_count = int(self.dollimages_combination_count_spin.value())
 
         if not typology:
             QMessageBox.warning(self, "Crear Pack Dollimages", "Selecciona una tipología.")
@@ -2975,6 +3003,8 @@ class MainWindow(QMainWindow):
             reference_image=reference_image,
             group_name=str(group_name) if group_name is not None else None,
             faceswap_enabled=faceswap_enabled,
+            prompt_source=str(prompt_source or "catalog"),
+            combination_count=combination_count,
         )
 
         try:
