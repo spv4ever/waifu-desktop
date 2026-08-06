@@ -120,6 +120,24 @@ def test_every_dollimages_outfit_is_sexy_and_avoids_conventional_suits(
     )
 
 
+@pytest.mark.parametrize(
+    "prompt_source", ("combinations", *THEMED_OPTIONS_PATHS)
+)
+def test_every_dollimages_catalog_includes_lingerie_bodysuits_and_sheer_outfits(
+    prompt_source,
+):
+    if prompt_source == "combinations":
+        _, options = load_dollimages_prompt_options()
+    else:
+        _, options = load_dollimages_themed_prompt_options(prompt_source)
+
+    outfits = " ".join(options["outfits"]).lower()
+
+    assert "lingerie" in outfits
+    assert "bodysuit" in outfits
+    assert "sheer" in outfits
+
+
 def test_unknown_themed_catalog_is_rejected():
     with pytest.raises(ValueError, match="no es válido"):
         load_dollimages_themed_prompt_options("unknown_combinations")
