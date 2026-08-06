@@ -1,5 +1,5 @@
 {
-  "template": "[girl_type], single female fantasy character, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], epic cinematic composition, intricate details, realistic anatomy, detailed eyes, sharp focus.",
+  "template": "RAW photograph of [girl_type], a real adult woman in a fantasy production, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], live-action cinematic composition, physically accurate skin texture, natural facial features, realistic anatomy, detailed eyes, sharp focus, practical costume and set, photographed with a professional full-frame camera, no illustration, no drawing, no painting, no anime, no CGI, no 3D render.",
   "girl_types": [
     "an elven ranger with long silver hair and pointed ears",
     "a powerful sorceress with flowing violet hair",
@@ -55,16 +55,16 @@
     "radiant spell light illuminating her face"
   ],
   "shots": [
-    "full-body fantasy character portrait",
-    "three-quarter body cinematic portrait",
-    "medium heroic portrait",
-    "wide epic environmental portrait"
+    "full-body live-action character photograph",
+    "three-quarter body cinematic photograph",
+    "medium portrait captured with an 85mm camera lens",
+    "wide environmental photograph captured on location"
   ],
   "styles": [
-    "premium cinematic fantasy photography",
-    "epic high-fantasy concept art with photorealistic rendering",
-    "dark fantasy editorial styling",
-    "enchanted fairy-tale realism",
-    "luxury fantasy character design"
+    "premium live-action fantasy film still photography",
+    "high-end fantasy cosplay editorial photography with practical effects",
+    "dark fantasy fashion photography shot on a physical set",
+    "cinematic fairy-tale location photography with natural textures",
+    "professional fantasy costume photography with realistic materials"
   ]
 }
