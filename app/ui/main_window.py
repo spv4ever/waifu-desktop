@@ -724,6 +724,7 @@ class MainWindow(QMainWindow):
         self.dollimages_workflow_combo.addItem("Dollimages", "dollimages")
         self.dollimages_workflow_combo.addItem("Dollimages Z", "dollimagesz")
         self.dollimages_workflow_combo.addItem("Krea2", "krea2")
+        self.dollimages_workflow_combo.addItem("Krea2 V2", "krea2_v2")
         doll_layout.addWidget(self.dollimages_workflow_combo, 1, 7)
 
         doll_layout.addWidget(QLabel("Ratio:"), 2, 6)
@@ -787,6 +788,7 @@ class MainWindow(QMainWindow):
         self.dollimages_manual_workflow_combo.addItem("Dollimages", "dollimages")
         self.dollimages_manual_workflow_combo.addItem("Dollimages Z", "dollimagesz")
         self.dollimages_manual_workflow_combo.addItem("Krea2", "krea2")
+        self.dollimages_manual_workflow_combo.addItem("Krea2 V2", "krea2_v2")
         doll_manual_grid.addWidget(self.dollimages_manual_workflow_combo, 1, 5)
 
         doll_manual_grid.addWidget(QLabel("Ratio:"), 1, 6)
@@ -4172,7 +4174,7 @@ class MainWindow(QMainWindow):
         workflow_key = self._workflow_key_from_row(row)
         current_variant = self._extract_variant_from_meta(row.get("meta_json"), workflow_key)
 
-        if workflow_key in {"dollimages", "dollimagesz"}:
+        if workflow_key in {"dollimages", "dollimagesz", "krea2", "krea2_v2"}:
             label = "Cambiar tipología"
             options = [
                 ("Normal", "normal"),
@@ -4205,7 +4207,7 @@ class MainWindow(QMainWindow):
             return None
         if not isinstance(meta, dict):
             return None
-        if workflow_key in {"dollimages", "dollimagesz"}:
+        if workflow_key in {"dollimages", "dollimagesz", "krea2", "krea2_v2"}:
             typology = meta.get("dollimages_typology")
             if typology:
                 return str(typology)
