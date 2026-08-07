@@ -78,7 +78,11 @@ def test_every_themed_catalog_is_complete_and_photographic(prompt_source):
 
 
 @pytest.mark.parametrize(
-    "prompt_source", ("combinations", *THEMED_OPTIONS_PATHS)
+    "prompt_source",
+    (
+        "combinations",
+        *(source for source in THEMED_OPTIONS_PATHS if source != "sauna_combinations"),
+    ),
 )
 def test_every_dollimages_outfit_is_sexy_and_avoids_conventional_suits(
     prompt_source,
@@ -121,7 +125,11 @@ def test_every_dollimages_outfit_is_sexy_and_avoids_conventional_suits(
 
 
 @pytest.mark.parametrize(
-    "prompt_source", ("combinations", *THEMED_OPTIONS_PATHS)
+    "prompt_source",
+    (
+        "combinations",
+        *(source for source in THEMED_OPTIONS_PATHS if source != "sauna_combinations"),
+    ),
 )
 def test_every_dollimages_catalog_includes_lingerie_bodysuits_and_sheer_outfits(
     prompt_source,
@@ -136,6 +144,20 @@ def test_every_dollimages_catalog_includes_lingerie_bodysuits_and_sheer_outfits(
     assert "lingerie" in outfits
     assert "bodysuit" in outfits
     assert "sheer" in outfits
+
+
+def test_sauna_catalog_uses_only_towels_over_unclothed_bodies():
+    template, options = load_dollimages_themed_prompt_options("sauna_combinations")
+
+    assert "unclothed" in template.lower()
+    assert "covered only" in template.lower()
+    assert all("towel" in outfit.lower() for outfit in options["outfits"])
+    assert all("bare body" in outfit.lower() for outfit in options["outfits"])
+    assert not any(
+        term in outfit.lower()
+        for outfit in options["outfits"]
+        for term in ("dress", "lingerie", "top", "shorts", "skirt", "bodysuit")
+    )
 
 
 def test_unknown_themed_catalog_is_rejected():
