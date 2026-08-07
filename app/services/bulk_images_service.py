@@ -16,6 +16,7 @@ _BULK_WORKFLOW_HINTS = {
     "dollimages": "dollimages",
     "dollimagesz": "dollimagesz",
     "krea2": "krea2",
+    "krea2_v2": "krea2_v2",
     "waifu": "waifu",
 }
 

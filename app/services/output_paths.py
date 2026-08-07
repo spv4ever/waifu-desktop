@@ -15,7 +15,7 @@ def _normalize_subfolder(subfolder: str) -> str:
 def _resolve_base_dir(workflow_key: str | None) -> Path:
     if workflow_key in {"image2vid", "undress"} and settings.comfyui_image2vid_output_dir:
         return Path(settings.comfyui_image2vid_output_dir)
-    if workflow_key in {"dollimages", "dollimagesz"} and settings.comfyui_dollimages_output_dir:
+    if workflow_key in {"dollimages", "dollimagesz", "krea2", "krea2_v2"} and settings.comfyui_dollimages_output_dir:
         return Path(settings.comfyui_dollimages_output_dir)
     return Path(settings.comfyui_output_dir)
 

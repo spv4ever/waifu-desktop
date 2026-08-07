@@ -306,3 +306,28 @@ comfyui_workflow_krea2:
   output_upscale:
     node_id: "364"
     input: "filename_prefix"
+
+comfyui_workflow_krea2_v2:
+  prompt_pos:
+    node_id: "408"
+    input: "value"
+
+  seed:
+    node_id: "31"
+    input: "seed"
+
+  width:
+    node_id: "367"
+    input: "width"
+
+  height:
+    node_id: "367"
+    input: "height"
+
+  output_base:
+    node_id: "363"
+    input: "filename_prefix"
+
+  output_upscale:
+    node_id: "364"
+    input: "filename_prefix"

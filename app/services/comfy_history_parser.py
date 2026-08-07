@@ -58,7 +58,7 @@ def extract_base_and_upscale(
     if workflow_key == "dollimagesz":
         base_node = SAVE_NODE_DOLLIMAGESZ_BASE
         upscale_node = None
-    elif workflow_key == "krea2":
+    elif workflow_key in {"krea2", "krea2_v2"}:
         base_node = SAVE_NODE_KREA2_BASE
         upscale_node = SAVE_NODE_KREA2_UPSCALE
 
@@ -91,7 +91,7 @@ def extract_base_and_upscale_images(
     if workflow_key == "dollimagesz":
         base_node = SAVE_NODE_DOLLIMAGESZ_BASE
         upscale_node = None
-    elif workflow_key == "krea2":
+    elif workflow_key in {"krea2", "krea2_v2"}:
         base_node = SAVE_NODE_KREA2_BASE
         upscale_node = SAVE_NODE_KREA2_UPSCALE
 
