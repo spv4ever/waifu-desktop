@@ -1,0 +1,354 @@
+{
+  "8": {
+    "inputs": {
+      "samples": [
+        "31",
+        0
+      ],
+      "vae": [
+        "39",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "31": {
+    "inputs": {
+      "seed": 204228874264626,
+      "steps": [
+        "368",
+        0
+      ],
+      "cfg": [
+        "397",
+        0
+      ],
+      "sampler_name": "ddim",
+      "scheduler": "beta57",
+      "denoise": 1,
+      "model": [
+        "360",
+        0
+      ],
+      "positive": [
+        "387",
+        0
+      ],
+      "negative": [
+        "387",
+        0
+      ],
+      "latent_image": [
+        "263",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "39": {
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "212": {
+    "inputs": {
+      "prompt": [
+        "410",
+        0
+      ],
+      "clip": [
+        "360",
+        1
+      ],
+      "vae": [
+        "39",
+        0
+      ]
+    },
+    "class_type": "TextEncodeQwenImageEditPlus",
+    "_meta": {
+      "title": "TextEncodeQwenImageEditPlus"
+    }
+  },
+  "213": {
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "233": {
+    "inputs": {
+      "upscale_model": [
+        "235",
+        0
+      ],
+      "image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "ImageUpscaleWithModel",
+    "_meta": {
+      "title": "Upscale Image (using Model)"
+    }
+  },
+  "235": {
+    "inputs": {
+      "model_name": "ESRGAN_4x.pth"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "Load Upscale Model"
+    }
+  },
+  "238": {
+    "inputs": {
+      "value": [
+        "367",
+        0
+      ]
+    },
+    "class_type": "INTConstant",
+    "_meta": {
+      "title": "Width"
+    }
+  },
+  "239": {
+    "inputs": {
+      "value": [
+        "367",
+        1
+      ]
+    },
+    "class_type": "INTConstant",
+    "_meta": {
+      "title": "Height"
+    }
+  },
+  "263": {
+    "inputs": {
+      "width": [
+        "238",
+        0
+      ],
+      "height": [
+        "239",
+        0
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "359": {
+    "inputs": {
+      "unet_name": "krea2_turbo_fp8.safetensors",
+      "weight_dtype": "fp8_e4m3fn"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "UNET Loader - Krea2 Turbo FP8"
+    }
+  },
+  "360": {
+    "inputs": {
+      "injection_method": "Standard (Native)",
+      "lora_data": "[{\"enabled\":true,\"name\":\"Krea2-realism-V1.safetensors\",\"strength\":1}]",
+      "UI": "",
+      "model": [
+        "359",
+        0
+      ],
+      "clip": [
+        "213",
+        0
+      ]
+    },
+    "class_type": "AcademiaSD_MultiLora",
+    "_meta": {
+      "title": "Academia SD Multi-LoRA 💊"
+    }
+  },
+  "361": {
+    "inputs": {
+      "UI": ""
+    },
+    "class_type": "AcademiaSD_Downloader",
+    "_meta": {
+      "title": "Academia SD Automatic downloader ⬇️"
+    }
+  },
+  "363": {
+    "inputs": {
+      "filename_prefix": "Krea2\\Krea2",
+      "target_node_title": "Load Image",
+      "🚀 SEND TO EDIT": "button",
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "AcademiaSD_SaveAndSend",
+    "_meta": {
+      "title": "AcademiaSD Image Save & Send 💾🚀"
+    }
+  },
+  "364": {
+    "inputs": {
+      "filename_prefix": "Krea2\\Krea2_Upscaled",
+      "target_node_title": "Load Image",
+      "🚀 SEND TO EDIT": "button",
+      "images": [
+        "233",
+        0
+      ]
+    },
+    "class_type": "AcademiaSD_SaveAndSend",
+    "_meta": {
+      "title": "AcademiaSD Image Save & Send 💾🚀"
+    }
+  },
+  "367": {
+    "inputs": {
+      "preset": "Custom",
+      "width": 528,
+      "height": 704,
+      "➗ Half": null,
+      "✖️ Double": null,
+      "🔄 Swap": null,
+      "📐 Get Size": null
+    },
+    "class_type": "AcademiaSD_Resolution",
+    "_meta": {
+      "title": "Resolution Selector"
+    }
+  },
+  "368": {
+    "inputs": {
+      "value": [
+        "395",
+        0
+      ]
+    },
+    "class_type": "INTConstant",
+    "_meta": {
+      "title": "Steps"
+    }
+  },
+  "369": {
+    "inputs": {
+      "conditioning": [
+        "212",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Negative (Zero Out)"
+    }
+  },
+  "387": {
+    "inputs": {
+      "multiplier": 4,
+      "per_layer_weights": "1.0,1.0,1.0,1.0,1.0,1.0,1.0,2.5,5.0,1.1,4.0,1.0",
+      "conditioning": [
+        "212",
+        0
+      ]
+    },
+    "class_type": "ConditioningKrea2Rebalance",
+    "_meta": {
+      "title": "Conditioning Krea2 Rebalance"
+    }
+  },
+  "390": {
+    "inputs": {
+      "Number": "1"
+    },
+    "class_type": "Float",
+    "_meta": {
+      "title": "CFG"
+    }
+  },
+  "392": {
+    "inputs": {
+      "value": 8
+    },
+    "class_type": "INTConstant",
+    "_meta": {
+      "title": "Steps"
+    }
+  },
+  "395": {
+    "inputs": {
+      "select": 1,
+      "sel_mode": false,
+      "input1": [
+        "392",
+        0
+      ]
+    },
+    "class_type": "ImpactSwitch",
+    "_meta": {
+      "title": "Switch Steps"
+    }
+  },
+  "397": {
+    "inputs": {
+      "select": 1,
+      "sel_mode": false,
+      "input1": [
+        "390",
+        0
+      ]
+    },
+    "class_type": "ImpactSwitch",
+    "_meta": {
+      "title": "Switch CFG"
+    }
+  },
+  "408": {
+    "inputs": {
+      "value": "RAW photograph of an adult elven ranger with long silver hair and pointed ears, a real adult woman in a fantasy production, wide environmental photograph captured on location, floating gracefully above the ground with an elegant silhouette, wearing a sheer enchanted lace lingerie set with opaque intimate coverage, beside a moonlit lake surrounded by giant flowers, with an intense and magnetic magical focus, ethereal moonlight with luminous magical particles, premium live-action fantasy film still photography with elegant sensuality, alluring but non-explicit mood, elegant sensuality, fully covered intimate areas, live-action cinematic composition, physically accurate skin texture, natural facial features, realistic anatomy, detailed eyes, sharp focus, practical costume and set, photographed with a professional full-frame camera, no illustration, no drawing, no painting, no anime, no CGI, no 3D render., pink panties, pink bra, cameltoe, covered nipples, upskirt, huge breasts,"
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "410": {
+    "inputs": {
+      "select": 1,
+      "sel_mode": false,
+      "input1": [
+        "408",
+        0
+      ],
+      "input2": [
+        "213",
+        0
+      ]
+    },
+    "class_type": "ImpactSwitch",
+    "_meta": {
+      "title": "Switch Prompt"
+    }
+  }
+}
