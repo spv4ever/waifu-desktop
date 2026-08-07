@@ -1,5 +1,5 @@
 {
-  "template": "RAW wellness glamour photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], intimate and alluring but non-explicit mood, tasteful spa setting, securely covered intimate areas, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
+  "template": "RAW wellness glamour photograph of [girl_type], single adult female subject, [shot], [pose], unclothed and covered only by [outfit], [location], [expression], [lighting], [style], intimate and alluring but non-explicit mood, tasteful spa setting, towel securely covering breasts and intimate areas, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
   "girl_types": [
     "an adult brunette woman with long wavy hair",
     "an adult blonde woman with a sleek bob",
@@ -17,15 +17,15 @@
     "standing in profile with her face toward the camera"
   ],
   "outfits": [
-    "a plunging satin camisole with ultra-short fitted lounge shorts",
-    "a sheer lace lingerie set with opaque intimate coverage",
-    "a low-cut halter top with a skin-tight terrycloth mini skirt",
-    "a lace bralette with high-waisted figure-hugging shorts",
-    "a backless satin evening mini dress with a plunging neckline",
-    "an off-the-shoulder corset top with a micro wrap skirt",
-    "a satin-trimmed lingerie set with opaque intimate coverage",
-    "a sculpting lace bodysuit with a plunging neckline and opaque panels",
-    "a sheer spa wrap over an opaque bralette and ultra-short lounge shorts"
+    "a soft white bath towel wrapped securely around her bare body",
+    "a plush ivory spa towel wrapped securely around her bare body",
+    "a folded white sauna towel held securely over her bare body",
+    "a cream terrycloth towel wrapped securely around her bare body",
+    "a fresh white spa towel draped securely over her bare body",
+    "a charcoal-gray sauna towel wrapped securely around her bare body",
+    "a pale beige bath towel held securely over her bare body",
+    "a luxurious white hotel towel wrapped securely around her bare body",
+    "a natural linen sauna towel draped securely over her bare body"
   ],
   "locations": [
     "inside a modern cedar sauna",
