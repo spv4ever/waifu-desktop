@@ -146,6 +146,28 @@ def test_every_dollimages_catalog_includes_lingerie_bodysuits_and_sheer_outfits(
     assert "sheer" in outfits
 
 
+@pytest.mark.parametrize(
+    "prompt_source", ("travel_combinations", "summer_combinations")
+)
+def test_warm_weather_catalogs_use_current_colorful_fashion_and_dynamic_poses(
+    prompt_source,
+):
+    _, options = load_dollimages_themed_prompt_options(prompt_source)
+    outfits = " ".join(options["outfits"]).lower()
+    poses = " ".join(options["poses"]).lower()
+    shots = " ".join(options["shots"]).lower()
+
+    assert sum("mini skirt" in outfit.lower() for outfit in options["outfits"]) >= 10
+    assert "open" in outfits
+    assert "fitted" in outfits
+    assert "crop top" in outfits
+    assert not any(term in outfits for term in ("leather", "silver", "golden"))
+    assert sum("front" in pose.lower() for pose in options["poses"]) >= 4
+    assert "jump" in poses
+    assert "crouching" in poses
+    assert "low-angle" in shots
+
+
 def test_sauna_catalog_uses_only_towels_over_unclothed_bodies():
     template, options = load_dollimages_themed_prompt_options("sauna_combinations")
 
