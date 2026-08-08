@@ -128,7 +128,11 @@ def test_every_dollimages_outfit_is_sexy_and_avoids_conventional_suits(
     "prompt_source",
     (
         "combinations",
-        *(source for source in THEMED_OPTIONS_PATHS if source != "sauna_combinations"),
+        *(
+            source
+            for source in THEMED_OPTIONS_PATHS
+            if source not in ("bikini_combinations", "sauna_combinations")
+        ),
     ),
 )
 def test_every_dollimages_catalog_includes_lingerie_bodysuits_and_sheer_outfits(
@@ -144,6 +148,57 @@ def test_every_dollimages_catalog_includes_lingerie_bodysuits_and_sheer_outfits(
     assert "lingerie" in outfits
     assert "bodysuit" in outfits
     assert "sheer" in outfits
+
+
+def test_bikini_catalog_uses_only_vivid_modern_micro_bikinis():
+    template, options = load_dollimages_themed_prompt_options("bikini_combinations")
+    outfits = options["outfits"]
+    forbidden_terms = (
+        "brown",
+        "beige",
+        "shirt",
+        "shorts",
+        "pants",
+        "trousers",
+        "skirt",
+        "sarong",
+        "wrap",
+        "cover-up",
+        "kimono",
+        "lingerie",
+        "bodysuit",
+        "one-piece",
+        "swimsuit",
+    )
+    vivid_colors = (
+        "fuchsia",
+        "cobalt",
+        "neon",
+        "coral",
+        "turquoise",
+        "pink",
+        "tangerine",
+        "violet",
+        "cyan",
+        "red",
+        "yellow",
+        "emerald",
+        "aqua",
+        "purple",
+        "blue",
+        "lime",
+        "raspberry",
+        "mint",
+        "scarlet",
+        "multicolor",
+    )
+
+    assert "wearing only [outfit]" in template
+    assert all("micro bikini" in outfit.lower() for outfit in outfits)
+    assert all(any(color in outfit.lower() for color in vivid_colors) for outfit in outfits)
+    assert not any(
+        term in outfit.lower() for outfit in outfits for term in forbidden_terms
+    )
 
 
 @pytest.mark.parametrize(
