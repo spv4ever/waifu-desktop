@@ -32,6 +32,7 @@ REQUIRED_GROUPS = (
     "shots",
     "styles",
 )
+OPTIONAL_GROUPS = ("details",)
 DEFAULT_TEMPLATE = (
     "[girl_type], single female subject, [shot], [pose], wearing [outfit], [location], "
     "[expression], [lighting], [style], cinematic composition, photorealistic, highly detailed, "
@@ -49,6 +50,7 @@ class DollimagesPromptSelection:
     lighting: str
     shot: str
     style: str
+    details: str = ""
 
     def as_meta(self) -> dict[str, str]:
         return dict(self.__dict__)
@@ -68,6 +70,18 @@ def load_dollimages_prompt_options(
     options: dict[str, list[str]] = {}
     for group in REQUIRED_GROUPS:
         values = raw.get(group)
+        if not isinstance(values, list):
+            raise ValueError(f"La opción Dollimages '{group}' debe ser una lista.")
+        cleaned = [str(value).strip() for value in values if str(value).strip()]
+        if not cleaned:
+            raise ValueError(
+                f"La opción Dollimages '{group}' debe incluir al menos un valor."
+            )
+        options[group] = cleaned
+    for group in OPTIONAL_GROUPS:
+        values = raw.get(group)
+        if values is None:
+            continue
         if not isinstance(values, list):
             raise ValueError(f"La opción Dollimages '{group}' debe ser una lista.")
         cleaned = [str(value).strip() for value in values if str(value).strip()]
@@ -107,6 +121,7 @@ def choose_dollimages_prompt_selection(
         lighting=rng.choice(options["lighting"]),
         shot=rng.choice(options["shots"]),
         style=rng.choice(options["styles"]),
+        details=rng.choice(options["details"]) if options.get("details") else "",
     )
 
 

@@ -73,7 +73,7 @@ def test_every_themed_catalog_is_complete_and_photographic(prompt_source):
     template, options = load_dollimages_themed_prompt_options(prompt_source)
 
     assert "photograph" in template.lower()
-    assert set(options) == set(_options())
+    assert set(_options()).issubset(options)
     assert all(len(values) >= 4 for values in options.values())
 
 
@@ -199,6 +199,17 @@ def test_bikini_catalog_uses_only_vivid_modern_micro_bikinis():
     assert not any(
         term in outfit.lower() for outfit in outfits for term in forbidden_terms
     )
+
+
+def test_bikini_catalog_fills_the_details_token():
+    template, options = load_dollimages_themed_prompt_options("bikini_combinations")
+
+    selection = choose_dollimages_prompt_selection(random.Random(7), options)
+    prompt = fill_dollimages_prompt_tokens(template, selection)
+
+    assert selection.details in options["details"]
+    assert selection.details in prompt
+    assert "[details]" not in prompt
 
 
 @pytest.mark.parametrize(
