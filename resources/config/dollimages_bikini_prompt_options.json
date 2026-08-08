@@ -1,5 +1,5 @@
 {
-  "template": "RAW luxury beach fashion editorial photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], [details], effortless confidence, magnetic presence, elegant feminine silhouette, subtle ocean mist on the skin, windswept hair, luxury resort atmosphere, premium fashion campaign, tasteful sensuality, fully covered intimate areas, photorealistic, natural skin texture, realistic anatomy, detailed eyes, cinematic depth of field, realistic shadows, sharp focus.",
+  "template": "RAW luxury beach fashion editorial photograph of [girl_type], single adult female subject, [shot], [pose], wearing only [outfit], no cover-up and no additional clothing, [location], [expression], [lighting], [style], [details], effortless confidence, magnetic presence, elegant feminine silhouette, subtle ocean mist on the skin, windswept hair, luxury resort atmosphere, premium fashion campaign, tasteful sensuality, fully covered intimate areas, photorealistic, natural skin texture, realistic anatomy, detailed eyes, cinematic depth of field, realistic shadows, sharp focus.",
 
   "girl_types": [
     "an adult brunette woman with long wavy hair",
@@ -34,26 +34,33 @@
     "leaning elegantly against a palm tree with elongated posture",
     "standing with one leg slightly forward emphasizing an elegant silhouette",
     "walking barefoot along the shoreline leaving footprints in the sand",
-    "holding the edge of a flowing beach wrap in the ocean breeze",
+    "lifting both arms into the ocean breeze with an elongated posture",
     "resting one hand on her hip with relaxed shoulders",
     "stepping out of shallow crystal-clear water naturally",
     "turning slightly toward the sunlight with relaxed confidence"
   ],
 
   "outfits": [
-    "a luxury triangle small bikini with an open white linen shirt",
-    "an elegant high-leg small bikini with a flowing beach sarong",
-    "a premium halter small bikini with a lightweight wrap skirt",
-    "a chic bandeau small bikini with tailored linen shorts",
-    "a sophisticated small bikini-inspired one-piece swimsuit with tasteful cut-out details",
-    "a metallic small bikini styled with an oversized linen shirt",
-    "a modern textured small bikini with a sheer beach cover-up",
-    "a minimalist luxury small bikini with a lightweight kimono",
-    "a designer small bikini with a flowing chiffon wrap",
-    "an elegant smallbikini-inspired swimsuit paired with an open beach shirt",
-    "a resort-style lace lingerie set with opaque intimate coverage and a flowing sarong",
-    "a sculpting beach bodysuit with a plunging neckline and tasteful cut-outs",
-    "a sheer chiffon cover-up over an opaque luxury small bikini"
+    "a vivid fuchsia triangle micro bikini with slim adjustable straps",
+    "an electric cobalt blue high-leg micro bikini with clean contrast piping",
+    "a neon lime string micro bikini with contemporary ring connectors",
+    "a saturated coral bandeau micro bikini with a sleek central twist",
+    "a bright turquoise halter micro bikini with modern geometric straps",
+    "a hot pink asymmetrical micro bikini with a fashion-forward one-shoulder top",
+    "a vibrant tangerine string micro bikini with minimalist knot details",
+    "a bold violet triangle micro bikini with iridescent edge accents",
+    "a tropical cyan and magenta color-block micro bikini with sharp modern lines",
+    "a vivid red high-cut micro bikini with streamlined double side straps",
+    "a sunny yellow micro bikini with playful translucent bead details",
+    "a punchy emerald green triangle micro bikini with polished ring connectors",
+    "a bright aqua micro bikini with a contemporary wave print",
+    "a neon pink and orange gradient micro bikini with slim straps",
+    "a saturated royal purple micro bikini with a modern strappy silhouette",
+    "a vivid blue and lime abstract-print micro bikini with clean edging",
+    "a luminous raspberry micro bikini with subtle holographic accents",
+    "a fresh mint and coral color-block micro bikini with asymmetric straps",
+    "a bold scarlet micro bikini with contemporary cutout strap details",
+    "a vibrant multicolor tropical-print micro bikini with a minimalist triangle cut"
   ],
 
   "locations": [
