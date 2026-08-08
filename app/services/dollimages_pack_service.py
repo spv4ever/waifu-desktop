@@ -31,6 +31,10 @@ COMBINATION_PROMPT_SOURCES = {
 }
 
 
+def is_combination_prompt_source(prompt_source: object) -> bool:
+    return prompt_source in COMBINATION_PROMPT_SOURCES
+
+
 @dataclass(frozen=True)
 class DollimagesPackCreateResult:
     pack_id: int
@@ -115,7 +119,7 @@ class DollimagesPackService:
             if req.prompt_source == "catalog"
             else []
         )
-        if req.prompt_source in COMBINATION_PROMPT_SOURCES:
+        if is_combination_prompt_source(req.prompt_source):
             if req.prompt_source == "combinations":
                 template, options = load_dollimages_prompt_options()
             else:
@@ -146,7 +150,7 @@ class DollimagesPackService:
 
         requested_prompts = (
             combination_count
-            if req.prompt_source in COMBINATION_PROMPT_SOURCES
+            if is_combination_prompt_source(req.prompt_source)
             else len(catalog_prompts)
         )
         pack_id = self.store.create_pack(
@@ -162,7 +166,7 @@ class DollimagesPackService:
         created_at = datetime.now().isoformat(timespec="seconds")
 
         generated_prompts = []
-        if req.prompt_source in COMBINATION_PROMPT_SOURCES:
+        if is_combination_prompt_source(req.prompt_source):
             for index in range(combination_count):
                 selection = choose_dollimages_prompt_selection(rng, options)
                 generated_prompts.append(
