@@ -32,7 +32,10 @@ from app.services.output_paths import build_output_path
 from app.services.comfy_history_parser import extract_saved_video_output
 from app.services.video_preview import resolve_video_preview_url
 from app.services.pack_service import PackService
-from app.services.dollimages_pack_service import DollimagesPackService
+from app.services.dollimages_pack_service import (
+    DollimagesPackService,
+    is_combination_prompt_source,
+)
 from app.services.file_open import open_file, open_folder_and_select
 from app.services.checkpoint_service import CheckpointService
 from app.services.reel_service import ReelService
@@ -1809,10 +1812,9 @@ class MainWindow(QMainWindow):
         self.dollimages_checkpoint_combo.setEnabled(checkpoint_allowed)
 
     def _update_dollimages_prompt_source_controls(self) -> None:
-        combinations = self.dollimages_prompt_source_combo.currentData() in {
-            "combinations",
-            "fantasy_combinations",
-        }
+        combinations = is_combination_prompt_source(
+            self.dollimages_prompt_source_combo.currentData()
+        )
         self.dollimages_combination_count_label.setEnabled(combinations)
         self.dollimages_combination_count_spin.setEnabled(combinations)
         self.dollimages_group_combo.setEnabled(not combinations)
