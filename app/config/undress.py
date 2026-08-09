@@ -60,3 +60,8 @@ def calculate_undress_duration(
     # Wan lengths include the initial frame: four seconds at 24 fps is 97 frames.
     frames = int(seconds * UNDRESS_FPS) + 1
     return seconds, frames
+
+
+def calculate_undress_frames(seconds: float) -> int:
+    """Convert a user-selected clip duration to its Wan frame count."""
+    return int(seconds * UNDRESS_FPS) + 1

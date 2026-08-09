@@ -26,6 +26,7 @@ from app.config.undress import (
     UNDRESS_GARMENTS,
     build_undress_prompt,
     calculate_undress_duration,
+    calculate_undress_frames,
 )
 from app.data.storage import get_store
 from app.services.output_paths import build_output_path
@@ -1061,8 +1062,19 @@ class MainWindow(QMainWindow):
             item.setCheckState(Qt.Checked if index == 0 else Qt.Unchecked)
             self.undress_garment_list.addItem(item)
         undress_layout.addWidget(self.undress_garment_list, 1, 1)
+        undress_layout.addWidget(QLabel("Duración del clip:"), 1, 2, Qt.AlignTop)
+        self.undress_seconds_spin = QDoubleSpinBox()
+        self.undress_seconds_spin.setRange(1.0, 60.0)
+        self.undress_seconds_spin.setSingleStep(0.5)
+        default_seconds, _default_frames = calculate_undress_duration([])
+        self.undress_seconds_spin.setValue(default_seconds)
+        self.undress_seconds_spin.setSuffix(" s")
+        self.undress_seconds_spin.setToolTip(
+            "La duración elegida determina la cantidad de frames enviada al workflow."
+        )
+        undress_layout.addWidget(self.undress_seconds_spin, 1, 3, Qt.AlignTop)
         self.undress_format_label = QLabel()
-        undress_layout.addWidget(self.undress_format_label, 1, 2, 1, 5)
+        undress_layout.addWidget(self.undress_format_label, 1, 4, 1, 3, Qt.AlignTop)
         undress_layout.addWidget(QLabel("Prompt fijo:"), 2, 0)
         self.undress_prompt_preview = QPlainTextEdit()
         self.undress_prompt_preview.setReadOnly(True)
@@ -1721,6 +1733,7 @@ class MainWindow(QMainWindow):
         self.undress_paste_source_btn.clicked.connect(self._set_undress_source_from_clipboard)
         self.undress_source_label.imageDropped.connect(self._set_undress_source_from_drop)
         self.undress_garment_list.itemChanged.connect(self._update_undress_prompt)
+        self.undress_seconds_spin.valueChanged.connect(self._update_undress_prompt)
         self.image2vid_reload_sources_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_select_source_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_pick_prompt_btn.clicked.connect(self.open_image2vid_prompt_picker)
@@ -3115,12 +3128,13 @@ class MainWindow(QMainWindow):
             if self.undress_garment_list.item(index).checkState() == Qt.Checked
         ]
 
-    def _update_undress_prompt(self, _item: QListWidgetItem | None = None) -> None:
+    def _update_undress_prompt(self, _value: object | None = None) -> None:
         garments = self._selected_undress_garments()
         self.undress_prompt_preview.setPlainText(
             build_undress_prompt(garments)
         )
-        seconds, frames = calculate_undress_duration(garments)
+        seconds = self.undress_seconds_spin.value()
+        frames = calculate_undress_frames(seconds)
         self.undress_format_label.setText(
             f"Formato: 480x768 · {frames} frames · {UNDRESS_FPS} fps · {seconds:g} s"
         )
@@ -3206,7 +3220,8 @@ class MainWindow(QMainWindow):
 
         garments = self._selected_undress_garments()
         prompt = build_undress_prompt(garments)
-        seconds, length_frames = calculate_undress_duration(garments)
+        seconds = self.undress_seconds_spin.value()
+        length_frames = calculate_undress_frames(seconds)
         source_category = str(source.get("source_category") or "waifu")
         source_prompt_id = int(source.get("prompt_id") or 0)
         source_title = str(
