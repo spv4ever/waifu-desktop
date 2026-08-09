@@ -682,6 +682,10 @@ class MainWindow(QMainWindow):
             ("Combinación JSON nieve", "snow_combinations"),
             ("Combinación JSON saunas", "sauna_combinations"),
             ("Combinación JSON viajeras", "travel_combinations"),
+            (
+                "Combinación JSON carnaval de Venecia",
+                "venice_carnival_combinations",
+            ),
         ):
             self.dollimages_prompt_source_combo.addItem(label, source)
         doll_layout.addWidget(self.dollimages_prompt_source_combo, 2, 1)

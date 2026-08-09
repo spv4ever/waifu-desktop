@@ -248,6 +248,21 @@ def test_sauna_catalog_uses_only_towels_over_unclothed_bodies():
     )
 
 
+def test_venice_carnival_catalog_uses_masks_and_venetian_locations():
+    template, options = load_dollimages_themed_prompt_options(
+        "venice_carnival_combinations"
+    )
+
+    locations = " ".join(options["locations"]).lower()
+
+    assert "venice carnival" in template.lower()
+    assert "venetian mask" in template.lower()
+    assert all("mask" in outfit.lower() for outfit in options["outfits"])
+    assert "saint mark's square" in locations
+    assert "doge's palace" in locations
+    assert "grand canal" in locations
+
+
 def test_unknown_themed_catalog_is_rejected():
     with pytest.raises(ValueError, match="no es válido"):
         load_dollimages_themed_prompt_options("unknown_combinations")

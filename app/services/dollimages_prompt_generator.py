@@ -21,6 +21,9 @@ THEMED_OPTIONS_PATHS = {
     "travel_combinations": Path(
         "resources/config/dollimages_travel_prompt_options.json"
     ),
+    "venice_carnival_combinations": Path(
+        "resources/config/dollimages_venice_carnival_prompt_options.json"
+    ),
 }
 REQUIRED_GROUPS = (
     "girl_types",

@@ -28,6 +28,7 @@ COMBINATION_PROMPT_SOURCES = {
     "snow_combinations",
     "sauna_combinations",
     "travel_combinations",
+    "venice_carnival_combinations",
 }
 
 

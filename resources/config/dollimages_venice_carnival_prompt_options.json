@@ -1,0 +1,74 @@
+{
+  "template": "RAW Venice Carnival glamour photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], ornate handcrafted Venetian mask, alluring but non-explicit mood, fully covered intimate areas, authentic carnival atmosphere, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long wavy hair",
+    "an adult blonde woman with an elegant braided updo",
+    "an adult red-haired woman with natural freckles",
+    "an adult woman with long black hair",
+    "an adult woman with voluminous dark curls",
+    "an adult woman with shoulder-length silver hair"
+  ],
+  "poses": [
+    "standing regally with one hand holding her mask and an elegant hip tilt",
+    "walking confidently toward the camera through the carnival crowd",
+    "lifting the edge of her short skirt in a graceful dance movement",
+    "looking back over her shoulder while displaying her ornate mask",
+    "leaning against a carved stone balustrade with a refined silhouette",
+    "turning mid-waltz as ribbons and sheer fabric move around her",
+    "sitting gracefully on palace steps with crossed legs",
+    "standing in profile and turning her masked face toward the camera"
+  ],
+  "outfits": [
+    "a burgundy brocade corset with a black lace micro skirt and jeweled mask",
+    "an emerald velvet bralette with a gold-trimmed ultra-short flared mini skirt and feathered mask",
+    "a sheer black lace blouse with strategic opaque coverage, a crimson micro pleated skirt, and porcelain mask",
+    "an ivory lace lingerie set with opaque intimate coverage, a sheer cape, and pearl mask",
+    "a sculpting sapphire velvet bodysuit with a plunging neckline, opaque panels, silver embroidery, and silver mask",
+    "a ruby off-the-shoulder corset with a layered tulle mini skirt and ornate half-mask",
+    "a black lace bralette with high-waisted figure-hugging shorts, a dramatic feathered collar, and black mask",
+    "a low-cut gold brocade crop top with a wine-red ultra-short bubble mini skirt and filigree mask",
+    "a violet lingerie set with opaque intimate coverage, sheer embroidered sleeves, and crystal mask",
+    "a backless midnight-blue velvet mini dress with a plunging neckline and jeweled mask",
+    "a fitted scarlet corset top with a black micro ruffled skirt and delicate lace mask",
+    "a sheer champagne overskirt over an opaque embroidered bodysuit with a deep neckline and gilded mask"
+  ],
+  "locations": [
+    "in Saint Mark's Square among historic arcades and masked revelers",
+    "beside a quiet Venetian canal with gondolas in the background",
+    "inside an opulent candlelit palazzo ballroom",
+    "on the marble steps of the Santa Maria della Salute basilica",
+    "beneath the arches of the Doge's Palace",
+    "on a misty bridge overlooking old Venetian facades",
+    "inside a traditional artisan mask workshop",
+    "at a lavish masked ball in a historic Grand Canal palace"
+  ],
+  "expressions": [
+    "with a mysterious and magnetic gaze behind the mask",
+    "with a playful, flirtatious half-smile",
+    "with a poised and captivating expression",
+    "with calm, confident direct eye contact",
+    "with a joyful smile inspired by the carnival celebration"
+  ],
+  "lighting": [
+    "soft winter daylight reflected from the Venetian lagoon",
+    "warm golden-hour light between the historic buildings",
+    "cinematic candlelight with gentle amber highlights",
+    "moody blue-hour light with glowing street lanterns",
+    "dramatic ballroom lighting with a soft golden rim light"
+  ],
+  "shots": [
+    "full-body carnival fashion photograph",
+    "three-quarter body editorial photograph",
+    "medium masked portrait photograph",
+    "wide environmental photograph of the Venetian celebration",
+    "dynamic full-body dance photograph",
+    "low-angle carnival fashion photograph"
+  ],
+  "styles": [
+    "high-fashion Venice Carnival editorial photography with elegant sensuality",
+    "cinematic Venetian period glamour photography with sophisticated allure",
+    "luxury masked-ball campaign photography with ornate handcrafted styling",
+    "romantic European carnival photography with subtle sex appeal",
+    "premium travel fashion photography with authentic Venetian atmosphere"
+  ]
+}
