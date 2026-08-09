@@ -29,6 +29,20 @@ from app.services.comfy_history_parser import (
 WorkerResult = Literal["PROCESSED", "PAUSED", "EMPTY"]
 
 
+def _build_dollimages_output_folder(
+    *, meta: dict[str, Any], combo: dict[str, Any]
+) -> str:
+    """Group JSON-generated Dollimages by typology and combination catalog."""
+    typology = sanitize_segment(
+        meta.get("dollimages_typology") or combo.get("variant") or "normal"
+    )
+    folder = sanitize_relpath(f"dollimages/{typology}")
+    prompt_source = str(meta.get("dollimages_prompt_source") or "").strip()
+    if prompt_source.endswith("_combinations") or prompt_source == "combinations":
+        folder = sanitize_relpath(f"{folder}/{prompt_source}")
+    return folder
+
+
 def _build_bulk_images_output_prefixes(
     *,
     meta: dict[str, Any],
@@ -345,10 +359,7 @@ class QueueWorker:
         faceswap_enabled = meta.get("faceswap_enabled")
 
         if workflow_key in {"dollimages", "dollimagesz", "krea2", "krea2_v2"}:
-            typology = sanitize_segment(
-                meta.get("dollimages_typology") or combo.get("variant") or "normal"
-            )
-            folder = sanitize_relpath(f"dollimages/{typology}")
+            folder = _build_dollimages_output_folder(meta=meta, combo=combo)
             reference_image = meta.get("reference_image")
             if reference_image:
                 input_path = Path(settings.comfyui_input_dir) / reference_image
