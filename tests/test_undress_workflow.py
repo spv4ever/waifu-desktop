@@ -10,6 +10,7 @@ from app.config.undress import (
     UNDRESS_GARMENTS,
     build_undress_prompt,
     calculate_undress_duration,
+    calculate_undress_frames,
 )
 from app.services.workflow_service import WorkflowService
 
@@ -81,6 +82,12 @@ def test_undress_duration_scales_with_accumulated_garments() -> None:
 
 def test_undress_duration_uses_one_garment_when_selection_is_empty() -> None:
     assert calculate_undress_duration([]) == (4.0, 97)
+
+
+def test_undress_frames_follow_selected_clip_duration() -> None:
+    assert calculate_undress_frames(1.0) == 25
+    assert calculate_undress_frames(4.0) == 97
+    assert calculate_undress_frames(7.5) == 181
 
 
 def test_undress_workflow_receives_scaled_video_length() -> None:
