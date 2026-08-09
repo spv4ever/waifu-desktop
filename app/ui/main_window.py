@@ -1073,15 +1073,23 @@ class MainWindow(QMainWindow):
             "La duración elegida determina la cantidad de frames enviada al workflow."
         )
         undress_layout.addWidget(self.undress_seconds_spin, 1, 3, Qt.AlignTop)
+        undress_layout.addWidget(QLabel("Cantidad de clips:"), 1, 4, Qt.AlignTop)
+        self.undress_repetitions_spin = QSpinBox()
+        self.undress_repetitions_spin.setRange(1, 100)
+        self.undress_repetitions_spin.setValue(1)
+        self.undress_repetitions_spin.setToolTip(
+            "Cantidad de clips que se generarán usando la misma imagen y configuración."
+        )
+        undress_layout.addWidget(self.undress_repetitions_spin, 1, 5, Qt.AlignTop)
         self.undress_format_label = QLabel()
-        undress_layout.addWidget(self.undress_format_label, 1, 4, 1, 3, Qt.AlignTop)
-        undress_layout.addWidget(QLabel("Prompt fijo:"), 2, 0)
+        undress_layout.addWidget(self.undress_format_label, 2, 2, 1, 5, Qt.AlignTop)
+        undress_layout.addWidget(QLabel("Prompt fijo:"), 3, 0)
         self.undress_prompt_preview = QPlainTextEdit()
         self.undress_prompt_preview.setReadOnly(True)
         self.undress_prompt_preview.setFixedHeight(110)
-        undress_layout.addWidget(self.undress_prompt_preview, 2, 1, 1, 6)
+        undress_layout.addWidget(self.undress_prompt_preview, 3, 1, 1, 6)
         self.undress_generate_btn = QPushButton("Enviar Undress a cola")
-        undress_layout.addWidget(self.undress_generate_btn, 3, 5, 1, 2)
+        undress_layout.addWidget(self.undress_generate_btn, 4, 5, 1, 2)
         undress_dialog_layout.addWidget(undress_group)
         self._update_undress_prompt()
 
@@ -3247,12 +3255,15 @@ class MainWindow(QMainWindow):
             fps=UNDRESS_FPS,
             length_frames=length_frames,
         )
+        repetitions = int(self.undress_repetitions_spin.value())
         try:
-            result = self.image2vid_service.create_and_enqueue(req, workflow_key="undress")
+            result = self.image2vid_service.create_many_and_enqueue(
+                [req for _ in range(repetitions)], workflow_key="undress"
+            )
             QMessageBox.information(
                 self,
                 "Undress",
-                f"Vídeo en cola. Pack #{result.pack_id} · Prompt #{result.created_prompt_item_ids[0]}",
+                f"{len(result.created_prompt_item_ids)} vídeo(s) en cola. Pack #{result.pack_id}",
             )
             self.refresh()
         except Exception as exc:

@@ -89,3 +89,38 @@ def test_image2vid_batch_enqueues_every_prompt_in_one_pack() -> None:
     assert [item["prompt_text"] for item in store.prompt_items] == ["prompt uno", "prompt dos"]
     assert len(store.queue_jobs) == 2
     assert result.created_prompt_item_ids == [2, 3]
+
+
+def test_undress_batch_reuses_source_image_for_repeated_clips() -> None:
+    store = _Store()
+    service = ImageToVideoService.__new__(ImageToVideoService)
+    service.store = store
+    prepared_sources = []
+    service._prepare_source_image = (
+        lambda source_path: prepared_sources.append(source_path) or "source.png"
+    )
+    request = ImageToVideoCreate(
+        source_category="waifu",
+        source_prompt_id=10,
+        source_url="",
+        source_image="source.jpg",
+        title="Undress waifu #10",
+        prompt_text="prompt",
+        negative_text="negative",
+        ratio="5:8",
+        width=480,
+        height=768,
+        seconds=4.0,
+        fps=24,
+        length_frames=97,
+    )
+
+    result = service.create_many_and_enqueue(
+        [request, request, request], workflow_key="undress"
+    )
+
+    assert store.pack_kwargs["requested_n"] == 3
+    assert prepared_sources == ["source.jpg"]
+    assert len(store.prompt_items) == 3
+    assert len(store.queue_jobs) == 3
+    assert len(result.created_prompt_item_ids) == 3
