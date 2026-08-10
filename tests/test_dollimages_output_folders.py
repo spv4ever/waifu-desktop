@@ -1,6 +1,9 @@
 import pytest
 
-from app.services.queue_worker import _build_dollimages_output_folder
+from app.services.queue_worker import (
+    _build_dollimages_output_folder,
+    _build_dollimages_output_prefixes,
+)
 
 
 @pytest.mark.parametrize(
@@ -48,3 +51,46 @@ def test_combination_folder_segments_are_sanitized():
     )
 
     assert folder == "dollimages/custom_type"
+
+
+@pytest.mark.parametrize(
+    "prompt_source",
+    [
+        "combinations",
+        "fantasy_combinations",
+        "summer_combinations",
+        "bikini_combinations",
+        "snow_combinations",
+        "sauna_combinations",
+        "travel_combinations",
+        "venice_carnival_combinations",
+    ],
+)
+def test_json_combinations_separate_base_and_upscale_outputs(prompt_source):
+    base_prefix, upscale_prefix = _build_dollimages_output_prefixes(
+        meta={
+            "dollimages_typology": "sfw",
+            "dollimages_prompt_source": prompt_source,
+        },
+        combo={},
+        base_name="42_portrait",
+    )
+
+    assert base_prefix == f"dollimages/sfw/{prompt_source}/base/42_portrait"
+    assert upscale_prefix == (
+        f"dollimages/sfw/{prompt_source}/upscale/42_portrait"
+    )
+
+
+def test_catalog_outputs_keep_the_existing_shared_folder():
+    base_prefix, upscale_prefix = _build_dollimages_output_prefixes(
+        meta={
+            "dollimages_typology": "nsfw",
+            "dollimages_prompt_source": "catalog",
+        },
+        combo={},
+        base_name="17_portrait",
+    )
+
+    assert base_prefix == "dollimages/nsfw/17_portrait"
+    assert upscale_prefix == base_prefix
