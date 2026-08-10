@@ -43,6 +43,24 @@ def _build_dollimages_output_folder(
     return folder
 
 
+def _build_dollimages_output_prefixes(
+    *, meta: dict[str, Any], combo: dict[str, Any], base_name: str
+) -> tuple[str, str]:
+    """Build output prefixes, splitting JSON combinations by image version."""
+    folder = _build_dollimages_output_folder(meta=meta, combo=combo)
+    prompt_source = str(meta.get("dollimages_prompt_source") or "").strip()
+    is_json_combination = (
+        prompt_source.endswith("_combinations") or prompt_source == "combinations"
+    )
+    if is_json_combination:
+        return (
+            sanitize_relpath(f"{folder}/base/{base_name}"),
+            sanitize_relpath(f"{folder}/upscale/{base_name}"),
+        )
+    prefix = sanitize_relpath(f"{folder}/{base_name}")
+    return prefix, prefix
+
+
 def _build_bulk_images_output_prefixes(
     *,
     meta: dict[str, Any],
@@ -381,8 +399,11 @@ class QueueWorker:
                     title=item.get("title"),
                 )
             else:
-                base_prefix = sanitize_relpath(f"{folder}/{base_name}")
-                upscale_prefix = base_prefix
+                base_prefix, upscale_prefix = _build_dollimages_output_prefixes(
+                    meta=meta,
+                    combo=combo,
+                    base_name=base_name,
+                )
             width = int(meta.get("width") or 832)
             height = int(meta.get("height") or 1216)
             seed = meta.get("seed")
