@@ -966,20 +966,29 @@ class MainWindow(QMainWindow):
         self.image2vid_dialog.setWindowTitle("Image2Vid WAN 2.2")
         self.image2vid_dialog.setModal(False)
         image2vid_dialog_layout = QVBoxLayout(self.image2vid_dialog)
-        image2vid_group = QGroupBox("Generar video desde la imagen seleccionada")
+        image2vid_group = QGroupBox(
+            "Generar video desde una imagen de la cola o del disco"
+        )
         image2vid_layout = QGridLayout(image2vid_group)
         image2vid_layout.setHorizontalSpacing(10)
         image2vid_layout.setVerticalSpacing(8)
 
         image2vid_layout.addWidget(QLabel("Imagen origen:"), 0, 0)
         self.image2vid_selected_source: dict[str, Any] | None = None
-        self.image2vid_source_label = QLabel("Sin imagen seleccionada")
-        self.image2vid_source_label.setStyleSheet("color: #9aa0a6;")
+        self.image2vid_source_label = ImageDropLabel(
+            "Sin imagen seleccionada · arrastra una imagen aquí"
+        )
+        self.image2vid_source_label.setToolTip(
+            "Arrastra aquí una imagen PNG, JPG, WEBP o BMP para cargarla en Image2Vid."
+        )
+        self.image2vid_source_label.setStyleSheet(
+            "color: #9aa0a6; border: 1px dashed #4b5563; border-radius: 4px; padding: 6px;"
+        )
         image2vid_layout.addWidget(self.image2vid_source_label, 0, 1, 1, 4)
         self.image2vid_select_source_btn = QPushButton("Usar selección actual")
         image2vid_layout.addWidget(self.image2vid_select_source_btn, 0, 5)
-        self.image2vid_reload_sources_btn = QPushButton("Actualizar")
-        image2vid_layout.addWidget(self.image2vid_reload_sources_btn, 0, 6)
+        self.image2vid_select_file_btn = QPushButton("Cargar desde disco")
+        image2vid_layout.addWidget(self.image2vid_select_file_btn, 0, 6)
 
         image2vid_layout.addWidget(QLabel("Ratio:"), 1, 0)
         self.image2vid_ratio_combo = QComboBox()
@@ -1742,8 +1751,9 @@ class MainWindow(QMainWindow):
         self.undress_source_label.imageDropped.connect(self._set_undress_source_from_drop)
         self.undress_garment_list.itemChanged.connect(self._update_undress_prompt)
         self.undress_seconds_spin.valueChanged.connect(self._update_undress_prompt)
-        self.image2vid_reload_sources_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_select_source_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
+        self.image2vid_select_file_btn.clicked.connect(self._set_image2vid_source_from_disk)
+        self.image2vid_source_label.imageDropped.connect(self._set_image2vid_source_from_drop)
         self.image2vid_pick_prompt_btn.clicked.connect(self.open_image2vid_prompt_picker)
         self.image2vid_source_cancel_btn.clicked.connect(self.image2vid_source_picker_dialog.reject)
         self.image2vid_prompt_cancel_btn.clicked.connect(self.image2vid_prompt_picker_dialog.reject)
@@ -3348,6 +3358,40 @@ class MainWindow(QMainWindow):
         self.image2vid_selected_source = option
         self._update_image2vid_source_label()
 
+    def _set_image2vid_external_source(
+        self, *, local_path: str, title: str, source_category: str
+    ) -> None:
+        self.image2vid_selected_source = {
+            "source_category": source_category,
+            "prompt_id": 0,
+            "title": title,
+            "local_path": local_path,
+            "url": "",
+        }
+        self._update_image2vid_source_label()
+
+    def _set_image2vid_source_from_disk(self) -> None:
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Cargar imagen para Image2Vid",
+            "",
+            "Imágenes (*.png *.jpg *.jpeg *.webp *.bmp);;Todos los archivos (*)",
+        )
+        if not file_path:
+            return
+        self._set_image2vid_external_source(
+            local_path=file_path,
+            title=Path(file_path).name,
+            source_category="disco",
+        )
+
+    def _set_image2vid_source_from_drop(self, file_path: str) -> None:
+        self._set_image2vid_external_source(
+            local_path=file_path,
+            title=Path(file_path).name,
+            source_category="arrastrada",
+        )
+
     def _populate_image2vid_sources(self) -> None:
         current = self.image2vid_selected_source or {}
         current_prompt_id = current.get("prompt_id") if isinstance(current, dict) else None
@@ -3480,8 +3524,10 @@ class MainWindow(QMainWindow):
             self.image2vid_source_label.setText("Sin imagen seleccionada")
             return
 
+        prompt_id = int(source.get("prompt_id") or 0)
+        source_text = f"#{prompt_id} - " if prompt_id else ""
         self.image2vid_source_label.setText(
-            f"[{source['source_category']}] #{source['prompt_id']} - {source['title']}"
+            f"[{source['source_category']}] {source_text}{source['title']}"
         )
 
     def open_image2vid_source_picker(self) -> None:
