@@ -195,7 +195,9 @@ def test_bikini_catalog_uses_only_vivid_modern_micro_bikinis():
 
     assert "wearing only [outfit]" in template
     assert all("micro bikini" in outfit.lower() for outfit in outfits)
-    assert all(any(color in outfit.lower() for color in vivid_colors) for outfit in outfits)
+    assert all(
+        any(color in outfit.lower() for color in vivid_colors) for outfit in outfits
+    )
     assert not any(
         term in outfit.lower() for outfit in outfits for term in forbidden_terms
     )
@@ -210,6 +212,28 @@ def test_bikini_catalog_fills_the_details_token():
     assert selection.details in options["details"]
     assert selection.details in prompt
     assert "[details]" not in prompt
+
+
+def test_bikini_catalog_covers_reclining_and_seated_sand_scenes():
+    _, options = load_dollimages_themed_prompt_options("bikini_combinations")
+    poses = [pose.lower() for pose in options["poses"]]
+    positions = ("lying face-up", "lying face-down", "reclining on her side", "sitting")
+    beach_poses = [
+        pose for pose in poses if pose.startswith(positions) and "sand" in pose
+    ]
+
+    for position in positions:
+        variants = [pose for pose in beach_poses if pose.startswith(position)]
+
+        assert len(variants) >= 4
+        assert any("no towel or parasol" in pose for pose in variants)
+        assert any("towel" in pose and "no parasol" in pose for pose in variants)
+        assert any("parasol" in pose and "no towel" in pose for pose in variants)
+        assert any("towel" in pose and "parasol" in pose for pose in variants)
+
+    shots = " ".join(options["shots"]).lower()
+    assert "reclining" in shots
+    assert "overhead" in shots
 
 
 @pytest.mark.parametrize(

@@ -22,7 +22,11 @@
     "low-angle fashion photograph",
     "dynamic walking editorial shot",
     "cinematic beach portrait",
-    "premium resort campaign photograph"
+    "premium resort campaign photograph",
+    "wide full-body reclining beach photograph",
+    "overhead full-body editorial photograph",
+    "ground-level side-profile beach photograph",
+    "three-quarter overhead lifestyle photograph"
   ],
 
   "poses": [
@@ -37,7 +41,23 @@
     "lifting both arms into the ocean breeze with an elongated posture",
     "resting one hand on her hip with relaxed shoulders",
     "stepping out of shallow crystal-clear water naturally",
-    "turning slightly toward the sunlight with relaxed confidence"
+    "turning slightly toward the sunlight with relaxed confidence",
+    "lying face-up directly on warm dry sand in open sunlight, arms relaxed beside her and no towel or parasol",
+    "lying face-up on a colorful beach towel spread over the sand in open sunlight, one knee softly bent and no parasol",
+    "lying face-up directly on smooth beach sand beneath a striped parasol, one arm resting above her head and no towel",
+    "lying face-up on a neatly spread beach towel over the sand beneath an elegant parasol, both legs extended naturally",
+    "lying face-down directly on warm beach sand in open sunlight, head turned comfortably to one side and no towel or parasol",
+    "lying face-down on a soft beach towel spread over the sand in open sunlight, ankles gently crossed and no parasol",
+    "lying face-down directly on pristine sand beneath a canvas parasol, chin resting lightly on folded hands and no towel",
+    "lying face-down on a large beach towel over the sand beneath a striped parasol, head lifted in a relaxed editorial pose",
+    "reclining on her side directly on sunlit sand, supported by one forearm with no towel or parasol",
+    "reclining on her side on a bright beach towel spread over the sand in open sunlight, legs elegantly extended and no parasol",
+    "reclining on her side directly on fine sand beneath a parasol, waist gently curved and no towel",
+    "reclining on her side on a beach towel over the sand beneath an elegant parasol, supported by one elbow with a relaxed silhouette",
+    "sitting directly on warm sand in open sunlight with knees loosely bent, hands resting behind her and no towel or parasol",
+    "sitting cross-legged on a colorful beach towel spread over the sand in open sunlight with relaxed shoulders and no parasol",
+    "sitting directly on smooth sand beneath a striped parasol, legs angled gracefully to one side and no towel",
+    "sitting on a neatly spread beach towel over the sand beneath a canvas parasol, one knee raised in a natural editorial pose"
   ],
 
   "outfits": [
