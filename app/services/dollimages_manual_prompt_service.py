@@ -122,6 +122,7 @@ class DollimagesManualPromptService:
             meta = {
                 "combo": {
                     "category": "dollimages",
+                    "subcategory": "manual",
                     "variant": req.typology,
                     "ratio_tag": ratio_tag,
                     "ratio": ratio_tag,

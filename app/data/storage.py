@@ -164,6 +164,7 @@ class BaseStore:
         limit: int = 50,
         prompt_id: int | None = None,
         category: str | None = None,
+        subcategory: str | None = None,
         variant: str | None = None,
         status: str | None = None,
         ratio: str | None = None,
@@ -465,6 +466,7 @@ class SQLiteStore(BaseStore):
 
     def fetch_prompt_filters(self) -> dict[str, list[str]]:
         categories: set[str] = set()
+        subcategories: set[str] = set()
         variants: set[str] = set()
         ratios: set[str] = set()
         statuses: set[str] = set()
@@ -490,6 +492,12 @@ class SQLiteStore(BaseStore):
                 continue
             combo = meta.get("combo", {}) if isinstance(meta, dict) else {}
             category = str(combo.get("category", "?") or "?")
+            subcategory = str(
+                combo.get("subcategory")
+                or meta.get("dollimages_prompt_source")
+                or meta.get("dollimages_group")
+                or "?"
+            )
             variant = str(combo.get("variant", "?") or "?")
             ratio = str(
                 combo.get("ratio_tag")
@@ -502,6 +510,8 @@ class SQLiteStore(BaseStore):
             checkpoint_base = checkpoints.get("base")
             if category and category != "?":
                 categories.add(category)
+            if subcategory and subcategory != "?":
+                subcategories.add(subcategory)
             if variant and variant != "?":
                 variants.add(variant)
             if ratio and ratio != "?":
@@ -511,6 +521,7 @@ class SQLiteStore(BaseStore):
 
         return {
             "categories": sorted(categories),
+            "subcategories": sorted(subcategories),
             "variants": sorted(variants),
             "ratios": sorted(ratios),
             "statuses": sorted(statuses),
@@ -774,6 +785,7 @@ class SQLiteStore(BaseStore):
         limit: int = 50,
         prompt_id: int | None = None,
         category: str | None = None,
+        subcategory: str | None = None,
         variant: str | None = None,
         status: str | None = None,
         ratio: str | None = None,
@@ -789,6 +801,13 @@ class SQLiteStore(BaseStore):
         if category:
             conditions.append("json_extract(meta_json, '$.combo.category') = ?")
             params.append(category)
+        if subcategory:
+            conditions.append(
+                "COALESCE(json_extract(meta_json, '$.combo.subcategory'),"
+                " json_extract(meta_json, '$.dollimages_prompt_source'),"
+                " json_extract(meta_json, '$.dollimages_group')) = ?"
+            )
+            params.append(subcategory)
         if variant:
             conditions.append("json_extract(meta_json, '$.combo.variant') = ?")
             params.append(variant)

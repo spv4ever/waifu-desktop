@@ -76,6 +76,10 @@ def test_dollimages_pack_builds_requested_combinations(monkeypatch):
         item["meta"]["dollimages_prompt_source"] == "combinations"
         for item in store.items
     )
+    assert all(
+        item["meta"]["combo"]["subcategory"] == "combinations"
+        for item in store.items
+    )
     assert (
         store.items[0]["meta"]["dollimages_prompt_selection"]["girl_type"]
         == "a test woman"
@@ -128,6 +132,10 @@ def test_dollimages_pack_uses_fantasy_json_for_fantasy_combinations(monkeypatch)
     assert len(result.created_prompt_item_ids) == 2
     assert all(
         item["meta"]["dollimages_prompt_source"] == "fantasy_combinations"
+        for item in store.items
+    )
+    assert all(
+        item["meta"]["combo"]["subcategory"] == "fantasy_combinations"
         for item in store.items
     )
     assert all("fantasy girl_types" in item["prompt_text"] for item in store.items)

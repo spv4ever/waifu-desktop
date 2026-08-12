@@ -14,6 +14,7 @@ class PromptRow:
     prompt_text: str
     status: str
     category: str
+    subcategory: str
     variant: str
     ratio: str
     checkpoint_base: str | None
@@ -28,15 +29,22 @@ class PromptRow:
     datestamp: str
 
 
-def _extract_category_variant(meta_json: str | None) -> tuple[str, str]:
+def _extract_category_variant(meta_json: str | None) -> tuple[str, str, str]:
     if not meta_json:
-        return "?", "?"
+        return "?", "?", "?"
     try:
         meta = json.loads(meta_json)
         combo = meta.get("combo", {})
-        return str(combo.get("category", "?")), str(combo.get("variant", "?"))
+        category = str(combo.get("category", "?"))
+        subcategory = str(
+            combo.get("subcategory")
+            or meta.get("dollimages_prompt_source")
+            or meta.get("dollimages_group")
+            or "?"
+        )
+        return category, subcategory, str(combo.get("variant", "?"))
     except Exception:
-        return "?", "?"
+        return "?", "?", "?"
 
 
 def _extract_ratio(meta_json: str | None) -> str:
@@ -114,6 +122,7 @@ def fetch_prompts(
     limit: int = 50,
     prompt_id: int | None = None,
     category: str | None = None,
+    subcategory: str | None = None,
     variant: str | None = None,
     status: str | None = None,
     ratio: str | None = None,
@@ -130,6 +139,7 @@ def fetch_prompts(
         limit=limit,
         prompt_id=prompt_id,
         category=category,
+        subcategory=subcategory,
         variant=variant,
         status=status,
         ratio=ratio,
@@ -145,7 +155,9 @@ def fetch_prompts(
         job_progress = r.get("job_progress")
         job_status = r.get("job_status")
         job_backend_status = r.get("job_backend_status")
-        category_value, variant_value = _extract_category_variant(r.get("meta_json"))
+        category_value, subcategory_value, variant_value = _extract_category_variant(
+            r.get("meta_json")
+        )
         ratio_value = _extract_ratio(r.get("meta_json"))
         row_checkpoint_base, checkpoint_refiner = _extract_checkpoints(r.get("meta_json"))
         row_datestamp = str(r.get("datestamp")) if r.get("datestamp") else ""
@@ -159,6 +171,7 @@ def fetch_prompts(
                 prompt_text=str(r.get("prompt_text")),
                 status=row_status,
                 category=category_value,
+                subcategory=subcategory_value,
                 variant=variant_value,
                 ratio=ratio_value,
                 checkpoint_base=row_checkpoint_base,
