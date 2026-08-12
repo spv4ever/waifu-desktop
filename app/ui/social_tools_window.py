@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import QThread, QUrl, Signal
+from PySide6.QtCore import QMimeData, QThread, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QHBoxLayout,
+    QComboBox,
+    QGroupBox,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -20,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.services.x_media_service import SocialMediaService
+from app.services.x_share_service import XShareError, XShareService
 
 
 class SocialDownloadThread(QThread):
@@ -44,6 +47,7 @@ class SocialToolsWindow(QMainWindow):
         self.setWindowTitle("Waifu Desktop — Herramientas de redes")
         self.resize(1050, 650)
         self.service = SocialMediaService()
+        self.x_share_service = XShareService()
         self.download_thread: SocialDownloadThread | None = None
 
         root = QWidget()
@@ -66,6 +70,31 @@ class SocialToolsWindow(QMainWindow):
         generation_btn.clicked.connect(self.close)
         heading.addWidget(generation_btn)
         layout.addLayout(heading)
+
+        share_group = QGroupBox("Compartir X")
+        share_layout = QVBoxLayout(share_group)
+        share_help = QLabel(
+            "Elige categoría y subcategoría. Se seleccionarán 4 imágenes al azar y se abrirá "
+            "el compositor de X con el copy y los hashtags. Debes tener x.com abierto y tu sesión iniciada."
+        )
+        share_help.setWordWrap(True)
+        share_layout.addWidget(share_help)
+        share_form = QHBoxLayout()
+        share_form.addWidget(QLabel("Categoría:"))
+        self.x_category_combo = QComboBox()
+        share_form.addWidget(self.x_category_combo, 1)
+        share_form.addWidget(QLabel("Subcategoría:"))
+        self.x_subcategory_combo = QComboBox()
+        share_form.addWidget(self.x_subcategory_combo, 1)
+        self.share_x_btn = QPushButton("Compartir X")
+        self.share_x_btn.setObjectName("PrimaryButton")
+        share_form.addWidget(self.share_x_btn)
+        share_layout.addLayout(share_form)
+        layout.addWidget(share_group)
+
+        self.x_category_combo.currentIndexChanged.connect(self._populate_x_subcategories)
+        self.share_x_btn.clicked.connect(self.share_x)
+        self._populate_x_options()
 
         form = QHBoxLayout()
         self.url_input = QLineEdit()
@@ -113,6 +142,44 @@ class SocialToolsWindow(QMainWindow):
         actions.addWidget(self.refresh_btn)
         layout.addLayout(actions)
         self.refresh()
+
+    def _populate_x_options(self) -> None:
+        self._x_options = self.x_share_service.options()
+        self.x_category_combo.clear()
+        for category in self._x_options:
+            self.x_category_combo.addItem(category, category)
+        self._populate_x_subcategories()
+
+    def _populate_x_subcategories(self) -> None:
+        category = str(self.x_category_combo.currentData() or "")
+        self.x_subcategory_combo.clear()
+        for subcategory in self._x_options.get(category, []):
+            self.x_subcategory_combo.addItem(subcategory, subcategory)
+        self.share_x_btn.setEnabled(bool(category and self.x_subcategory_combo.count()))
+
+    def share_x(self) -> None:
+        category = str(self.x_category_combo.currentData() or "")
+        subcategory = str(self.x_subcategory_combo.currentData() or "")
+        try:
+            draft = self.x_share_service.create_draft(category, subcategory)
+        except XShareError as exc:
+            QMessageBox.warning(self, "Compartir X", str(exc))
+            return
+
+        mime = QMimeData()
+        mime.setUrls([QUrl.fromLocalFile(str(path)) for path in draft.images])
+        mime.setText("\n".join(str(path) for path in draft.images))
+        QApplication.clipboard().setMimeData(mime)
+        if not QDesktopServices.openUrl(QUrl(draft.compose_url)):
+            QMessageBox.critical(self, "Compartir X", "No se pudo abrir x.com en el navegador.")
+            return
+        self.status_label.setText("X abierto: pega con Ctrl+V para adjuntar las 4 imágenes y publica.")
+        QMessageBox.information(
+            self,
+            "Compartir X — último paso",
+            "El copy ya está cargado en X y las 4 imágenes están en el portapapeles.\n\n"
+            "En la ventana de x.com, pulsa Ctrl+V para adjuntarlas y revisa el post antes de publicar.",
+        )
 
     def start_download(self) -> None:
         if self.download_thread and self.download_thread.isRunning():
