@@ -6,6 +6,7 @@ from PySide6.QtCore import QThread, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -91,6 +92,12 @@ class SocialToolsWindow(QMainWindow):
 
         actions = QHBoxLayout()
         actions.addStretch()
+        self.copy_title_btn = QPushButton("Copiar título")
+        self.copy_title_btn.setEnabled(False)
+        self.copy_title_btn.clicked.connect(self.copy_selected_title)
+        self.copy_description_btn = QPushButton("Copiar descripción")
+        self.copy_description_btn.setEnabled(False)
+        self.copy_description_btn.clicked.connect(self.copy_selected_description)
         self.open_folder_btn = QPushButton("Abrir carpeta del post")
         self.open_folder_btn.setEnabled(False)
         self.open_folder_btn.clicked.connect(self.open_selected_folder)
@@ -99,6 +106,8 @@ class SocialToolsWindow(QMainWindow):
         self.open_btn.clicked.connect(self.open_selected_content)
         self.refresh_btn = QPushButton("Actualizar biblioteca")
         self.refresh_btn.clicked.connect(self.refresh)
+        actions.addWidget(self.copy_title_btn)
+        actions.addWidget(self.copy_description_btn)
         actions.addWidget(self.open_folder_btn)
         actions.addWidget(self.open_btn)
         actions.addWidget(self.refresh_btn)
@@ -149,8 +158,25 @@ class SocialToolsWindow(QMainWindow):
 
     def _update_action_buttons(self) -> None:
         has_selection = self.table.selectionModel().hasSelection()
+        self.copy_title_btn.setEnabled(has_selection)
+        self.copy_description_btn.setEnabled(has_selection)
         self.open_folder_btn.setEnabled(has_selection)
         self.open_btn.setEnabled(has_selection)
+
+    def copy_selected_title(self) -> None:
+        self._copy_selected_text(column=1, confirmation="Título copiado al portapapeles.")
+
+    def copy_selected_description(self) -> None:
+        self._copy_selected_text(column=2, confirmation="Descripción copiada al portapapeles.")
+
+    def _copy_selected_text(self, *, column: int, confirmation: str) -> None:
+        row = self.table.currentRow()
+        item = self.table.item(row, column) if row >= 0 else None
+        if item is None:
+            QMessageBox.information(self, "Biblioteca", "Selecciona una publicación primero.")
+            return
+        QApplication.clipboard().setText(item.text())
+        self.status_label.setText(confirmation)
 
     def open_selected_folder(self) -> None:
         row = self.table.currentRow()
