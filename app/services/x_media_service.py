@@ -15,6 +15,9 @@ class SocialMediaDownloadError(RuntimeError):
 class SocialMediaService:
     YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"}
     INSTAGRAM_HOSTS = {"instagram.com", "www.instagram.com", "m.instagram.com"}
+    TIKTOK_HOSTS = {
+        "tiktok.com", "www.tiktok.com", "m.tiktok.com", "vm.tiktok.com", "vt.tiktok.com",
+    }
 
     def __init__(self, output_dir: Path | None = None) -> None:
         self.output_dir = output_dir or settings.social_media_dir
@@ -26,7 +29,7 @@ class SocialMediaService:
         parsed = urlparse(cleaned)
         host = (parsed.hostname or "").lower()
         if parsed.scheme not in {"http", "https"}:
-            raise ValueError("Introduce un enlace público válido de X, Instagram o YouTube.")
+            raise ValueError("Introduce un enlace público válido de X, Instagram, TikTok o YouTube.")
         if host in {"x.com", "www.x.com", "twitter.com", "www.twitter.com"}:
             if "/status/" not in parsed.path:
                 raise ValueError("El enlace debe apuntar a una publicación de X (/status/...).")
@@ -44,8 +47,20 @@ class SocialMediaService:
             path_parts = parsed.path.strip("/").split("/")
             if len(path_parts) < 2 or path_parts[0] not in {"p", "reel", "reels", "tv"} or not path_parts[1]:
                 raise ValueError("El enlace debe apuntar a una publicación o Reel de Instagram.")
+        elif host in SocialMediaService.TIKTOK_HOSTS:
+            path_parts = parsed.path.strip("/").split("/")
+            is_short_link = host in {"vm.tiktok.com", "vt.tiktok.com"} and bool(path_parts[0])
+            is_share_link = len(path_parts) >= 2 and path_parts[0] == "t" and bool(path_parts[1])
+            is_post_link = (
+                len(path_parts) >= 3
+                and path_parts[0].startswith("@")
+                and path_parts[1] in {"video", "photo"}
+                and bool(path_parts[2])
+            )
+            if not (is_short_link or is_share_link or is_post_link):
+                raise ValueError("El enlace debe apuntar a un vídeo o publicación de TikTok.")
         else:
-            raise ValueError("Introduce un enlace público válido de X, Instagram o YouTube.")
+            raise ValueError("Introduce un enlace público válido de X, Instagram, TikTok o YouTube.")
         return cleaned
 
     @staticmethod
@@ -55,6 +70,8 @@ class SocialMediaService:
             return "youtube"
         if host in SocialMediaService.INSTAGRAM_HOSTS:
             return "instagram"
+        if host in SocialMediaService.TIKTOK_HOSTS:
+            return "tiktok"
         return "x"
 
     def download(self, url: str) -> SocialMediaPostRow:
@@ -112,6 +129,7 @@ class SocialMediaService:
         fallback_titles = {
             "youtube": "Vídeo de YouTube",
             "instagram": "Publicación de Instagram",
+            "tiktok": "Publicación de TikTok",
             "x": "Publicación de X",
         }
         fallback_title = fallback_titles[platform]
