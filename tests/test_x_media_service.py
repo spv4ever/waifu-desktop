@@ -21,7 +21,29 @@ def test_validate_url_accepts_x_status_links(url: str) -> None:
 
 @pytest.mark.parametrize(
     "url",
-    ["", "https://example.com/status/123", "https://x.com/example", "file:///tmp/video.mp4"],
+    [
+        "https://www.youtube.com/watch?v=abc123",
+        "https://youtube.com/shorts/abc123",
+        "https://m.youtube.com/shorts/abc123?feature=share",
+        "https://youtu.be/abc123",
+    ],
+)
+def test_validate_url_accepts_youtube_video_and_shorts_links(url: str) -> None:
+    assert XMediaService.validate_url(url) == url
+    assert XMediaService.platform_for_url(url) == "youtube"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "",
+        "https://example.com/status/123",
+        "https://x.com/example",
+        "https://youtube.com/watch",
+        "https://youtube.com/shorts/",
+        "https://youtu.be/",
+        "file:///tmp/video.mp4",
+    ],
 )
 def test_validate_url_rejects_non_post_links(url: str) -> None:
     with pytest.raises(ValueError):

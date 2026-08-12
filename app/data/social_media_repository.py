@@ -16,6 +16,7 @@ class SocialMediaAssetRow:
 @dataclass(frozen=True)
 class SocialMediaPostRow:
     id: int
+    platform: str
     source_url: str
     external_id: str | None
     title: str
@@ -30,6 +31,7 @@ class SocialMediaRepository:
         self,
         conn: sqlite3.Connection,
         *,
+        platform: str = "x",
         source_url: str,
         external_id: str | None,
         title: str,
@@ -41,15 +43,16 @@ class SocialMediaRepository:
             """
             INSERT INTO social_media_post
                 (platform, source_url, external_id, title, description, author, status)
-            VALUES ('x', ?, ?, ?, ?, ?, 'DOWNLOADED')
+            VALUES (?, ?, ?, ?, ?, ?, 'DOWNLOADED')
             ON CONFLICT(source_url) DO UPDATE SET
+                platform = excluded.platform,
                 external_id = excluded.external_id,
                 title = excluded.title,
                 description = excluded.description,
                 author = excluded.author,
                 status = 'DOWNLOADED'
             """,
-            (source_url, external_id, title, description, author),
+            (platform, source_url, external_id, title, description, author),
         )
         post_id = int(
             conn.execute(
@@ -73,7 +76,7 @@ class SocialMediaRepository:
     def list_posts(self, conn: sqlite3.Connection) -> list[SocialMediaPostRow]:
         posts = conn.execute(
             """
-            SELECT id, source_url, external_id, title, description, author, created_at
+            SELECT id, platform, source_url, external_id, title, description, author, created_at
             FROM social_media_post ORDER BY created_at DESC, id DESC
             """
         ).fetchall()
@@ -89,6 +92,7 @@ class SocialMediaRepository:
             result.append(
                 SocialMediaPostRow(
                     id=int(post["id"]), source_url=str(post["source_url"]),
+                    platform=str(post["platform"]),
                     external_id=post["external_id"], title=str(post["title"]),
                     description=str(post["description"]), author=post["author"],
                     created_at=str(post["created_at"]),
