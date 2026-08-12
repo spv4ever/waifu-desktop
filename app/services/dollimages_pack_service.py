@@ -176,11 +176,18 @@ class DollimagesPackService:
                         fill_dollimages_prompt_tokens(template, selection),
                         f"combination-{index + 1}",
                         selection.as_meta(),
+                        req.prompt_source,
                     )
                 )
         else:
             generated_prompts = [
-                (prompt.title, prompt.prompt_text, str(prompt.id), None)
+                (
+                    prompt.title,
+                    prompt.prompt_text,
+                    str(prompt.id),
+                    None,
+                    prompt.group_name,
+                )
                 for prompt in catalog_prompts
             ]
 
@@ -189,6 +196,7 @@ class DollimagesPackService:
             base_prompt_text,
             prompt_id,
             selection_meta,
+            subcategory,
         ) in generated_prompts:
             for repetition in range(req.repetitions):
                 signature = None
@@ -220,6 +228,7 @@ class DollimagesPackService:
                 meta = {
                     "combo": {
                         "category": "dollimages",
+                        "subcategory": subcategory,
                         "variant": req.typology,
                         "ratio_tag": ratio_tag,
                         "ratio": ratio_tag,
@@ -234,7 +243,7 @@ class DollimagesPackService:
                     "faceswap_enabled": faceswap_enabled,
                     "dollimages_prompt_id": prompt_id,
                     "dollimages_typology": req.typology,
-                    "dollimages_group": req.group_name or "",
+                    "dollimages_group": subcategory,
                     "created_at": created_at,
                     "dollimages_prompt_source": req.prompt_source,
                     "dollimages_prompt_selection": selection_meta,

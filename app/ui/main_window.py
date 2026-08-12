@@ -498,15 +498,20 @@ class MainWindow(QMainWindow):
         self.filter_category_combo.setMinimumWidth(130)
         filters_layout.addWidget(self.filter_category_combo, 0, 3)
 
-        filters_layout.addWidget(QLabel("Versión:"), 0, 4)
+        filters_layout.addWidget(QLabel("Subcategoría:"), 0, 4)
+        self.filter_subcategory_combo = QComboBox()
+        self.filter_subcategory_combo.setMinimumWidth(160)
+        filters_layout.addWidget(self.filter_subcategory_combo, 0, 5)
+
+        filters_layout.addWidget(QLabel("Versión:"), 0, 6)
         self.filter_variant_combo = QComboBox()
         self.filter_variant_combo.setMinimumWidth(130)
-        filters_layout.addWidget(self.filter_variant_combo, 0, 5)
+        filters_layout.addWidget(self.filter_variant_combo, 0, 7)
 
-        filters_layout.addWidget(QLabel("Estado:"), 0, 6)
+        filters_layout.addWidget(QLabel("Estado:"), 0, 8)
         self.filter_status_combo = QComboBox()
         self.filter_status_combo.setMinimumWidth(130)
-        filters_layout.addWidget(self.filter_status_combo, 0, 7)
+        filters_layout.addWidget(self.filter_status_combo, 0, 9)
 
         filters_layout.addWidget(QLabel("Ratio:"), 1, 0)
         self.filter_ratio_combo = QComboBox()
@@ -1525,10 +1530,11 @@ class MainWindow(QMainWindow):
         self.right_column_widget = right_column_widget
 
         # Table
-        self.table = QTableWidget(0, 14)
+        self.table = QTableWidget(0, 15)
         self.table.setHorizontalHeaderLabels([
             "ID",
             "Categoría",
+            "Subcategoría",
             "Base",
             "Upscale",
             "Reel",
@@ -1747,6 +1753,7 @@ class MainWindow(QMainWindow):
         self.pause_between_spin.valueChanged.connect(self._update_worker_delay)
         self.prompt_id_input.textChanged.connect(self.refresh)
         self.filter_category_combo.currentIndexChanged.connect(self.refresh)
+        self.filter_subcategory_combo.currentIndexChanged.connect(self.refresh)
         self.filter_variant_combo.currentIndexChanged.connect(self.refresh)
         self.filter_status_combo.currentIndexChanged.connect(self.refresh)
         self.filter_ratio_combo.currentIndexChanged.connect(self.refresh)
@@ -1940,6 +1947,7 @@ class MainWindow(QMainWindow):
             "limit": int(self.limit_spin.value()),
             "prompt_id": self._selected_prompt_id_filter(),
             "category": self._selected_filter_value(self.filter_category_combo),
+            "subcategory": self._selected_filter_value(self.filter_subcategory_combo),
             "variant": self._selected_filter_value(self.filter_variant_combo),
             "status": self._selected_filter_value(self.filter_status_combo),
             "ratio": self._selected_filter_value(self.filter_ratio_combo),
@@ -1961,6 +1969,7 @@ class MainWindow(QMainWindow):
             limit=int(params["limit"]),
             prompt_id=params["prompt_id"],
             category=params["category"],
+            subcategory=params["subcategory"],
             variant=params["variant"],
             status=params["status"],
             ratio=params["ratio"],
@@ -2009,18 +2018,19 @@ class MainWindow(QMainWindow):
                 id_item.setData(Qt.UserRole + 1, row.backend_status)
                 self.table.setItem(i, 0, id_item)
                 self.table.setItem(i, 1, QTableWidgetItem(row.category))
-                self.table.setItem(i, 2, QTableWidgetItem("✅" if row.has_base else "—"))
-                self.table.setItem(i, 3, QTableWidgetItem("✅" if row.has_upscale else "—"))
-                self.table.setItem(i, 4, QTableWidgetItem("✅" if row.used_in_reel else "—"))
-                self.table.setItem(i, 5, QTableWidgetItem("⭐" if row.reel_priority else "—"))
-                self.table.setItem(i, 6, QTableWidgetItem("⛔" if row.reel_discarded else "—"))
-                self.table.setItem(i, 7, QTableWidgetItem(row.variant))
-                self.table.setItem(i, 8, QTableWidgetItem(row.status))
-                self.table.setItem(i, 9, QTableWidgetItem(row.datestamp))
-                self.table.setItem(i, 10, QTableWidgetItem(row.title))
-                self.table.setItem(i, 11, QTableWidgetItem(row.ratio))
-                self.table.setItem(i, 12, QTableWidgetItem(row.checkpoint_base or "—"))
-                self.table.setItem(i, 13, QTableWidgetItem(row.checkpoint_refiner or "—"))
+                self.table.setItem(i, 2, QTableWidgetItem(row.subcategory))
+                self.table.setItem(i, 3, QTableWidgetItem("✅" if row.has_base else "—"))
+                self.table.setItem(i, 4, QTableWidgetItem("✅" if row.has_upscale else "—"))
+                self.table.setItem(i, 5, QTableWidgetItem("✅" if row.used_in_reel else "—"))
+                self.table.setItem(i, 6, QTableWidgetItem("⭐" if row.reel_priority else "—"))
+                self.table.setItem(i, 7, QTableWidgetItem("⛔" if row.reel_discarded else "—"))
+                self.table.setItem(i, 8, QTableWidgetItem(row.variant))
+                self.table.setItem(i, 9, QTableWidgetItem(row.status))
+                self.table.setItem(i, 10, QTableWidgetItem(row.datestamp))
+                self.table.setItem(i, 11, QTableWidgetItem(row.title))
+                self.table.setItem(i, 12, QTableWidgetItem(row.ratio))
+                self.table.setItem(i, 13, QTableWidgetItem(row.checkpoint_base or "—"))
+                self.table.setItem(i, 14, QTableWidgetItem(row.checkpoint_refiner or "—"))
 
             if payload.resize_columns:
                 self.table.resizeColumnsToContents()
@@ -4699,6 +4709,7 @@ class MainWindow(QMainWindow):
         widgets = (
             self.prompt_id_input,
             self.filter_category_combo,
+            self.filter_subcategory_combo,
             self.filter_variant_combo,
             self.filter_status_combo,
             self.filter_ratio_combo,
@@ -4713,6 +4724,7 @@ class MainWindow(QMainWindow):
 
         self.prompt_id_input.clear()
         self._set_combo_value(self.filter_category_combo, "__ALL__")
+        self._set_combo_value(self.filter_subcategory_combo, "__ALL__")
         self._set_combo_value(self.filter_variant_combo, "__ALL__")
         self._set_combo_value(self.filter_status_combo, "__ALL__")
         self._set_combo_value(self.filter_ratio_combo, "__ALL__")
@@ -4734,6 +4746,9 @@ class MainWindow(QMainWindow):
     def _refresh_filters(self, *, filters: dict[str, list[str]] | None = None) -> None:
         filters = filters or fetch_prompt_filters()
         self._populate_filter_combo(self.filter_category_combo, "Categoría", filters["categories"])
+        self._populate_filter_combo(
+            self.filter_subcategory_combo, "Subcategoría", filters["subcategories"]
+        )
         self._populate_filter_combo(self.filter_variant_combo, "Versión", filters["variants"])
         self._populate_filter_combo(self.filter_status_combo, "Estado", filters["statuses"])
         self._populate_filter_combo(self.filter_ratio_combo, "Ratio", filters["ratios"])

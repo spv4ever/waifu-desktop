@@ -34,6 +34,7 @@ class RefreshWorker(QThread):
         limit: int,
         prompt_id: int | None,
         category: str | None,
+        subcategory: str | None,
         variant: str | None,
         status: str | None,
         ratio: str | None,
@@ -48,6 +49,7 @@ class RefreshWorker(QThread):
         self._limit = limit
         self._prompt_id = prompt_id
         self._category = category
+        self._subcategory = subcategory
         self._variant = variant
         self._status = status
         self._ratio = ratio
@@ -63,6 +65,7 @@ class RefreshWorker(QThread):
                 limit=self._limit,
                 prompt_id=self._prompt_id,
                 category=self._category,
+                subcategory=self._subcategory,
                 variant=self._variant,
                 status=self._status,
                 ratio=self._ratio,
