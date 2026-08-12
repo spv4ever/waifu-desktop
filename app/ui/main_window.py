@@ -82,6 +82,7 @@ from app.ui.dollimages_prompt_window import DollimagesPromptWindow
 from app.ui.video_prompt_template_window import VideoPromptTemplateWindow
 from app.ui.anime_v5_maintenance_window import AnimeV5MaintenanceWindow
 from app.ui.bulk_images_prompt_window import BulkImagesPromptWindow
+from app.ui.social_tools_window import SocialToolsWindow
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
 
@@ -255,6 +256,7 @@ class MainWindow(QMainWindow):
         self.bulk_images_prompt_window: BulkImagesPromptWindow | None = None
         self.bulk_youtube_thread: BulkYoutubeVideoThread | None = None
         self.bulk_youtube_progress_dialog: QDialog | None = None
+        self.social_tools_window: SocialToolsWindow | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -289,6 +291,10 @@ class MainWindow(QMainWindow):
         reel_menu = menu.addMenu("Reel")
         view_menu = menu.addMenu("Vista")
         maintenance_menu = menu.addMenu("Mantenimiento")
+        sections_menu = menu.addMenu("Secciones")
+        self.image_generation_action = sections_menu.addAction("Generación de imagen")
+        self.social_tools_action = sections_menu.addAction("Herramientas de redes")
+        self.social_tools_action.triggered.connect(self.open_social_tools_window)
         self.open_base_action = file_menu.addAction("Abrir Base")
         self.open_up_action = file_menu.addAction("Abrir Upscale")
         self.open_folder_base_action = file_menu.addAction("Abrir Carpeta (Base)")
@@ -355,6 +361,13 @@ class MainWindow(QMainWindow):
         title_stack.addWidget(subtitle_label)
         header.addLayout(title_stack)
         header.addStretch(1)
+        self.image_generation_section_btn = QPushButton("Generación de imagen")
+        self.image_generation_section_btn.setEnabled(False)
+        self.social_tools_section_btn = QPushButton("Herramientas de redes →")
+        self.social_tools_section_btn.setObjectName("PrimaryButton")
+        self.social_tools_section_btn.clicked.connect(self.open_social_tools_window)
+        header.addWidget(self.image_generation_section_btn)
+        header.addWidget(self.social_tools_section_btn)
         layout.addLayout(header)
 
         self.quick_actions_layout = QGridLayout()
@@ -4838,6 +4851,14 @@ class MainWindow(QMainWindow):
             "Reintentar",
             f"Prompt {pid} reencolado.",
         )
+
+    def open_social_tools_window(self) -> None:
+        if self.social_tools_window is None:
+            self.social_tools_window = SocialToolsWindow(self)
+        self.social_tools_window.refresh()
+        self.social_tools_window.show()
+        self.social_tools_window.raise_()
+        self.social_tools_window.activateWindow()
 
     def delete_selected_prompt(self, prompt_id: int | None = None) -> None:
         pid = prompt_id if prompt_id is not None else self._selected_prompt_id()

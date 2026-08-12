@@ -30,7 +30,7 @@ Thumbs.db
 resources/output/
 resources/images/
 
-data/
+/data/
 
 audio/
 audio_relax/

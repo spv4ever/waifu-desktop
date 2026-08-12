@@ -13,6 +13,9 @@ load_dotenv()
 class Settings:
     data_dir: Path = Path("resources") / "data"
     db_path: Path = data_dir / "waifu_desktop.sqlite3"
+    social_media_dir: Path = Path(
+        os.getenv("SOCIAL_MEDIA_DIR", str(Path("resources") / "social_media"))
+    )
 
     # ComfyUI (desde .env)
     comfyui_base_url: str = os.getenv("COMFYUI_BASE_URL", "http://127.0.0.1:8188")

@@ -251,3 +251,41 @@ FOR EACH ROW
 BEGIN
   UPDATE anime_prompt SET updated_at = datetime('now') WHERE id = NEW.id;
 END;
+
+-- 12) Biblioteca local de contenidos públicos de redes sociales
+CREATE TABLE IF NOT EXISTS social_media_post (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  platform    TEXT NOT NULL DEFAULT 'x',
+  source_url  TEXT NOT NULL UNIQUE,
+  external_id TEXT,
+  title       TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  author      TEXT,
+  status      TEXT NOT NULL DEFAULT 'DOWNLOADED',
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_social_media_post_created
+ON social_media_post(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS social_media_asset (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id      INTEGER NOT NULL,
+  media_type   TEXT NOT NULL,
+  local_path   TEXT NOT NULL UNIQUE,
+  original_url TEXT,
+  position     INTEGER NOT NULL DEFAULT 0,
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY(post_id) REFERENCES social_media_post(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_social_media_asset_post
+ON social_media_asset(post_id, position);
+
+CREATE TRIGGER IF NOT EXISTS trg_social_media_post_updated_at
+AFTER UPDATE ON social_media_post
+FOR EACH ROW
+BEGIN
+  UPDATE social_media_post SET updated_at = datetime('now') WHERE id = NEW.id;
+END;
