@@ -42,6 +42,8 @@ class SocialDownloadThread(QThread):
 
 
 class SocialToolsWindow(QMainWindow):
+    published_on_x_updated = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Waifu Desktop — Herramientas de redes")
@@ -185,6 +187,7 @@ class SocialToolsWindow(QMainWindow):
         mime.setText("\n".join(str(path) for path in draft.images))
         QApplication.clipboard().setMimeData(mime)
         self.x_share_service.mark_published(draft)
+        self.published_on_x_updated.emit()
         self._populate_x_options()
         if not QDesktopServices.openUrl(QUrl(draft.compose_url)):
             QMessageBox.critical(self, "Compartir X", "No se pudo abrir x.com en el navegador.")

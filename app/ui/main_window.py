@@ -4872,6 +4872,7 @@ class MainWindow(QMainWindow):
     def open_social_tools_window(self) -> None:
         if self.social_tools_window is None:
             self.social_tools_window = SocialToolsWindow(self)
+            self.social_tools_window.published_on_x_updated.connect(self.refresh)
         self.social_tools_window.refresh()
         self.social_tools_window.show()
         self.social_tools_window.raise_()

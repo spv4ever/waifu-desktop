@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -41,4 +42,40 @@ def test_selected_title_and_description_can_be_copied(monkeypatch):
     assert QApplication.clipboard().text() == post.description
     assert window.status_label.text() == "Descripción copiada al portapapeles."
 
+    window.close()
+
+
+def test_share_x_notifies_that_published_images_changed(monkeypatch, tmp_path: Path):
+    app = QApplication.instance() or QApplication([])
+    images = tuple(tmp_path / f"image-{index}.png" for index in range(4))
+    draft = SimpleNamespace(
+        images=images,
+        compose_url="https://x.com/intent/post?text=test",
+    )
+
+    class FakeXShareService:
+        def options(self):
+            return {"anime": {"character": ["normal"]}}
+
+        def create_draft(self, category, subcategory, version):
+            return draft
+
+        def mark_published(self, selected_draft):
+            assert selected_draft is draft
+
+    monkeypatch.setattr(social_tools_window, "XShareService", FakeXShareService)
+    monkeypatch.setattr(
+        social_tools_window, "SocialMediaService", lambda: SimpleNamespace(list_posts=lambda: [])
+    )
+    monkeypatch.setattr(social_tools_window.QDesktopServices, "openUrl", lambda _url: True)
+    monkeypatch.setattr(social_tools_window.QMessageBox, "information", lambda *args: None)
+
+    window = social_tools_window.SocialToolsWindow()
+    notifications = []
+    window.published_on_x_updated.connect(lambda: notifications.append(True))
+
+    window.share_x()
+    app.processEvents()
+
+    assert notifications == [True]
     window.close()
