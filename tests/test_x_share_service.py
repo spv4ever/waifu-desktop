@@ -64,6 +64,22 @@ def test_create_draft_selects_four_existing_images_and_builds_tags(tmp_path: Pat
     assert draft.compose_url.startswith("https://x.com/intent/post?text=")
 
 
+def test_copy_uses_one_of_fifteen_english_intros_before_hashtags() -> None:
+    service = XShareService(FakeStore([]), random.Random(7))
+    selected_intros = set()
+
+    assert len(service.POST_INTROS) == 15
+    for _ in range(30):
+        copy = service._build_copy("fantasía épica", "elfa nocturna")
+        intro, hashtags = copy.split("\n\n", maxsplit=1)
+        selected_intros.add(intro)
+
+        assert intro in service.POST_INTROS
+        assert "¿" not in intro
+        assert hashtags.startswith("#sfw #girls")
+    assert len(selected_intros) > 1
+
+
 def test_dollimages_draft_uses_realistic_instead_of_anime_tags(tmp_path: Path) -> None:
     paths = [tmp_path / f"realistic-{index}.png" for index in range(4)]
     for path in paths:
