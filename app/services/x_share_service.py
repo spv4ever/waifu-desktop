@@ -36,6 +36,23 @@ class XShareService:
     """
 
     MAX_POST_LENGTH = 280
+    POST_INTROS = (
+        "Which one is your favorite? ✨",
+        "Which one would you choose? ✨",
+        "Which one caught your eye? ✨",
+        "Which look is your favorite? ✨",
+        "Which one stands out to you? ✨",
+        "Which one wins your vote? ✨",
+        "Which one matches your vibe? ✨",
+        "Which one would you pick? ✨",
+        "Which one do you like the most? ✨",
+        "Which one is your top pick? ✨",
+        "Which one has the best style? ✨",
+        "Which one would you keep? ✨",
+        "Which one deserves the crown? ✨",
+        "Which one is calling your name? ✨",
+        "Which one is the winner? ✨",
+    )
     COMMON_HASHTAGS = ("#sfw", "#girls")
     ANIME_HASHTAGS = (
         "#Anime",
@@ -130,9 +147,9 @@ class XShareService:
         """Prevent the images placed on the clipboard from being selected again."""
         self.store.mark_prompt_items_published_on_x(list(draft.prompt_item_ids))
 
-    @classmethod
-    def _build_copy(cls, category: str, subcategory: str) -> str:
-        intro = "¿Cuál es tu favorita? ✨"
+    def _build_copy(self, category: str, subcategory: str) -> str:
+        intro = self.rng.choice(self.POST_INTROS)
+        cls = type(self)
         category_tag = cls._hashtag(category)
         subcategory_tag = cls._hashtag(subcategory)
         themed_tags = (
