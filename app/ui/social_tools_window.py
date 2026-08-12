@@ -74,7 +74,8 @@ class SocialToolsWindow(QMainWindow):
         share_group = QGroupBox("Compartir X")
         share_layout = QVBoxLayout(share_group)
         share_help = QLabel(
-            "Elige categoría y subcategoría. Se seleccionarán 4 imágenes al azar y se abrirá "
+            "Elige categoría, subcategoría y versión. Se seleccionarán 4 imágenes al azar sin "
+            "mezclar versiones y se abrirá "
             "el compositor de X con el copy y los hashtags. Debes tener x.com abierto y tu sesión iniciada."
         )
         share_help.setWordWrap(True)
@@ -86,6 +87,9 @@ class SocialToolsWindow(QMainWindow):
         share_form.addWidget(QLabel("Subcategoría:"))
         self.x_subcategory_combo = QComboBox()
         share_form.addWidget(self.x_subcategory_combo, 1)
+        share_form.addWidget(QLabel("Versión:"))
+        self.x_version_combo = QComboBox()
+        share_form.addWidget(self.x_version_combo, 1)
         self.share_x_btn = QPushButton("Compartir X")
         self.share_x_btn.setObjectName("PrimaryButton")
         share_form.addWidget(self.share_x_btn)
@@ -93,6 +97,7 @@ class SocialToolsWindow(QMainWindow):
         layout.addWidget(share_group)
 
         self.x_category_combo.currentIndexChanged.connect(self._populate_x_subcategories)
+        self.x_subcategory_combo.currentIndexChanged.connect(self._populate_x_versions)
         self.share_x_btn.clicked.connect(self.share_x)
         self._populate_x_options()
 
@@ -153,15 +158,24 @@ class SocialToolsWindow(QMainWindow):
     def _populate_x_subcategories(self) -> None:
         category = str(self.x_category_combo.currentData() or "")
         self.x_subcategory_combo.clear()
-        for subcategory in self._x_options.get(category, []):
+        for subcategory in self._x_options.get(category, {}):
             self.x_subcategory_combo.addItem(subcategory, subcategory)
-        self.share_x_btn.setEnabled(bool(category and self.x_subcategory_combo.count()))
+        self._populate_x_versions()
+
+    def _populate_x_versions(self) -> None:
+        category = str(self.x_category_combo.currentData() or "")
+        subcategory = str(self.x_subcategory_combo.currentData() or "")
+        self.x_version_combo.clear()
+        for version in self._x_options.get(category, {}).get(subcategory, []):
+            self.x_version_combo.addItem(version, version)
+        self.share_x_btn.setEnabled(bool(category and subcategory and self.x_version_combo.count()))
 
     def share_x(self) -> None:
         category = str(self.x_category_combo.currentData() or "")
         subcategory = str(self.x_subcategory_combo.currentData() or "")
+        version = str(self.x_version_combo.currentData() or "")
         try:
-            draft = self.x_share_service.create_draft(category, subcategory)
+            draft = self.x_share_service.create_draft(category, subcategory, version)
         except XShareError as exc:
             QMessageBox.warning(self, "Compartir X", str(exc))
             return
