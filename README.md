@@ -29,6 +29,13 @@ DB inicializada en: resources\data\waifu_desktop.sqlite3
 
 python -m app.runner.run_ui
 
+La barra superior separa **Generación de imagen** de **Herramientas de redes**. En
+la segunda sección se puede pegar el enlace de una publicación pública de X
+(`x.com/.../status/...`) para descargar en local sus imágenes o vídeos y guardar
+su título, descripción, autor y rutas en SQLite. Los archivos se almacenan por
+defecto en `resources/social_media/x`; se puede cambiar mediante
+`SOCIAL_MEDIA_DIR` en `.env`.
+
 Importar prompts Dollimages desde JSON:
 
 python -m app.runner.import_dollimages_prompts --path resources/config/dollimages_prompts.example.json
