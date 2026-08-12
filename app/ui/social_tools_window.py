@@ -18,14 +18,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.services.x_media_service import XMediaService
+from app.services.x_media_service import SocialMediaService
 
 
-class XDownloadThread(QThread):
+class SocialDownloadThread(QThread):
     succeeded = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, service: XMediaService, url: str) -> None:
+    def __init__(self, service: SocialMediaService, url: str) -> None:
         super().__init__()
         self.service = service
         self.url = url
@@ -42,8 +42,8 @@ class SocialToolsWindow(QMainWindow):
         super().__init__(parent)
         self.setWindowTitle("Waifu Desktop — Herramientas de redes")
         self.resize(1050, 650)
-        self.service = XMediaService()
-        self.download_thread: XDownloadThread | None = None
+        self.service = SocialMediaService()
+        self.download_thread: SocialDownloadThread | None = None
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -55,7 +55,7 @@ class SocialToolsWindow(QMainWindow):
         titles = QVBoxLayout()
         title = QLabel("Herramientas de redes")
         title.setObjectName("AppTitle")
-        subtitle = QLabel("Descarga y cataloga imágenes, vídeos y grabaciones públicas de X")
+        subtitle = QLabel("Descarga y cataloga contenido público de X, YouTube y YouTube Shorts")
         subtitle.setObjectName("AppSubtitle")
         titles.addWidget(title)
         titles.addWidget(subtitle)
@@ -68,7 +68,7 @@ class SocialToolsWindow(QMainWindow):
 
         form = QHBoxLayout()
         self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText("https://x.com/usuario/status/...")
+        self.url_input.setPlaceholderText("Enlace de X, YouTube o YouTube Shorts")
         self.url_input.returnPressed.connect(self.start_download)
         self.download_btn = QPushButton("Descargar contenido")
         self.download_btn.setObjectName("PrimaryButton")
@@ -77,11 +77,11 @@ class SocialToolsWindow(QMainWindow):
         form.addWidget(self.download_btn)
         layout.addLayout(form)
 
-        self.status_label = QLabel("Solo se procesan publicaciones accesibles públicamente.")
+        self.status_label = QLabel("Solo se procesa contenido accesible públicamente.")
         layout.addWidget(self.status_label)
 
-        self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Título", "Descripción", "Autor", "Contenido local", "Fecha"])
+        self.table = QTableWidget(0, 6)
+        self.table.setHorizontalHeaderLabels(["Red", "Título", "Descripción", "Autor", "Contenido local", "Fecha"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.doubleClicked.connect(self.open_selected_content)
@@ -114,8 +114,8 @@ class SocialToolsWindow(QMainWindow):
             QMessageBox.warning(self, "Enlace no válido", str(exc))
             return
         self.download_btn.setEnabled(False)
-        self.status_label.setText("Descargando y extrayendo los datos de la publicación…")
-        self.download_thread = XDownloadThread(self.service, url)
+        self.status_label.setText("Descargando y extrayendo los datos del contenido…")
+        self.download_thread = SocialDownloadThread(self.service, url)
         self.download_thread.succeeded.connect(self._download_finished)
         self.download_thread.failed.connect(self._download_failed)
         self.download_thread.finished.connect(lambda: self.download_btn.setEnabled(True))
@@ -136,11 +136,12 @@ class SocialToolsWindow(QMainWindow):
         self.table.setRowCount(len(posts))
         for row, post in enumerate(posts):
             paths = [asset.local_path for asset in post.assets]
-            values = [post.title, post.description, post.author or "—", f"{len(paths)} archivo(s)", post.created_at]
+            platform = "YouTube" if post.platform == "youtube" else "X"
+            values = [platform, post.title, post.description, post.author or "—", f"{len(paths)} archivo(s)", post.created_at]
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 item.setToolTip(value)
-                if column == 3:
+                if column == 4:
                     item.setData(256, paths)
                 self.table.setItem(row, column, item)
         self.table.resizeColumnsToContents()
@@ -156,7 +157,7 @@ class SocialToolsWindow(QMainWindow):
         if row < 0:
             QMessageBox.information(self, "Biblioteca", "Selecciona una publicación primero.")
             return
-        paths = self.table.item(row, 3).data(256) or []
+        paths = self.table.item(row, 4).data(256) or []
         folder = next((Path(path).parent for path in paths if Path(path).parent.is_dir()), None)
         if folder is None:
             QMessageBox.warning(
@@ -172,7 +173,7 @@ class SocialToolsWindow(QMainWindow):
         if row < 0:
             QMessageBox.information(self, "Biblioteca", "Selecciona una publicación primero.")
             return
-        paths = self.table.item(row, 3).data(256) or []
+        paths = self.table.item(row, 4).data(256) or []
         existing = next((Path(path) for path in paths if Path(path).exists()), None)
         if existing is None:
             QMessageBox.warning(self, "Contenido no disponible", "No se encuentra el archivo descargado.")

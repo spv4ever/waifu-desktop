@@ -46,3 +46,20 @@ def test_repository_updates_existing_source_without_duplicates() -> None:
     assert len(posts) == 1
     assert posts[0].title == "New"
     assert posts[0].assets[0].local_path == "/new.mp4"
+
+
+def test_repository_stores_youtube_platform() -> None:
+    conn = make_connection()
+    repository = SocialMediaRepository()
+    repository.save_download(
+        conn,
+        platform="youtube",
+        source_url="https://youtube.com/shorts/abc",
+        external_id="abc",
+        title="Short",
+        description="Descripción",
+        author="channel",
+        assets=[("video", "/media/abc.mp4", None)],
+    )
+
+    assert repository.list_posts(conn)[0].platform == "youtube"
