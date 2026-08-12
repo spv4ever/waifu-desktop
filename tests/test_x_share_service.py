@@ -17,7 +17,7 @@ class FakeStore:
         return {"categories": ["fantasía épica"]}
 
     def list_prompt_images_for_category(self, *, category: str) -> list[dict[str, str]]:
-        return self.rows if category == "fantasía épica" else []
+        return self.rows if category in {"fantasía épica", "dollimages"} else []
 
 
 def image_row(
@@ -44,7 +44,33 @@ def test_create_draft_selects_four_existing_images_and_builds_tags(tmp_path: Pat
     assert len(set(draft.images)) == 4
     assert "#FantasíaÉpica" in draft.copy
     assert "#ElfaNocturna" in draft.copy
+    assert "#sfw" in draft.copy
+    assert "#girls" in draft.copy
+    assert "#AnimeArt" in draft.copy
+    assert "#Waifu" in draft.copy
+    assert "#Dollimages" not in draft.copy
+    assert len(draft.copy) <= 280
     assert draft.compose_url.startswith("https://x.com/intent/post?text=")
+
+
+def test_dollimages_draft_uses_realistic_instead_of_anime_tags(tmp_path: Path) -> None:
+    paths = [tmp_path / f"realistic-{index}.png" for index in range(4)]
+    for path in paths:
+        path.write_bytes(b"image")
+    rows = [image_row(path, "portrait", "sfw") for path in paths]
+    service = XShareService(FakeStore(rows), random.Random(7))
+
+    draft = service.create_draft("dollimages", "portrait", "sfw")
+
+    assert "#sfw" in draft.copy
+    assert "#girls" in draft.copy
+    assert "#Dollimages" in draft.copy
+    assert "#RealisticAI" in draft.copy
+    assert "#Photorealistic" in draft.copy
+    assert "#Anime" not in draft.copy
+    assert "#AnimeArt" not in draft.copy
+    assert "#Waifu" not in draft.copy
+    assert len(draft.copy) <= 280
 
 
 def test_options_only_includes_subcategories_with_existing_images(tmp_path: Path) -> None:
