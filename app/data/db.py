@@ -10,11 +10,12 @@ from app.config.settings import settings
 def ensure_data_dir() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 
 REQUIRED_COLUMNS: tuple[tuple[str, str], ...] = (
     ("queue_job", "started_at"),
     ("queue_job", "completed_at"),
+    ("prompt_item", "published_on_x"),
     ("prompt_base", "iteration_groups"),
     ("anime_character", "description"),
 )
