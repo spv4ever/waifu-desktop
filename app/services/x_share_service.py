@@ -20,6 +20,7 @@ class XShareError(RuntimeError):
 class XShareDraft:
     category: str
     subcategory: str
+    version: str
     images: tuple[Path, ...]
     copy: str
     compose_url: str
@@ -39,26 +40,37 @@ class XShareService:
         self.store = store or get_store()
         self.rng = rng or random.SystemRandom()
 
-    def options(self) -> dict[str, list[str]]:
-        options: dict[str, set[str]] = {}
+    def options(self) -> dict[str, dict[str, list[str]]]:
+        options: dict[str, dict[str, set[str]]] = {}
         for category in self.store.fetch_prompt_filters().get("categories", []):
             for row in self.store.list_prompt_images_for_category(category=category):
                 subcategory = self._subcategory(row.get("meta_json"))
-                if subcategory and self._image_path(row) is not None:
-                    options.setdefault(category, set()).add(subcategory)
-        return {category: sorted(values, key=str.casefold) for category, values in sorted(options.items())}
+                version = self._version(row.get("meta_json"))
+                if subcategory and version and self._image_path(row) is not None:
+                    options.setdefault(category, {}).setdefault(subcategory, set()).add(version)
+        return {
+            category: {
+                subcategory: sorted(versions, key=str.casefold)
+                for subcategory, versions in sorted(
+                    subcategories.items(), key=lambda item: item[0].casefold()
+                )
+            }
+            for category, subcategories in sorted(options.items(), key=lambda item: item[0].casefold())
+        }
 
-    def create_draft(self, category: str, subcategory: str) -> XShareDraft:
+    def create_draft(self, category: str, subcategory: str, version: str) -> XShareDraft:
         candidates: list[Path] = []
         for row in self.store.list_prompt_images_for_category(category=category):
             if self._subcategory(row.get("meta_json")) != subcategory:
+                continue
+            if self._version(row.get("meta_json")) != version:
                 continue
             path = self._image_path(row)
             if path is not None and path not in candidates:
                 candidates.append(path)
         if len(candidates) < 4:
             raise XShareError(
-                f"Se necesitan al menos 4 imágenes disponibles en {category} / {subcategory}; "
+                f"Se necesitan al menos 4 imágenes disponibles en {category} / {subcategory} / {version}; "
                 f"solo se encontraron {len(candidates)}."
             )
 
@@ -68,7 +80,7 @@ class XShareService:
         tags = list(dict.fromkeys((*self.VIRAL_HASHTAGS, category_tag, subcategory_tag)))
         copy = f"¿Cuál es tu favorita? ✨\n\n{' '.join(tags)}"
         compose_url = f"https://x.com/intent/post?text={quote(copy, safe='')}"
-        return XShareDraft(category, subcategory, images, copy, compose_url)
+        return XShareDraft(category, subcategory, version, images, copy, compose_url)
 
     @staticmethod
     def _subcategory(meta_json: Any) -> str | None:
@@ -83,6 +95,17 @@ class XShareService:
             or meta.get("dollimages_prompt_source")
             or meta.get("dollimages_group")
         )
+        cleaned = str(value).strip() if value is not None else ""
+        return cleaned or None
+
+    @staticmethod
+    def _version(meta_json: Any) -> str | None:
+        try:
+            meta = json.loads(meta_json) if isinstance(meta_json, str) else (meta_json or {})
+        except (json.JSONDecodeError, TypeError):
+            return None
+        combo = meta.get("combo", {}) if isinstance(meta, dict) else {}
+        value = combo.get("variant") if isinstance(combo, dict) else None
         cleaned = str(value).strip() if value is not None else ""
         return cleaned or None
 
