@@ -36,12 +36,28 @@ def test_validate_url_accepts_youtube_video_and_shorts_links(url: str) -> None:
 @pytest.mark.parametrize(
     "url",
     [
+        "https://www.instagram.com/p/ABC123/",
+        "https://instagram.com/reel/ABC123/?igsh=example",
+        "https://m.instagram.com/reels/ABC123/",
+        "https://instagram.com/tv/ABC123/",
+    ],
+)
+def test_validate_url_accepts_instagram_posts_and_reels(url: str) -> None:
+    assert XMediaService.validate_url(url) == url
+    assert XMediaService.platform_for_url(url) == "instagram"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
         "",
         "https://example.com/status/123",
         "https://x.com/example",
         "https://youtube.com/watch",
         "https://youtube.com/shorts/",
         "https://youtu.be/",
+        "https://instagram.com/example/",
+        "https://instagram.com/reel/",
         "file:///tmp/video.mp4",
     ],
 )

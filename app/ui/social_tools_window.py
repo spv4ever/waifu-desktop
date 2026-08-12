@@ -55,7 +55,7 @@ class SocialToolsWindow(QMainWindow):
         titles = QVBoxLayout()
         title = QLabel("Herramientas de redes")
         title.setObjectName("AppTitle")
-        subtitle = QLabel("Descarga y cataloga contenido público de X, YouTube y YouTube Shorts")
+        subtitle = QLabel("Descarga y cataloga contenido público de X, Instagram y YouTube")
         subtitle.setObjectName("AppSubtitle")
         titles.addWidget(title)
         titles.addWidget(subtitle)
@@ -68,7 +68,7 @@ class SocialToolsWindow(QMainWindow):
 
         form = QHBoxLayout()
         self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText("Enlace de X, YouTube o YouTube Shorts")
+        self.url_input.setPlaceholderText("Enlace de X, Instagram, YouTube o YouTube Shorts")
         self.url_input.returnPressed.connect(self.start_download)
         self.download_btn = QPushButton("Descargar contenido")
         self.download_btn.setObjectName("PrimaryButton")
@@ -136,7 +136,7 @@ class SocialToolsWindow(QMainWindow):
         self.table.setRowCount(len(posts))
         for row, post in enumerate(posts):
             paths = [asset.local_path for asset in post.assets]
-            platform = "YouTube" if post.platform == "youtube" else "X"
+            platform = {"youtube": "YouTube", "instagram": "Instagram"}.get(post.platform, "X")
             values = [platform, post.title, post.description, post.author or "—", f"{len(paths)} archivo(s)", post.created_at]
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)

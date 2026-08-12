@@ -13,6 +13,9 @@ class SocialMediaDownloadError(RuntimeError):
 
 
 class SocialMediaService:
+    YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"}
+    INSTAGRAM_HOSTS = {"instagram.com", "www.instagram.com", "m.instagram.com"}
+
     def __init__(self, output_dir: Path | None = None) -> None:
         self.output_dir = output_dir or settings.social_media_dir
         self.repository = SocialMediaRepository()
@@ -23,7 +26,7 @@ class SocialMediaService:
         parsed = urlparse(cleaned)
         host = (parsed.hostname or "").lower()
         if parsed.scheme not in {"http", "https"}:
-            raise ValueError("Introduce un enlace público válido de X o YouTube.")
+            raise ValueError("Introduce un enlace público válido de X, Instagram o YouTube.")
         if host in {"x.com", "www.x.com", "twitter.com", "www.twitter.com"}:
             if "/status/" not in parsed.path:
                 raise ValueError("El enlace debe apuntar a una publicación de X (/status/...).")
@@ -37,14 +40,22 @@ class SocialMediaService:
         elif host == "youtu.be":
             if not parsed.path.strip("/"):
                 raise ValueError("El enlace debe apuntar a un vídeo de YouTube.")
+        elif host in SocialMediaService.INSTAGRAM_HOSTS:
+            path_parts = parsed.path.strip("/").split("/")
+            if len(path_parts) < 2 or path_parts[0] not in {"p", "reel", "reels", "tv"} or not path_parts[1]:
+                raise ValueError("El enlace debe apuntar a una publicación o Reel de Instagram.")
         else:
-            raise ValueError("Introduce un enlace público válido de X o YouTube.")
+            raise ValueError("Introduce un enlace público válido de X, Instagram o YouTube.")
         return cleaned
 
     @staticmethod
     def platform_for_url(url: str) -> str:
         host = (urlparse(url).hostname or "").lower()
-        return "youtube" if host in {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"} else "x"
+        if host in SocialMediaService.YOUTUBE_HOSTS:
+            return "youtube"
+        if host in SocialMediaService.INSTAGRAM_HOSTS:
+            return "instagram"
+        return "x"
 
     def download(self, url: str) -> SocialMediaPostRow:
         source_url = self.validate_url(url)
@@ -98,7 +109,12 @@ class SocialMediaService:
             (self._media_type(path), str(path), original_urls.get(str(path)))
             for path in files
         ]
-        fallback_title = "Vídeo de YouTube" if platform == "youtube" else "Publicación de X"
+        fallback_titles = {
+            "youtube": "Vídeo de YouTube",
+            "instagram": "Publicación de Instagram",
+            "x": "Publicación de X",
+        }
+        fallback_title = fallback_titles[platform]
         title = str(info.get("title") or info.get("description") or fallback_title).strip()
         description = str(info.get("description") or info.get("fulltitle") or title).strip()
         author = info.get("uploader") or info.get("channel") or info.get("creator")

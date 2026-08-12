@@ -31,10 +31,11 @@ python -m app.runner.run_ui
 
 La barra superior separa **Generación de imagen** de **Herramientas de redes**. En
 la segunda sección se puede pegar el enlace de una publicación pública de X
-(`x.com/.../status/...`), un vídeo de YouTube o un YouTube Short para descargar
+(`x.com/.../status/...`), una publicación o Reel de Instagram, un vídeo de YouTube o un YouTube Short para descargar
 en local sus imágenes o vídeos y guardar
 su título, descripción, autor y rutas en SQLite. Los archivos se almacenan por
-defecto en `resources/social_media/x` o `resources/social_media/youtube`; se puede cambiar mediante
+defecto en `resources/social_media/x`, `resources/social_media/instagram` o
+`resources/social_media/youtube`; se puede cambiar mediante
 `SOCIAL_MEDIA_DIR` en `.env`.
 
 Importar prompts Dollimages desde JSON:
