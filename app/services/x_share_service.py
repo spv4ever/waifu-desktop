@@ -34,7 +34,44 @@ class XShareService:
     desktop clipboard, ready to attach with Ctrl+V in the already-open browser.
     """
 
-    VIRAL_HASHTAGS = ("#AnimeArt", "#Waifu", "#DigitalArt", "#AIArt")
+    MAX_POST_LENGTH = 280
+    COMMON_HASHTAGS = ("#sfw", "#girls")
+    ANIME_HASHTAGS = (
+        "#Anime",
+        "#AnimeArt",
+        "#AnimeGirl",
+        "#Waifu",
+        "#WaifuArt",
+        "#AnimeIllustration",
+        "#DigitalIllustration",
+        "#CharacterArt",
+        "#MangaArt",
+        "#Kawaii",
+        "#Otaku",
+        "#DigitalArt",
+        "#AIArt",
+        "#AIGirls",
+        "#AnimeStyle",
+        "#AnimeAesthetic",
+    )
+    DOLLIMAGES_HASHTAGS = (
+        "#Dollimages",
+        "#RealisticAI",
+        "#AIPhotography",
+        "#Photorealistic",
+        "#VirtualModel",
+        "#AIModel",
+        "#RealisticPortrait",
+        "#FemalePortrait",
+        "#PortraitPhotography",
+        "#Beauty",
+        "#Fashion",
+        "#DigitalArt",
+        "#AIArt",
+        "#AIGirls",
+        "#AIBeauty",
+        "#RealisticArt",
+    )
 
     def __init__(self, store: BaseStore | None = None, rng: random.Random | None = None) -> None:
         self.store = store or get_store()
@@ -75,12 +112,33 @@ class XShareService:
             )
 
         images = tuple(self.rng.sample(candidates, 4))
-        category_tag = self._hashtag(category)
-        subcategory_tag = self._hashtag(subcategory)
-        tags = list(dict.fromkeys((*self.VIRAL_HASHTAGS, category_tag, subcategory_tag)))
-        copy = f"¿Cuál es tu favorita? ✨\n\n{' '.join(tags)}"
+        copy = self._build_copy(category, subcategory)
         compose_url = f"https://x.com/intent/post?text={quote(copy, safe='')}"
         return XShareDraft(category, subcategory, version, images, copy, compose_url)
+
+    @classmethod
+    def _build_copy(cls, category: str, subcategory: str) -> str:
+        intro = "¿Cuál es tu favorita? ✨"
+        category_tag = cls._hashtag(category)
+        subcategory_tag = cls._hashtag(subcategory)
+        themed_tags = (
+            cls.DOLLIMAGES_HASHTAGS
+            if cls._is_dollimages(category)
+            else cls.ANIME_HASHTAGS
+        )
+        candidates = dict.fromkeys(
+            (*cls.COMMON_HASHTAGS, category_tag, subcategory_tag, *themed_tags)
+        )
+        tags: list[str] = []
+        for tag in candidates:
+            proposed = f"{intro}\n\n{' '.join((*tags, tag))}"
+            if len(proposed) <= cls.MAX_POST_LENGTH:
+                tags.append(tag)
+        return f"{intro}\n\n{' '.join(tags)}"
+
+    @staticmethod
+    def _is_dollimages(category: str) -> bool:
+        return "".join(re.findall(r"[^\W_]+", category, flags=re.UNICODE)).casefold() == "dollimages"
 
     @staticmethod
     def _subcategory(meta_json: Any) -> str | None:
