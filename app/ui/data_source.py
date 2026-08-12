@@ -22,6 +22,7 @@ class PromptRow:
     has_base: bool
     has_upscale: bool
     used_in_reel: bool
+    published_on_x: bool
     reel_priority: bool
     reel_discarded: bool
     progress: int | None
@@ -180,6 +181,7 @@ def fetch_prompts(
                 has_base=bool(r.get("base_image_json")),
                 has_upscale=bool(r.get("upscale_image_json")),
                 used_in_reel=bool(r.get("used_in_reel")),
+                published_on_x=bool(r.get("published_on_x")),
                 reel_priority=bool(r.get("reel_priority")),
                 reel_discarded=bool(r.get("reel_discarded")),
                 progress=progress_value,

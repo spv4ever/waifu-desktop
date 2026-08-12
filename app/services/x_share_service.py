@@ -22,6 +22,7 @@ class XShareDraft:
     subcategory: str
     version: str
     images: tuple[Path, ...]
+    prompt_item_ids: tuple[int, ...]
     copy: str
     compose_url: str
 
@@ -96,25 +97,38 @@ class XShareService:
         }
 
     def create_draft(self, category: str, subcategory: str, version: str) -> XShareDraft:
-        candidates: list[Path] = []
+        candidates: list[tuple[int, Path]] = []
         for row in self.store.list_prompt_images_for_category(category=category):
+            if bool(row.get("published_on_x")):
+                continue
             if self._subcategory(row.get("meta_json")) != subcategory:
                 continue
             if self._version(row.get("meta_json")) != version:
                 continue
             path = self._image_path(row)
-            if path is not None and path not in candidates:
-                candidates.append(path)
+            row_id = row.get("id")
+            candidate = (
+                (int(row_id) if row_id is not None else len(candidates)),
+                path,
+            ) if path is not None else None
+            if candidate is not None and all(existing_path != path for _, existing_path in candidates):
+                candidates.append(candidate)
         if len(candidates) < 4:
             raise XShareError(
                 f"Se necesitan al menos 4 imágenes disponibles en {category} / {subcategory} / {version}; "
                 f"solo se encontraron {len(candidates)}."
             )
 
-        images = tuple(self.rng.sample(candidates, 4))
+        selected = self.rng.sample(candidates, 4)
+        prompt_item_ids = tuple(item_id for item_id, _ in selected)
+        images = tuple(path for _, path in selected)
         copy = self._build_copy(category, subcategory)
         compose_url = f"https://x.com/intent/post?text={quote(copy, safe='')}"
-        return XShareDraft(category, subcategory, version, images, copy, compose_url)
+        return XShareDraft(category, subcategory, version, images, prompt_item_ids, copy, compose_url)
+
+    def mark_published(self, draft: XShareDraft) -> None:
+        """Prevent the images placed on the clipboard from being selected again."""
+        self.store.mark_prompt_items_published_on_x(list(draft.prompt_item_ids))
 
     @classmethod
     def _build_copy(cls, category: str, subcategory: str) -> str:

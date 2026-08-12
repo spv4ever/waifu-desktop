@@ -12,6 +12,7 @@ from app.services.x_share_service import XShareError, XShareService
 class FakeStore:
     def __init__(self, rows: list[dict[str, str]]) -> None:
         self.rows = rows
+        self.published_ids: list[int] = []
 
     def fetch_prompt_filters(self) -> dict[str, list[str]]:
         return {"categories": ["fantasía épica"]}
@@ -19,11 +20,21 @@ class FakeStore:
     def list_prompt_images_for_category(self, *, category: str) -> list[dict[str, str]]:
         return self.rows if category in {"fantasía épica", "dollimages"} else []
 
+    def mark_prompt_items_published_on_x(self, prompt_item_ids: list[int]) -> None:
+        self.published_ids.extend(prompt_item_ids)
+        for row in self.rows:
+            if row.get("id") in prompt_item_ids:
+                row["published_on_x"] = 1
+
 
 def image_row(
-    path: Path, subcategory: str = "elfa nocturna", version: str = "normal"
+    path: Path,
+    subcategory: str = "elfa nocturna",
+    version: str = "normal",
+    prompt_id: int | None = None,
 ) -> dict[str, str]:
     return {
+        "id": prompt_id,
         "base_image_json": json.dumps({"filename": str(path)}),
         "upscale_image_json": "",
         "meta_json": json.dumps(
@@ -108,3 +119,18 @@ def test_create_draft_does_not_mix_versions(tmp_path: Path) -> None:
 
     assert draft.version == "normal"
     assert set(draft.images) == set(normal_paths)
+
+
+def test_mark_published_excludes_clipboard_images_from_next_draft(tmp_path: Path) -> None:
+    paths = [tmp_path / f"image-{index}.png" for index in range(8)]
+    for path in paths:
+        path.write_bytes(b"image")
+    store = FakeStore([image_row(path, prompt_id=index + 1) for index, path in enumerate(paths)])
+    service = XShareService(store, random.Random(7))
+
+    first_draft = service.create_draft("fantasía épica", "elfa nocturna", "normal")
+    service.mark_published(first_draft)
+    second_draft = service.create_draft("fantasía épica", "elfa nocturna", "normal")
+
+    assert set(store.published_ids) == set(first_draft.prompt_item_ids)
+    assert set(first_draft.images).isdisjoint(second_draft.images)
