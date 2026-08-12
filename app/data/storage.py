@@ -138,6 +138,9 @@ class BaseStore:
     def list_prompt_images_for_category(self, *, category: str) -> list[dict[str, Any]]:
         raise NotImplementedError
 
+    def mark_prompt_items_published_on_x(self, prompt_item_ids: list[int]) -> None:
+        raise NotImplementedError
+
     def clear_prompt_images(self, *, prompt_ids: Iterable[int]) -> int:
         raise NotImplementedError
 
@@ -657,18 +660,31 @@ class SQLiteStore(BaseStore):
         with get_connection() as conn:
             rows = conn.execute(
                 """
-                SELECT id, base_image_json, upscale_image_json, meta_json
+                SELECT id, base_image_json, upscale_image_json, meta_json, published_on_x
                 FROM prompt_item
                 WHERE (
                     json_extract(meta_json, '$.combo.category') = ?
                     OR json_extract(meta_json, '$.category') = ?
                     OR json_extract(meta_json, '$.workflow') = ?
                 )
+                  AND published_on_x = 0
                 ORDER BY id
                 """,
                 (category, category, category),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def mark_prompt_items_published_on_x(self, prompt_item_ids: list[int]) -> None:
+        ids = list(dict.fromkeys(int(item_id) for item_id in prompt_item_ids))
+        if not ids:
+            return
+        placeholders = ",".join("?" for _ in ids)
+        with get_connection() as conn:
+            with conn:
+                conn.execute(
+                    f"UPDATE prompt_item SET published_on_x = 1 WHERE id IN ({placeholders})",
+                    ids,
+                )
 
     def clear_prompt_images(self, *, prompt_ids: Iterable[int]) -> int:
         ids = [int(pid) for pid in prompt_ids]
@@ -848,6 +864,7 @@ class SQLiteStore(BaseStore):
                         prompt_text,
                         status,
                         used_in_reel,
+                        published_on_x,
                         reel_priority,
                         reel_discarded,
                         meta_json,
@@ -875,6 +892,7 @@ class SQLiteStore(BaseStore):
                     p.prompt_text,
                     p.status,
                     p.used_in_reel,
+                    p.published_on_x,
                     p.reel_priority,
                     p.reel_discarded,
                     p.meta_json,

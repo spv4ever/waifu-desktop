@@ -62,6 +62,7 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
     _add_column_if_missing(conn, "prompt_item", "upscale_image_json", "TEXT")
     _add_column_if_missing(conn, "prompt_item", "signature", "TEXT")
     _add_column_if_missing(conn, "prompt_item", "used_in_reel", "INTEGER NOT NULL DEFAULT 0")
+    _add_column_if_missing(conn, "prompt_item", "published_on_x", "INTEGER NOT NULL DEFAULT 0")
     _add_column_if_missing(conn, "prompt_item", "reel_priority", "INTEGER NOT NULL DEFAULT 0")
     _add_column_if_missing(conn, "prompt_item", "reel_discarded", "INTEGER NOT NULL DEFAULT 0")
     _add_column_if_missing(
@@ -94,6 +95,13 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         UPDATE prompt_item
         SET used_in_reel = 0
         WHERE used_in_reel IS NULL
+        """
+    )
+    conn.execute(
+        """
+        UPDATE prompt_item
+        SET published_on_x = 0
+        WHERE published_on_x IS NULL
         """
     )
     conn.execute(

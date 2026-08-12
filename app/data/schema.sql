@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS prompt_item (
   combo_key       TEXT NOT NULL, -- referencia a combo_registry
   status          TEXT NOT NULL DEFAULT 'CREATED', -- CREATED | QUEUED | SENT | DONE | FAILED
   used_in_reel    INTEGER NOT NULL DEFAULT 0,
+  published_on_x  INTEGER NOT NULL DEFAULT 0,
   reel_priority   INTEGER NOT NULL DEFAULT 0,
   reel_discarded  INTEGER NOT NULL DEFAULT 0,
   created_at      TEXT NOT NULL DEFAULT (datetime('now')),

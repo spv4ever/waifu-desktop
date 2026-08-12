@@ -184,6 +184,8 @@ class SocialToolsWindow(QMainWindow):
         mime.setUrls([QUrl.fromLocalFile(str(path)) for path in draft.images])
         mime.setText("\n".join(str(path) for path in draft.images))
         QApplication.clipboard().setMimeData(mime)
+        self.x_share_service.mark_published(draft)
+        self._populate_x_options()
         if not QDesktopServices.openUrl(QUrl(draft.compose_url)):
             QMessageBox.critical(self, "Compartir X", "No se pudo abrir x.com en el navegador.")
             return
