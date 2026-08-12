@@ -38,6 +38,7 @@ def _extract_category_variant(meta_json: str | None) -> tuple[str, str, str]:
         category = str(combo.get("category", "?"))
         subcategory = str(
             combo.get("subcategory")
+            or meta.get("anime_character_list")
             or meta.get("dollimages_prompt_source")
             or meta.get("dollimages_group")
             or "?"

@@ -212,6 +212,7 @@ class AnimeGenerationService:
                     meta = {
                         "combo": {
                             "category": "anime",
+                            "subcategory": list_name,
                             "variant": f"{list_name} {content_rating}",
                             "ratio_tag": f"{width}x{height}",
                             "ratio": f"{width}x{height}",

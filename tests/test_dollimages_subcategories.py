@@ -30,3 +30,16 @@ def test_old_dollimages_items_use_prompt_source_as_subcategory():
         "bikini_combinations",
         "sfw",
     )
+
+
+def test_old_anime_v5_items_use_character_list_as_subcategory():
+    meta = {
+        "combo": {"category": "anime", "variant": "Sailor Moon sfw"},
+        "anime_character_list": "Sailor Moon",
+    }
+
+    assert _extract_category_variant(json.dumps(meta)) == (
+        "anime",
+        "Sailor Moon",
+        "Sailor Moon sfw",
+    )

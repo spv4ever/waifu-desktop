@@ -48,6 +48,7 @@ def test_anime_v5_replaces_anime_marker_and_dragon_ball_with_list_name(monkeypat
 
     assert result.created_prompt_item_ids == [41]
     assert store.prompt_items[0]["prompt_text"] == "Hinata from Personajes Naruto, Personajes Naruto lighting"
+    assert store.prompt_items[0]["meta"]["combo"]["subcategory"] == "Personajes Naruto"
     assert store.prompt_items[0]["meta"]["anime_prompt_template"] == "[personaje] from [anime], Dragon Ball lighting"
 
 
