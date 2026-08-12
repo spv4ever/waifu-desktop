@@ -85,15 +85,21 @@ class SocialToolsWindow(QMainWindow):
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.doubleClicked.connect(self.open_selected_content)
+        self.table.itemSelectionChanged.connect(self._update_action_buttons)
         self.table.horizontalHeader().setStretchLastSection(True)
         layout.addWidget(self.table, 1)
 
         actions = QHBoxLayout()
         actions.addStretch()
+        self.open_folder_btn = QPushButton("Abrir carpeta del post")
+        self.open_folder_btn.setEnabled(False)
+        self.open_folder_btn.clicked.connect(self.open_selected_folder)
         self.open_btn = QPushButton("Ver contenido descargado")
+        self.open_btn.setEnabled(False)
         self.open_btn.clicked.connect(self.open_selected_content)
         self.refresh_btn = QPushButton("Actualizar biblioteca")
         self.refresh_btn.clicked.connect(self.refresh)
+        actions.addWidget(self.open_folder_btn)
         actions.addWidget(self.open_btn)
         actions.addWidget(self.refresh_btn)
         layout.addLayout(actions)
@@ -126,6 +132,7 @@ class SocialToolsWindow(QMainWindow):
 
     def refresh(self) -> None:
         posts = self.service.list_posts()
+        self.table.clearSelection()
         self.table.setRowCount(len(posts))
         for row, post in enumerate(posts):
             paths = [asset.local_path for asset in post.assets]
@@ -137,6 +144,28 @@ class SocialToolsWindow(QMainWindow):
                     item.setData(256, paths)
                 self.table.setItem(row, column, item)
         self.table.resizeColumnsToContents()
+        self._update_action_buttons()
+
+    def _update_action_buttons(self) -> None:
+        has_selection = self.table.selectionModel().hasSelection()
+        self.open_folder_btn.setEnabled(has_selection)
+        self.open_btn.setEnabled(has_selection)
+
+    def open_selected_folder(self) -> None:
+        row = self.table.currentRow()
+        if row < 0:
+            QMessageBox.information(self, "Biblioteca", "Selecciona una publicación primero.")
+            return
+        paths = self.table.item(row, 3).data(256) or []
+        folder = next((Path(path).parent for path in paths if Path(path).parent.is_dir()), None)
+        if folder is None:
+            QMessageBox.warning(
+                self,
+                "Carpeta no disponible",
+                "No se encuentra la carpeta con el contenido de la publicación.",
+            )
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
 
     def open_selected_content(self, *_args: object) -> None:
         row = self.table.currentRow()
