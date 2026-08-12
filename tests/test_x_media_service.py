@@ -50,6 +50,21 @@ def test_validate_url_accepts_instagram_posts_and_reels(url: str) -> None:
 @pytest.mark.parametrize(
     "url",
     [
+        "https://www.tiktok.com/@creator/video/1234567890",
+        "https://m.tiktok.com/@creator/photo/1234567890?is_from_webapp=1",
+        "https://vm.tiktok.com/ZMexample/",
+        "https://vt.tiktok.com/ZSexample/",
+        "https://www.tiktok.com/t/ZTexample/",
+    ],
+)
+def test_validate_url_accepts_tiktok_posts_and_short_links(url: str) -> None:
+    assert XMediaService.validate_url(url) == url
+    assert XMediaService.platform_for_url(url) == "tiktok"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
         "",
         "https://example.com/status/123",
         "https://x.com/example",
@@ -58,6 +73,9 @@ def test_validate_url_accepts_instagram_posts_and_reels(url: str) -> None:
         "https://youtu.be/",
         "https://instagram.com/example/",
         "https://instagram.com/reel/",
+        "https://tiktok.com/@creator",
+        "https://tiktok.com/@creator/video/",
+        "https://vm.tiktok.com/",
         "file:///tmp/video.mp4",
     ],
 )
