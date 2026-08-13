@@ -219,17 +219,24 @@ def test_bikini_catalog_fills_the_details_token():
     assert "[details]" not in prompt
 
 
-def test_pool_catalog_has_only_bikinis_and_wet_tshirt_variants():
+def test_pool_catalog_has_only_micro_bikinis_without_shirts():
     template, options = load_dollimages_themed_prompt_options("pool_combinations")
     outfits = [outfit.lower() for outfit in options["outfits"]]
 
     assert "pool" in template.lower()
-    assert all("bikini" in outfit for outfit in outfits)
-    assert any("wet" in outfit and "t-shirt" in outfit for outfit in outfits)
+    assert all("micro bikini" in outfit for outfit in outfits)
     assert not any(
         term in outfit
         for outfit in outfits
-        for term in ("swimsuit", "one-piece", "sarong", "pareo", "cover-up")
+        for term in (
+            "shirt",
+            "t-shirt",
+            "swimsuit",
+            "one-piece",
+            "sarong",
+            "pareo",
+            "cover-up",
+        )
     )
 
 
