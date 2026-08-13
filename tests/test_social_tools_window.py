@@ -79,3 +79,43 @@ def test_share_x_notifies_that_published_images_changed(monkeypatch, tmp_path: P
 
     assert notifications == [True]
     window.close()
+
+
+def test_share_x_keeps_selected_filters_after_refresh(monkeypatch, tmp_path: Path):
+    app = QApplication.instance() or QApplication([])
+    images = tuple(tmp_path / f"image-{index}.png" for index in range(4))
+    draft = SimpleNamespace(images=images, compose_url="https://x.com/intent/post?text=test")
+
+    class FakeXShareService:
+        def options(self):
+            return {
+                "anime": {"character": ["normal"]},
+                "waifu": {"beach": ["day", "night"]},
+            }
+
+        def create_draft(self, category, subcategory, version):
+            assert (category, subcategory, version) == ("waifu", "beach", "night")
+            return draft
+
+        def mark_published(self, _draft):
+            return None
+
+    monkeypatch.setattr(social_tools_window, "XShareService", FakeXShareService)
+    monkeypatch.setattr(
+        social_tools_window, "SocialMediaService", lambda: SimpleNamespace(list_posts=lambda: [])
+    )
+    monkeypatch.setattr(social_tools_window.QDesktopServices, "openUrl", lambda _url: True)
+    monkeypatch.setattr(social_tools_window.QMessageBox, "information", lambda *args: None)
+
+    window = social_tools_window.SocialToolsWindow()
+    window.x_category_combo.setCurrentIndex(window.x_category_combo.findData("waifu"))
+    window.x_subcategory_combo.setCurrentIndex(window.x_subcategory_combo.findData("beach"))
+    window.x_version_combo.setCurrentIndex(window.x_version_combo.findData("night"))
+
+    window.share_x()
+    app.processEvents()
+
+    assert window.x_category_combo.currentData() == "waifu"
+    assert window.x_subcategory_combo.currentData() == "beach"
+    assert window.x_version_combo.currentData() == "night"
+    window.close()

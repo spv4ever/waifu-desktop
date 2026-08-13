@@ -151,25 +151,43 @@ class SocialToolsWindow(QMainWindow):
         self.refresh()
 
     def _populate_x_options(self) -> None:
+        selected_category = self.x_category_combo.currentData()
+        selected_subcategory = self.x_subcategory_combo.currentData()
+        selected_version = self.x_version_combo.currentData()
         self._x_options = self.x_share_service.options()
+        self.x_category_combo.blockSignals(True)
         self.x_category_combo.clear()
         for category in self._x_options:
             self.x_category_combo.addItem(category, category)
-        self._populate_x_subcategories()
+        selected_index = self.x_category_combo.findData(selected_category)
+        if selected_index >= 0:
+            self.x_category_combo.setCurrentIndex(selected_index)
+        self.x_category_combo.blockSignals(False)
+        self._populate_x_subcategories(selected_subcategory, selected_version)
 
-    def _populate_x_subcategories(self) -> None:
+    def _populate_x_subcategories(
+        self, selected_subcategory: object = None, selected_version: object = None
+    ) -> None:
         category = str(self.x_category_combo.currentData() or "")
+        self.x_subcategory_combo.blockSignals(True)
         self.x_subcategory_combo.clear()
         for subcategory in self._x_options.get(category, {}):
             self.x_subcategory_combo.addItem(subcategory, subcategory)
-        self._populate_x_versions()
+        selected_index = self.x_subcategory_combo.findData(selected_subcategory)
+        if selected_index >= 0:
+            self.x_subcategory_combo.setCurrentIndex(selected_index)
+        self.x_subcategory_combo.blockSignals(False)
+        self._populate_x_versions(selected_version)
 
-    def _populate_x_versions(self) -> None:
+    def _populate_x_versions(self, selected_version: object = None) -> None:
         category = str(self.x_category_combo.currentData() or "")
         subcategory = str(self.x_subcategory_combo.currentData() or "")
         self.x_version_combo.clear()
         for version in self._x_options.get(category, {}).get(subcategory, []):
             self.x_version_combo.addItem(version, version)
+        selected_index = self.x_version_combo.findData(selected_version)
+        if selected_index >= 0:
+            self.x_version_combo.setCurrentIndex(selected_index)
         self.share_x_btn.setEnabled(bool(category and subcategory and self.x_version_combo.count()))
 
     def share_x(self) -> None:
