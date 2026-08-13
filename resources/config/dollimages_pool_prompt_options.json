@@ -1,0 +1,101 @@
+{
+  "template": "RAW colorful luxury pool fashion photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], bikini styling only, no one-piece swimsuit, no sarong, no pareo and no beach cover-up, [location], [expression], [lighting], [style], [details], vibrant premium color palette, tasteful sensuality, photorealistic, natural wet skin texture, realistic anatomy, detailed eyes, cinematic depth of field, realistic water reflections, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long wet wavy hair",
+    "an adult blonde woman with a sleek wet bob",
+    "an adult red-haired woman with natural freckles and damp curls",
+    "an adult woman with long wet black hair",
+    "an adult athletic woman with a high wet ponytail",
+    "an adult woman with shoulder-length silver hair",
+    "an adult woman with voluminous dark curls",
+    "an adult woman with long honey-blonde hair"
+  ],
+  "shots": [
+    "full-body luxury pool editorial photograph",
+    "three-quarter body poolside fashion photograph",
+    "medium portrait with colorful water reflections",
+    "wide environmental infinity-pool portrait",
+    "low-angle fashion photograph from water level",
+    "dynamic full-body photograph captured beside the pool",
+    "cinematic twilight pool portrait",
+    "overhead poolside editorial photograph"
+  ],
+  "poses": [
+    "standing ankle-deep on the pool steps with a confident graceful posture",
+    "walking along the wet pool edge with effortless confidence",
+    "sitting on the pool rim with both feet trailing through the water",
+    "emerging naturally from the pool while brushing wet hair back",
+    "leaning against the tiled pool wall with relaxed shoulders",
+    "floating calmly on her back in crystal-clear water",
+    "reclining on a colorful pool lounger with one knee softly bent",
+    "standing beneath a gentle poolside cascade with an elegant silhouette",
+    "turning toward the camera while water droplets sparkle in the air",
+    "kneeling on a submerged pool ledge in a poised editorial pose"
+  ],
+  "outfits": [
+    "a vivid fuchsia triangle micro bikini with slim adjustable straps",
+    "an electric cobalt high-leg micro bikini with turquoise piping",
+    "a neon lime string micro bikini with colorful ring connectors",
+    "a saturated coral bandeau micro bikini with a sleek central twist",
+    "a bright turquoise halter micro bikini with geometric straps",
+    "a hot-pink asymmetrical micro bikini with a one-shoulder top",
+    "a tangerine and violet color-block micro bikini with minimalist knots",
+    "a cyan and magenta tropical-print micro bikini with sharp modern lines",
+    "a sunny yellow micro bikini with translucent rainbow bead details",
+    "an emerald and aqua micro bikini with iridescent edge accents",
+    "a vivid red micro bikini visible beneath a fitted wet white T-shirt, with no other clothing",
+    "a neon pink micro bikini visible beneath a fitted wet pale-blue T-shirt, with no other clothing",
+    "a bright turquoise micro bikini visible beneath a fitted wet white cropped T-shirt, with no other clothing",
+    "a multicolor tropical micro bikini visible beneath a fitted wet lemon-yellow T-shirt, with no other clothing",
+    "a cobalt blue micro bikini visible beneath a fitted wet coral T-shirt, with no other clothing",
+    "a violet micro bikini visible beneath a fitted wet white T-shirt, with no other clothing"
+  ],
+  "locations": [
+    "in a mosaic-tiled rooftop pool surrounded by vivid tropical flowers",
+    "beside a crystal-clear infinity pool overlooking a turquoise sea",
+    "at a colorful boutique-hotel pool with striped loungers and umbrellas",
+    "in a palm-lined lagoon pool at a luxury tropical resort",
+    "beside a modern geometric pool with vivid cobalt and coral tiles",
+    "at a sunlit Mediterranean courtyard pool filled with bright reflections",
+    "in a neon-lit rooftop pool as the city enters blue-hour twilight",
+    "beside an infinity pool at twilight with a peach, violet and cobalt sky",
+    "at an open-sky desert pool during a total lunar eclipse, with both the setting sun and the eclipsed blood moon clearly visible in the background",
+    "beside a mirror-like rooftop pool during a total lunar eclipse, the low sun and moon sharing the colorful horizon in a dramatic editorial celestial composition"
+  ],
+  "expressions": [
+    "with a confident magnetic smile",
+    "with a relaxed and captivating expression",
+    "with a playful knowing half-smile",
+    "with calm confident direct eye contact",
+    "with a carefree natural laugh",
+    "with a sophisticated editorial gaze"
+  ],
+  "lighting": [
+    "bright colorful morning sunlight with dancing caustic reflections",
+    "clean tropical midday daylight with soft fill light",
+    "warm late-afternoon sunlight reflected across the pool",
+    "vivid golden-hour backlighting with sparkling water highlights",
+    "peach-and-violet twilight with balanced cinematic pool lights",
+    "deep blue-hour twilight with colorful magenta and cyan accent lights",
+    "dramatic total-lunar-eclipse light balanced with the last warm rays of the setting sun",
+    "soft overcast daylight producing saturated colors and natural skin tones"
+  ],
+  "styles": [
+    "high-fashion luxury bikini editorial photography",
+    "vibrant premium resort campaign photography",
+    "colorful contemporary poolside fashion photography",
+    "cinematic luxury hotel advertising photography",
+    "bold 2020s swimwear magazine photography",
+    "polished tropical lifestyle campaign photography"
+  ],
+  "details": [
+    "prismatic pool reflections dancing naturally across her skin",
+    "fine water droplets sparkling on her hair and shoulders",
+    "colorful inflatable shapes softly blurred in the distance",
+    "vivid bougainvillea framing the editorial composition",
+    "rippling turquoise water casting realistic caustic patterns",
+    "tasteful minimalist waterproof jewelry",
+    "a gentle breeze moving damp strands of hair",
+    "premium editorial color grading with rich coral and cyan tones"
+  ]
+}
