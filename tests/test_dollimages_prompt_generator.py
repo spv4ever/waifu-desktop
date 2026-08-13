@@ -131,7 +131,12 @@ def test_every_dollimages_outfit_is_sexy_and_avoids_conventional_suits(
         *(
             source
             for source in THEMED_OPTIONS_PATHS
-            if source not in ("bikini_combinations", "sauna_combinations")
+            if source
+            not in (
+                "bikini_combinations",
+                "pool_combinations",
+                "sauna_combinations",
+            )
         ),
     ),
 )
@@ -212,6 +217,33 @@ def test_bikini_catalog_fills_the_details_token():
     assert selection.details in options["details"]
     assert selection.details in prompt
     assert "[details]" not in prompt
+
+
+def test_pool_catalog_has_only_bikinis_and_wet_tshirt_variants():
+    template, options = load_dollimages_themed_prompt_options("pool_combinations")
+    outfits = [outfit.lower() for outfit in options["outfits"]]
+
+    assert "pool" in template.lower()
+    assert all("bikini" in outfit for outfit in outfits)
+    assert any("wet" in outfit and "t-shirt" in outfit for outfit in outfits)
+    assert not any(
+        term in outfit
+        for outfit in outfits
+        for term in ("swimsuit", "one-piece", "sarong", "pareo", "cover-up")
+    )
+
+
+def test_pool_catalog_includes_twilight_lunar_eclipse_and_normal_scenes():
+    _, options = load_dollimages_themed_prompt_options("pool_combinations")
+    locations = " ".join(options["locations"]).lower()
+    lighting = " ".join(options["lighting"]).lower()
+
+    assert "total lunar eclipse" in locations
+    assert "sun and moon" in locations
+    assert "twilight" in lighting
+    assert any(
+        daytime in lighting for daytime in ("morning", "midday", "daylight")
+    )
 
 
 def test_bikini_catalog_covers_reclining_and_seated_sand_scenes():
