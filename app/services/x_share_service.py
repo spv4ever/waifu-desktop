@@ -53,6 +53,13 @@ class XShareService:
         "Which one is calling your name? ✨",
         "Which one is the winner? ✨",
     )
+    POST_CTAS = (
+        "Tap the images to see every detail 👇",
+        "Open each image for the full-size view 👇",
+        "Click through all four before you choose 👇",
+        "Take a closer look, then drop your pick below 👇",
+        "Zoom in and tell me which one wins 👇",
+    )
     COMMON_HASHTAGS = ("#sfw", "#girls")
     ANIME_HASHTAGS = (
         "#Anime",
@@ -149,6 +156,8 @@ class XShareService:
 
     def _build_copy(self, category: str, subcategory: str) -> str:
         intro = self.rng.choice(self.POST_INTROS)
+        cta = self.rng.choice(self.POST_CTAS)
+        message = f"{intro}\n{cta}"
         cls = type(self)
         category_tag = cls._hashtag(category)
         subcategory_tag = cls._hashtag(subcategory)
@@ -162,10 +171,10 @@ class XShareService:
         )
         tags: list[str] = []
         for tag in candidates:
-            proposed = f"{intro}\n\n{' '.join((*tags, tag))}"
+            proposed = f"{message}\n\n{' '.join((*tags, tag))}"
             if len(proposed) <= cls.MAX_POST_LENGTH:
                 tags.append(tag)
-        return f"{intro}\n\n{' '.join(tags)}"
+        return f"{message}\n\n{' '.join(tags)}"
 
     @staticmethod
     def _is_dollimages(category: str) -> bool:
