@@ -3930,7 +3930,8 @@ class MainWindow(QMainWindow):
                 "Vídeo YouTube Bulk Images",
                 f"Vídeo creado: {result.video_path.name}\n"
                 f"Categoría: {result.bulk_category} · Duración: {result.duration_seconds:.1f}s\n"
-                f"Imágenes usadas: {len(result.source_images)} · Audio: {result.audio_path.name}",
+                f"Imágenes usadas: {len(result.source_images)} · Audio: {result.audio_path.name}\n"
+                f"Texto de YouTube preparado: {result.youtube_copy_path.name}",
             )
             try:
                 open_folder_and_select(result.video_path)

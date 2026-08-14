@@ -131,6 +131,7 @@ def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_p
         lambda image_json: tmp_path / image_json["filename"],
     )
     monkeypatch.setattr("app.services.video_montage_service.random.shuffle", lambda items: None)
+    monkeypatch.setattr("app.services.video_montage_service.random.choice", lambda items: items[0])
     monkeypatch.setattr("app.services.video_montage_service.shutil.which", lambda name: f"/usr/bin/{name}")
 
     captured = {}
@@ -157,6 +158,14 @@ def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_p
     metadata = json.loads((output_dir / "bulk_images_youtube_relax.json").read_text(encoding="utf-8"))
     assert metadata["duration_seconds"] == 15.0
     assert metadata["audio"] == str(audio_path.resolve())
+    copy_path = output_dir / "bulk_images_youtube_relax.txt"
+    assert result.youtube_copy_path == copy_path
+    youtube_copy = copy_path.read_text(encoding="utf-8")
+    assert "TÍTULO\nrelax 🌙 Música Relajante para Desconectar" in youtube_copy
+    assert "DESCRIPCIÓN\nDisfruta de relax" in youtube_copy
+    assert "ETIQUETAS\nmúsica relajante, canción relajante" in youtube_copy
+    assert metadata["youtube_copy"]["title"] == "relax 🌙 Música Relajante para Desconectar"
+    assert metadata["youtube_copy_path"] == str(copy_path)
 
 def test_create_bulk_images_youtube_video_reports_progress(tmp_path, monkeypatch):
     audio_dir = tmp_path / "resources" / "audio_relax"

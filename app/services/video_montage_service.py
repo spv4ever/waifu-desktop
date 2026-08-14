@@ -39,6 +39,7 @@ class BulkImagesYoutubeVideoResult:
     bulk_category: str
     transition_seconds: float
     transition_type: str
+    youtube_copy_path: Path
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,73 @@ class VideoMontageService:
     _YOUTUBE_TRANSITIONS = {"fade", "fadeblack", "fadewhite", "distance", "wipeleft", "wiperight", "wipeup", "wipedown", "slideleft", "slideright", "slideup", "slidedown", "circleopen", "circleclose", "dissolve", "pixelize"}
     _VIDEO_TRANSITIONS = _YOUTUBE_TRANSITIONS
     _FFMPEG_TIME_RE = re.compile(r"time=(\d+):(\d+):(\d+(?:\.\d+)?)")
+    _YOUTUBE_COPY_TEMPLATES = (
+        (
+            "{song_title} 🌙 Música Relajante para Desconectar",
+            "Disfruta de {song_title}, una pieza musical creada para acompañar momentos de calma, descanso y desconexión. Ideal para escuchar al terminar el día, relajarte o simplemente disfrutar de unos minutos de tranquilidad. 🎵 La música y las imágenes de este vídeo han sido creadas mediante inteligencia artificial. La selección, edición y montaje final han sido realizados para ofrecer una experiencia visual y musical agradable.",
+            "música relajante, canción relajante, música para desconectar, música tranquila, relajación, calma, descanso, música ambiental, música instrumental, música creada con IA, imágenes creadas con IA, AI generated music, relaxing music, calm music",
+        ),
+        (
+            "{song_title} ✨ Música Suave para Relajarse",
+            "Haz una pausa y disfruta de {song_title}, una composición suave pensada para crear un ambiente tranquilo y relajante. Puedes escucharla mientras descansas, lees, trabajas o buscas unos minutos de calma. 🎵 Tanto la música como las imágenes utilizadas en este vídeo han sido generadas con herramientas de inteligencia artificial. La edición y el montaje final han sido realizados manualmente.",
+            "música suave, música relajante, música para relajarse, canción tranquila, ambiente relajante, música de fondo, relax music, soft music, peaceful music, música IA, música generada por IA, imágenes IA, AI music, AI generated images",
+        ),
+        (
+            "{song_title} 🧘 Música para Meditación y Calma Interior",
+            "{song_title} es una pieza de música relajante diseñada para acompañar sesiones de meditación, respiración consciente o momentos de calma personal. Escúchala a un volumen cómodo y permite que la música te ayude a desconectar. 🎵 Música e imágenes creadas mediante inteligencia artificial. Edición, selección y montaje realizados para construir una experiencia relajante y envolvente.",
+            "música para meditar, música de meditación, calma interior, relajación profunda, mindfulness, respiración consciente, música tranquila, meditation music, relaxing meditation, peaceful music, AI generated music, música creada con IA, imágenes generadas por IA",
+        ),
+        (
+            "{song_title} 💫 Música Relajante para Reducir el Estrés",
+            "Regálate unos minutos de tranquilidad con {song_title}, una composición musical suave pensada para ayudarte a desconectar del ritmo diario y crear una atmósfera de calma. Ideal para descansar después del trabajo o acompañar tus momentos de relajación. 🎵 La música y las imágenes de este vídeo han sido generadas mediante inteligencia artificial. El montaje y la edición final han sido realizados manualmente.",
+            "música para reducir estrés, música antiestrés, música relajante, relajación mental, música tranquila, descanso, música ambiental, stress relief music, relaxing music, calm music, música generada por IA, AI music, imágenes generadas por IA",
+        ),
+        (
+            "{song_title} 📖 Música Tranquila para Leer y Estudiar",
+            "Acompaña tus momentos de lectura, estudio o concentración con {song_title}. Una pieza instrumental suave que puede ayudarte a crear un ambiente tranquilo, agradable y libre de distracciones. 🎵 Tanto la música como las imágenes de este vídeo han sido creadas utilizando inteligencia artificial. La selección, edición y composición final del vídeo han sido realizadas manualmente.",
+            "música para estudiar, música para leer, música para concentrarse, música tranquila, música instrumental, música de fondo, study music, reading music, focus music, relaxing music, AI generated music, música creada con IA, imágenes creadas con IA",
+        ),
+        (
+            "{song_title} 🌌 Música Ambiental para Descansar",
+            "Déjate acompañar por {song_title}, una pieza de música ambiental creada para ofrecer unos minutos de calma y descanso. Ideal para escuchar con auriculares, relajarte en casa o crear una atmósfera tranquila. 🎵 La música y las imágenes han sido generadas con herramientas de inteligencia artificial. La edición y el montaje final han sido realizados para dar forma a una experiencia audiovisual única.",
+            "música ambiental, ambient music, música para descansar, música relajante, canción instrumental, atmósfera tranquila, música de fondo, relaxing ambient music, calm ambience, AI generated music, AI generated art, música IA, imágenes IA",
+        ),
+        (
+            "{song_title} 😌 Un Momento de Paz y Relajación",
+            "Detén el ritmo durante unos minutos y disfruta de {song_title}, una composición tranquila pensada para acompañar momentos de paz, reflexión y descanso. Una pequeña pausa musical para desconectar de las preocupaciones diarias. 🎵 Música e imágenes generadas mediante inteligencia artificial. La edición, organización y montaje final del contenido han sido realizados manualmente.",
+            "momento de paz, música de relajación, música tranquila, música para descansar, canción relajante, música para desconectar, peaceful music, relaxation music, calming music, AI music, música generada por IA, imágenes creadas con IA, inteligencia artificial",
+        ),
+        (
+            "{song_title} 🌙 Música Relajante para el Final del Día",
+            "Termina el día con {song_title}, una pieza musical suave creada para acompañar tus momentos de descanso y desconexión. Baja el volumen, ponte cómodo y disfruta de unos minutos de tranquilidad. 🎵 Tanto la música como las imágenes mostradas en este vídeo han sido creadas con inteligencia artificial. La edición y el montaje final han sido realizados manualmente.",
+            "música para el final del día, música nocturna, música relajante, música tranquila, descanso nocturno, música para desconectar, evening relaxation music, night music, calm music, AI generated music, música creada con IA, imágenes generadas por IA",
+        ),
+        (
+            "{song_title} 🎧 Música Instrumental para Relajarse",
+            "Escucha {song_title}, una composición instrumental de ambiente tranquilo pensada para relajarte, trabajar con calma o disfrutar de un momento personal sin distracciones. Recomendamos utilizar auriculares para una experiencia más envolvente. 🎵 La música y las imágenes de este vídeo han sido generadas con inteligencia artificial. La edición y el montaje audiovisual han sido realizados manualmente.",
+            "música instrumental, instrumental relajante, música para relajarse, música de fondo, canción instrumental, música tranquila, relaxing instrumental music, background music, calm instrumental, música IA, AI generated music, AI generated images",
+        ),
+        (
+            "{song_title} 🌿 Música para una Pausa Relajante",
+            "Haz una pequeña pausa con {song_title}, una pieza musical creada para aportar calma y acompañar momentos de descanso, lectura, reflexión o relajación. Respira profundamente y disfruta de la música. 🎵 La música y las imágenes de este vídeo han sido generadas mediante herramientas de inteligencia artificial. La edición, selección y montaje final han sido realizados manualmente.",
+            "pausa relajante, música para relajarse, música tranquila, relajación, canción de relajación, música ambiental, calm music, relaxing music, peaceful instrumental, AI generated music, música generada por IA, imágenes generadas por IA, arte IA",
+        ),
+    )
+
+    def _write_youtube_copy(self, folder: Path, output_stem: str, primary_audio: Path) -> tuple[Path, dict[str, str]]:
+        song_title = re.sub(r"[_-]+", " ", primary_audio.stem).strip() or "Música Relajante"
+        title_template, description_template, tags = random.choice(self._YOUTUBE_COPY_TEMPLATES)
+        copy = {
+            "title": title_template.format(song_title=song_title),
+            "description": description_template.format(song_title=song_title),
+            "tags": tags,
+        }
+        copy_path = folder / f"{output_stem}.txt"
+        copy_path.write_text(
+            f"TÍTULO\n{copy['title']}\n\nDESCRIPCIÓN\n{copy['description']}\n\nETIQUETAS\n{copy['tags']}\n",
+            encoding="utf-8",
+        )
+        return copy_path, copy
 
     def _emit_progress(self, progress_callback: Callable[[str], None] | None, message: str) -> None:
         if progress_callback:
@@ -453,6 +521,7 @@ class VideoMontageService:
 
         prompt_item_ids = [prompt_id for prompt_id, _, _ in selected]
         get_store().mark_prompt_items_used_in_reel(prompt_item_ids)
+        youtube_copy_path, youtube_copy = self._write_youtube_copy(folder, output_stem, source_audio_paths[0])
 
         metadata = {
             "bulk_category": clean_category,
@@ -465,6 +534,8 @@ class VideoMontageService:
             "resolution": {"label": resolution, "width": width, "height": height},
             "prompt_item_ids": prompt_item_ids,
             "source_images": [str(path) for path in paths],
+            "youtube_copy": youtube_copy,
+            "youtube_copy_path": str(youtube_copy_path),
         }
         (folder / f"{output_stem}.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
         self._emit_progress(progress_callback, f"Vídeo creado correctamente: {output_path}")
@@ -481,6 +552,7 @@ class VideoMontageService:
             bulk_category=clean_category,
             transition_seconds=transition_seconds,
             transition_type=clean_transition,
+            youtube_copy_path=youtube_copy_path,
         )
 
     def create_montage(

@@ -27,6 +27,7 @@ def main() -> None:
     print(f"Duración: {result.duration_seconds:.2f}s")
     print(f"Imágenes usadas: {len(result.source_images)}")
     print(f"Prompts marcados como usados: {', '.join(map(str, result.prompt_item_ids))}")
+    print(f"Texto de YouTube: {result.youtube_copy_path}")
 
 
 if __name__ == "__main__":
