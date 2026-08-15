@@ -1452,8 +1452,13 @@ class MainWindow(QMainWindow):
         self.repeat_video_count_spin.setRange(2, 1000)
         self.repeat_video_count_spin.setValue(2)
         repeat_video_layout.addWidget(self.repeat_video_count_spin, 1, 1)
+        self.repeat_video_duration_label = QLabel(
+            "Selecciona un vídeo para consultar la duración original y final."
+        )
+        self.repeat_video_duration_label.setWordWrap(True)
+        repeat_video_layout.addWidget(self.repeat_video_duration_label, 2, 0, 1, 3)
         self.repeat_video_generate_btn = QPushButton("Crear vídeo long")
-        repeat_video_layout.addWidget(self.repeat_video_generate_btn, 2, 1)
+        repeat_video_layout.addWidget(self.repeat_video_generate_btn, 3, 1)
 
         self.dollimages_reel_dialog = QDialog(self)
         self.dollimages_reel_dialog.setWindowTitle("Reel Dollimages")
@@ -1744,6 +1749,8 @@ class MainWindow(QMainWindow):
         self.bulk_youtube_transition_spin.valueChanged.connect(self._update_bulk_youtube_plan_label)
         self.bulk_youtube_transition_type_combo.currentIndexChanged.connect(self._update_bulk_youtube_plan_label)
         self.repeat_video_select_btn.clicked.connect(self.select_repeat_video)
+        self.repeat_video_path_input.textChanged.connect(self._update_repeat_video_duration)
+        self.repeat_video_count_spin.valueChanged.connect(self._update_repeat_video_duration)
         self.repeat_video_generate_btn.clicked.connect(self.generate_repeated_video)
         self.video_montage_add_btn.clicked.connect(self.add_video_montage_files)
         self.video_montage_remove_btn.clicked.connect(self.remove_selected_video_montage_files)
@@ -3839,6 +3846,37 @@ class MainWindow(QMainWindow):
         )
         if path:
             self.repeat_video_path_input.setText(path)
+
+    @staticmethod
+    def _format_video_duration(seconds: float) -> str:
+        total_seconds = max(round(seconds), 0)
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, secs = divmod(remainder, 60)
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+    def _update_repeat_video_duration(self, *_args: object) -> None:
+        source_video = self.repeat_video_path_input.text().strip()
+        if not source_video:
+            self.repeat_video_duration_label.setText(
+                "Selecciona un vídeo para consultar la duración original y final."
+            )
+            return
+
+        try:
+            plan = self.video_montage_service.plan_repeated_video(
+                source_video,
+                self.repeat_video_count_spin.value(),
+            )
+        except Exception as exc:
+            self.repeat_video_duration_label.setText(f"No se pudo calcular la duración: {exc}")
+            return
+
+        original = self._format_video_duration(plan.source_duration_seconds)
+        total = self._format_video_duration(plan.total_duration_seconds)
+        self.repeat_video_duration_label.setText(
+            f"Duración original: {original}  ·  "
+            f"Duración final ({plan.repetitions} repeticiones): {total}"
+        )
 
     def generate_repeated_video(self) -> None:
         if self.repeat_video_thread and self.repeat_video_thread.isRunning():

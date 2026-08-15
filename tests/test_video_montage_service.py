@@ -6,6 +6,19 @@ from pathlib import Path
 from app.services.video_montage_service import VideoMontageService
 
 
+def test_plan_repeated_video_reports_original_and_total_duration(tmp_path, monkeypatch):
+    source_path = tmp_path / "clip.mp4"
+    source_path.write_bytes(b"video")
+    service = VideoMontageService()
+    monkeypatch.setattr(service, "_probe_duration", lambda path: 12.5)
+
+    plan = service.plan_repeated_video(source_path, 4)
+
+    assert plan.source_duration_seconds == 12.5
+    assert plan.total_duration_seconds == 50.0
+    assert plan.repetitions == 4
+
+
 def test_repeat_video_concatenates_without_reencoding_next_to_source(tmp_path, monkeypatch):
     source_path = tmp_path / "my video.mp4"
     source_path.write_bytes(b"video")
