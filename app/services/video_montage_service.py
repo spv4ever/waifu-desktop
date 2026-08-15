@@ -490,9 +490,15 @@ class VideoMontageService:
             f"afade=t=out:st={fade_out_start:.3f}:d={self._FADE_OUT_SECONDS}[a]"
         )
 
+        # Passing the complete filter graph on the command line easily exceeds
+        # Windows' process creation limit when a long song needs many images
+        # (WinError 206).  Keep the command short by letting FFmpeg read it from
+        # a file in the render directory instead.
+        filter_script_path = folder / f"{output_stem}_filters.txt"
+        filter_script_path.write_text(";".join(filter_parts), encoding="utf-8")
         cmd += [
-            "-filter_complex",
-            ";".join(filter_parts),
+            "-filter_complex_script",
+            str(filter_script_path),
             "-map",
             "[v]",
             "-map",
