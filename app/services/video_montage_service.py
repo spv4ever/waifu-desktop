@@ -60,6 +60,13 @@ class RepeatedVideoResult:
     repetitions: int
 
 
+@dataclass(frozen=True)
+class RepeatedVideoPlan:
+    source_duration_seconds: float
+    total_duration_seconds: float
+    repetitions: int
+
+
 class VideoMontageService:
     """Renderiza montajes por concatenación de varios vídeos con fundidos y música."""
 
@@ -266,6 +273,23 @@ class VideoMontageService:
             errors="replace",
         )
         return max(float(probe.stdout.strip()), 0.0)
+
+    def plan_repeated_video(self, source_video: str | Path, repetitions: int) -> RepeatedVideoPlan:
+        """Calcula la duración original y final antes de concatenar el vídeo."""
+        source_path = Path(source_video).expanduser().resolve()
+        if not source_path.is_file():
+            raise FileNotFoundError(f"No existe el vídeo: {source_path}")
+        if source_path.suffix.lower() not in self._VIDEO_EXTENSIONS:
+            raise ValueError(f"Formato de vídeo no soportado: {source_path.name}")
+        if repetitions < 2:
+            raise ValueError("El número de repeticiones debe ser al menos 2.")
+
+        source_duration = self._probe_duration(source_path)
+        return RepeatedVideoPlan(
+            source_duration_seconds=source_duration,
+            total_duration_seconds=source_duration * repetitions,
+            repetitions=repetitions,
+        )
 
     def repeat_video(self, source_video: str | Path, repetitions: int) -> RepeatedVideoResult:
         """Concatena un vídeo consigo mismo sin recodificar sus streams."""
