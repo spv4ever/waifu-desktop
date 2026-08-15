@@ -1380,7 +1380,7 @@ class MainWindow(QMainWindow):
         self.bulk_youtube_reload_audio_btn = QPushButton("Recargar audios")
         bulk_youtube_grid.addWidget(self.bulk_youtube_reload_audio_btn, 1, 4)
 
-        bulk_youtube_grid.addWidget(QLabel("Tema 2:"), 2, 0)
+        bulk_youtube_grid.addWidget(QLabel("Tema 2 (opcional):"), 2, 0)
         self.bulk_youtube_second_audio_combo = QComboBox()
         self.bulk_youtube_second_audio_combo.setMinimumWidth(280)
         bulk_youtube_grid.addWidget(self.bulk_youtube_second_audio_combo, 2, 1, 1, 3)
@@ -1428,7 +1428,7 @@ class MainWindow(QMainWindow):
         self.bulk_youtube_generate_btn = QPushButton("Crear vídeo YouTube")
         bulk_youtube_grid.addWidget(self.bulk_youtube_generate_btn, 4, 3, 1, 2)
 
-        self.bulk_youtube_plan_label = QLabel("Selecciona categoría y dos temas para calcular imágenes necesarias.")
+        self.bulk_youtube_plan_label = QLabel("Selecciona categoría y al menos un tema para calcular imágenes necesarias.")
         self.bulk_youtube_plan_label.setWordWrap(True)
         bulk_youtube_grid.addWidget(self.bulk_youtube_plan_label, 5, 0, 1, 6)
         bulk_youtube_grid.setColumnStretch(6, 1)
@@ -3907,14 +3907,14 @@ class MainWindow(QMainWindow):
         category = self.bulk_youtube_category_combo.currentData()
         audio_filename = self.bulk_youtube_audio_combo.currentData()
         second_audio_filename = self.bulk_youtube_second_audio_combo.currentData()
-        if not category or not audio_filename or not second_audio_filename:
-            self.bulk_youtube_plan_label.setText("Selecciona categoría y dos temas para calcular imágenes necesarias.")
+        if not category or not audio_filename:
+            self.bulk_youtube_plan_label.setText("Selecciona categoría y al menos un tema para calcular imágenes necesarias.")
             return
         try:
             plan = self.video_montage_service.calculate_bulk_youtube_plan(
                 bulk_category=str(category),
                 audio_filename=str(audio_filename),
-                second_audio_filename=str(second_audio_filename),
+                second_audio_filename=str(second_audio_filename) if second_audio_filename else None,
                 image_display_seconds=float(self.bulk_youtube_seconds_spin.value()),
                 transition_seconds=float(self.bulk_youtube_transition_spin.value()),
                 transition_type=str(self.bulk_youtube_transition_type_combo.currentData() or "fade"),
@@ -3943,6 +3943,7 @@ class MainWindow(QMainWindow):
 
         self.bulk_youtube_audio_combo.clear()
         self.bulk_youtube_second_audio_combo.clear()
+        self.bulk_youtube_second_audio_combo.addItem("Ninguno (usar solo Tema 1)", None)
         for audio_path in audio_files:
             self.bulk_youtube_audio_combo.addItem(audio_path.name, audio_path.name)
             self.bulk_youtube_second_audio_combo.addItem(audio_path.name, audio_path.name)
@@ -3954,9 +3955,7 @@ class MainWindow(QMainWindow):
             idx = self.bulk_youtube_second_audio_combo.findData(second_current)
             if idx >= 0:
                 self.bulk_youtube_second_audio_combo.setCurrentIndex(idx)
-        elif len(audio_files) > 1:
-            self.bulk_youtube_second_audio_combo.setCurrentIndex(1)
-        self.bulk_youtube_generate_btn.setEnabled(len(audio_files) >= 2)
+        self.bulk_youtube_generate_btn.setEnabled(bool(audio_files))
         self._update_bulk_youtube_plan_label()
 
     def generate_bulk_youtube_video(self) -> None:
@@ -3974,11 +3973,11 @@ class MainWindow(QMainWindow):
         if not bulk_category:
             QMessageBox.warning(self, "Vídeo YouTube Bulk Images", "Indica la categoría Bulk Images.")
             return
-        if not audio_filename or not second_audio_filename:
+        if not audio_filename:
             QMessageBox.warning(
                 self,
                 "Vídeo YouTube Bulk Images",
-                "Añade y selecciona dos temas MP3 de resources/audio_relax.",
+                "Añade y selecciona al menos un tema MP3 de resources/audio_relax.",
             )
             return
 
@@ -4001,7 +4000,7 @@ class MainWindow(QMainWindow):
             self.video_montage_service,
             bulk_category=bulk_category,
             audio_filename=str(audio_filename),
-            second_audio_filename=str(second_audio_filename),
+            second_audio_filename=str(second_audio_filename) if second_audio_filename else None,
             image_display_seconds=float(self.bulk_youtube_seconds_spin.value()),
             transition_seconds=float(self.bulk_youtube_transition_spin.value()),
             resolution=str(self.bulk_youtube_resolution_combo.currentData() or "4k"),
@@ -4015,7 +4014,7 @@ class MainWindow(QMainWindow):
             progress_log.verticalScrollBar().setValue(progress_log.verticalScrollBar().maximum())
 
         def _cleanup_thread() -> None:
-            self.bulk_youtube_generate_btn.setEnabled(self.bulk_youtube_audio_combo.count() >= 2)
+            self.bulk_youtube_generate_btn.setEnabled(self.bulk_youtube_audio_combo.count() >= 1)
             thread.deleteLater()
             if self.bulk_youtube_thread is thread:
                 self.bulk_youtube_thread = None
