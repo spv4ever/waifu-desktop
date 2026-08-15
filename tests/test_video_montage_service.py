@@ -6,6 +6,52 @@ from pathlib import Path
 from app.services.video_montage_service import VideoMontageService
 
 
+def test_repeat_video_concatenates_without_reencoding_next_to_source(tmp_path, monkeypatch):
+    source_path = tmp_path / "my video.mp4"
+    source_path.write_bytes(b"video")
+    service = VideoMontageService()
+    monkeypatch.setattr("app.services.video_montage_service.shutil.which", lambda name: "/usr/bin/ffmpeg")
+    captured = {}
+
+    def _fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        concat_path = Path(cmd[cmd.index("-i") + 1])
+        captured["concat"] = concat_path.read_text(encoding="utf-8")
+        Path(cmd[-1]).write_bytes(b"repeated")
+
+    monkeypatch.setattr("app.services.video_montage_service.subprocess.run", _fake_run)
+
+    result = service.repeat_video(source_path, 3)
+
+    assert result.video_path == tmp_path / "my video_long.mp4"
+    assert result.repetitions == 3
+    assert captured["cmd"][captured["cmd"].index("-c") + 1] == "copy"
+    assert captured["concat"].count("file '") == 3
+    assert not (tmp_path / ".my video_long_concat.txt").exists()
+
+
+def test_repeat_video_uses_unique_output_and_requires_two_repetitions(tmp_path, monkeypatch):
+    source_path = tmp_path / "clip.mp4"
+    source_path.write_bytes(b"video")
+    (tmp_path / "clip_long.mp4").write_bytes(b"existing")
+    service = VideoMontageService()
+    monkeypatch.setattr("app.services.video_montage_service.shutil.which", lambda name: "/usr/bin/ffmpeg")
+
+    def _fake_run(cmd, **kwargs):
+        Path(cmd[-1]).write_bytes(b"repeated")
+
+    monkeypatch.setattr("app.services.video_montage_service.subprocess.run", _fake_run)
+
+    assert service.repeat_video(source_path, 2).video_path == tmp_path / "clip_long-1.mp4"
+
+    try:
+        service.repeat_video(source_path, 1)
+    except ValueError as exc:
+        assert "al menos 2" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError")
+
+
 def test_select_audio_track_starts_randomly_within_first_minute(tmp_path, monkeypatch):
     audio_dir = tmp_path / "resources" / "audio"
     audio_dir.mkdir(parents=True)

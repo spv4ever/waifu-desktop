@@ -40,7 +40,11 @@ from app.services.dollimages_pack_service import (
 from app.services.file_open import open_file, open_folder_and_select
 from app.services.checkpoint_service import CheckpointService
 from app.services.reel_service import ReelService
-from app.services.video_montage_service import VideoMontageService, BulkImagesYoutubeVideoResult
+from app.services.video_montage_service import (
+    BulkImagesYoutubeVideoResult,
+    RepeatedVideoResult,
+    VideoMontageService,
+)
 from app.services.manual_prompt_service import ManualPromptService
 from app.services.dollimages_manual_prompt_service import DollimagesManualPromptService
 from app.services.image2vid_service import ImageToVideoService
@@ -113,6 +117,26 @@ class BulkYoutubeVideoThread(QThread):
             self.failed.emit(str(exc))
             return
         self.succeeded.emit(result)
+
+
+class RepeatVideoThread(QThread):
+    succeeded = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, service: VideoMontageService, source_video: str, repetitions: int) -> None:
+        super().__init__()
+        self.service = service
+        self.source_video = source_video
+        self.repetitions = repetitions
+
+    def run(self) -> None:
+        try:
+            result = self.service.repeat_video(self.source_video, self.repetitions)
+        except Exception as exc:
+            self.failed.emit(str(exc))
+            return
+        self.succeeded.emit(result)
+
 
 class NoFocusRectStyle(QProxyStyle):
     """Elimina el rectángulo de foco (focus rect) que en Windows 11 aparece como marcas/lineas."""
@@ -256,6 +280,7 @@ class MainWindow(QMainWindow):
         self.bulk_images_prompt_window: BulkImagesPromptWindow | None = None
         self.bulk_youtube_thread: BulkYoutubeVideoThread | None = None
         self.bulk_youtube_progress_dialog: QDialog | None = None
+        self.repeat_video_thread: RepeatVideoThread | None = None
         self.social_tools_window: SocialToolsWindow | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
@@ -387,6 +412,7 @@ class MainWindow(QMainWindow):
         self.open_anime_v5_reel_btn = QPushButton("Reel Anime V5")
         self.open_video_montage_btn = QPushButton("Montar Videos")
         self.open_bulk_youtube_btn = QPushButton("YouTube Bulk")
+        self.open_repeat_video_btn = QPushButton("YouTube Long")
         self.quick_action_buttons = (
             self.open_filters_btn,
             self.open_pack_btn,
@@ -402,6 +428,7 @@ class MainWindow(QMainWindow):
             self.open_anime_v5_reel_btn,
             self.open_video_montage_btn,
             self.open_bulk_youtube_btn,
+            self.open_repeat_video_btn,
         )
         for button in self.quick_action_buttons:
             button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -1410,6 +1437,24 @@ class MainWindow(QMainWindow):
         self._populate_bulk_youtube_audio_combo()
         self._update_bulk_youtube_plan_label()
 
+        self.repeat_video_dialog = QDialog(self)
+        self.repeat_video_dialog.setWindowTitle("Crear vídeo largo")
+        repeat_video_layout = QGridLayout(self.repeat_video_dialog)
+        repeat_video_layout.addWidget(QLabel("Vídeo original:"), 0, 0)
+        self.repeat_video_path_input = QLineEdit()
+        self.repeat_video_path_input.setReadOnly(True)
+        self.repeat_video_path_input.setMinimumWidth(480)
+        repeat_video_layout.addWidget(self.repeat_video_path_input, 0, 1)
+        self.repeat_video_select_btn = QPushButton("Elegir vídeo…")
+        repeat_video_layout.addWidget(self.repeat_video_select_btn, 0, 2)
+        repeat_video_layout.addWidget(QLabel("Repeticiones:"), 1, 0)
+        self.repeat_video_count_spin = QSpinBox()
+        self.repeat_video_count_spin.setRange(2, 1000)
+        self.repeat_video_count_spin.setValue(2)
+        repeat_video_layout.addWidget(self.repeat_video_count_spin, 1, 1)
+        self.repeat_video_generate_btn = QPushButton("Crear vídeo long")
+        repeat_video_layout.addWidget(self.repeat_video_generate_btn, 2, 1)
+
         self.dollimages_reel_dialog = QDialog(self)
         self.dollimages_reel_dialog.setWindowTitle("Reel Dollimages")
         self.dollimages_reel_dialog.setModal(False)
@@ -1698,6 +1743,8 @@ class MainWindow(QMainWindow):
         self.bulk_youtube_seconds_spin.valueChanged.connect(self._update_bulk_youtube_plan_label)
         self.bulk_youtube_transition_spin.valueChanged.connect(self._update_bulk_youtube_plan_label)
         self.bulk_youtube_transition_type_combo.currentIndexChanged.connect(self._update_bulk_youtube_plan_label)
+        self.repeat_video_select_btn.clicked.connect(self.select_repeat_video)
+        self.repeat_video_generate_btn.clicked.connect(self.generate_repeated_video)
         self.video_montage_add_btn.clicked.connect(self.add_video_montage_files)
         self.video_montage_remove_btn.clicked.connect(self.remove_selected_video_montage_files)
         self.video_montage_clear_btn.clicked.connect(self.video_montage_list.clear)
@@ -1730,6 +1777,7 @@ class MainWindow(QMainWindow):
         self.open_reel_btn.clicked.connect(self.reel_dialog.show)
         self.open_video_montage_btn.clicked.connect(self.video_montage_dialog.show)
         self.open_bulk_youtube_btn.clicked.connect(self.open_bulk_youtube_dialog)
+        self.open_repeat_video_btn.clicked.connect(self.repeat_video_dialog.show)
         self.open_dollimages_reel_btn.clicked.connect(self.dollimages_reel_dialog.show)
         self.open_anime_v5_reel_btn.clicked.connect(self.anime_v5_reel_dialog.show)
         self.anime_v5_reel_generate_btn.clicked.connect(self.generate_anime_v5_reel)
@@ -3781,6 +3829,58 @@ class MainWindow(QMainWindow):
             open_folder_and_select(result.folder)
         except Exception as exc:
             QMessageBox.critical(self, "Reel Instagram", f"No se pudo abrir la carpeta: {exc}")
+
+    def select_repeat_video(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Elegir vídeo para repetir",
+            self.repeat_video_path_input.text(),
+            "Vídeos (*.mp4 *.mov *.m4v *.mkv *.webm *.avi)",
+        )
+        if path:
+            self.repeat_video_path_input.setText(path)
+
+    def generate_repeated_video(self) -> None:
+        if self.repeat_video_thread and self.repeat_video_thread.isRunning():
+            QMessageBox.information(self, "Crear vídeo largo", "Ya se está creando un vídeo.")
+            return
+        source_video = self.repeat_video_path_input.text().strip()
+        if not source_video:
+            QMessageBox.warning(self, "Crear vídeo largo", "Elige un vídeo de tu PC.")
+            return
+
+        self.repeat_video_generate_btn.setEnabled(False)
+        self.repeat_video_generate_btn.setText("Creando…")
+        thread = RepeatVideoThread(
+            self.video_montage_service,
+            source_video,
+            self.repeat_video_count_spin.value(),
+        )
+        self.repeat_video_thread = thread
+
+        def _cleanup_thread() -> None:
+            self.repeat_video_generate_btn.setEnabled(True)
+            self.repeat_video_generate_btn.setText("Crear vídeo long")
+            thread.deleteLater()
+            if self.repeat_video_thread is thread:
+                self.repeat_video_thread = None
+
+        def _handle_success(result: object) -> None:
+            assert isinstance(result, RepeatedVideoResult)
+            QMessageBox.information(
+                self,
+                "Crear vídeo largo",
+                f"Vídeo creado con {result.repetitions} repeticiones:\n{result.video_path}",
+            )
+            try:
+                open_folder_and_select(result.video_path)
+            except Exception as exc:
+                QMessageBox.critical(self, "Crear vídeo largo", f"No se pudo abrir el vídeo: {exc}")
+
+        thread.succeeded.connect(_handle_success)
+        thread.failed.connect(lambda message: QMessageBox.critical(self, "Crear vídeo largo", message))
+        thread.finished.connect(_cleanup_thread)
+        thread.start()
 
     def _populate_bulk_youtube_category_combo(self) -> None:
         current = self.bulk_youtube_category_combo.currentData() if hasattr(self, "bulk_youtube_category_combo") else None

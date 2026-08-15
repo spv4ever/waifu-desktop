@@ -14,6 +14,7 @@ from typing import Any, Callable
 
 from app.data.storage import get_store
 from app.services.output_paths import build_output_path
+from app.services.path_utils import unique_suffixed_path
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,13 @@ class BulkYoutubePlan:
     transition_type: str
     needed_images: int
     available_images: int
+
+
+@dataclass(frozen=True)
+class RepeatedVideoResult:
+    source_path: Path
+    video_path: Path
+    repetitions: int
 
 
 class VideoMontageService:
@@ -258,6 +266,61 @@ class VideoMontageService:
             errors="replace",
         )
         return max(float(probe.stdout.strip()), 0.0)
+
+    def repeat_video(self, source_video: str | Path, repetitions: int) -> RepeatedVideoResult:
+        """Concatena un vídeo consigo mismo sin recodificar sus streams."""
+        source_path = Path(source_video).expanduser().resolve()
+        if not source_path.is_file():
+            raise FileNotFoundError(f"No existe el vídeo: {source_path}")
+        if source_path.suffix.lower() not in self._VIDEO_EXTENSIONS:
+            raise ValueError(f"Formato de vídeo no soportado: {source_path.name}")
+        if repetitions < 2:
+            raise ValueError("El número de repeticiones debe ser al menos 2.")
+
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            raise RuntimeError("No se encontró ffmpeg en el sistema para concatenar el vídeo.")
+
+        output_path = unique_suffixed_path(
+            source_path.with_name(f"{source_path.stem}_long{source_path.suffix}")
+        )
+        concat_path = source_path.parent / f".{output_path.stem}_concat.txt"
+        escaped_path = str(source_path).replace("'", "'\\''")
+        concat_path.write_text(
+            "".join(f"file '{escaped_path}'\n" for _ in range(repetitions)),
+            encoding="utf-8",
+        )
+        try:
+            subprocess.run(
+                [
+                    ffmpeg_path,
+                    "-y",
+                    "-f",
+                    "concat",
+                    "-safe",
+                    "0",
+                    "-i",
+                    str(concat_path),
+                    "-map",
+                    "0",
+                    "-c",
+                    "copy",
+                    str(output_path),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        finally:
+            concat_path.unlink(missing_ok=True)
+
+        return RepeatedVideoResult(
+            source_path=source_path,
+            video_path=output_path,
+            repetitions=repetitions,
+        )
 
     def _select_audio_track(self) -> tuple[Path, float] | None:
         audio_dir = self._repo_root() / "resources" / "audio"
