@@ -149,7 +149,8 @@ def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_p
         transition_seconds=0.75,
     )
 
-    filter_complex = captured["cmd"][captured["cmd"].index("-filter_complex") + 1]
+    filter_script = Path(captured["cmd"][captured["cmd"].index("-filter_complex_script") + 1])
+    filter_complex = filter_script.read_text(encoding="utf-8")
     assert result.video_path == output_dir / "bulk_images_youtube_relax.mp4"
     assert result.prompt_item_ids == [1, 2]
     assert store.marked == [1, 2]
@@ -166,6 +167,56 @@ def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_p
     assert "ETIQUETAS\nmúsica relajante, canción relajante" in youtube_copy
     assert metadata["youtube_copy"]["title"] == "relax 🌙 Música Relajante para Desconectar"
     assert metadata["youtube_copy_path"] == str(copy_path)
+
+
+def test_create_bulk_images_youtube_video_writes_filter_graph_to_script(tmp_path, monkeypatch):
+    """Large Bulk renders must not pass the filter graph via Windows' command line."""
+    audio_dir = tmp_path / "resources" / "audio_relax"
+    audio_dir.mkdir(parents=True)
+    audio_path = audio_dir / "long.mp3"
+    audio_path.write_bytes(b"audio")
+    image_path = tmp_path / "image.png"
+    image_path.write_bytes(b"image")
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+
+    class Store:
+        def select_unused_bulk_images_for_youtube_video(self, *, bulk_category):
+            return [
+                {"id": index, "base_image_json": json.dumps({"filename": image_path.name}), "upscale_image_json": None}
+                for index in range(1, 102)
+            ]
+
+        def mark_prompt_items_used_in_reel(self, prompt_item_ids):
+            pass
+
+    service = VideoMontageService()
+    monkeypatch.setattr(service, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(service, "_probe_duration", lambda path: 732.1)
+    monkeypatch.setattr(service, "_create_folder", lambda: output_dir)
+    monkeypatch.setattr("app.services.video_montage_service.get_store", lambda: Store())
+    monkeypatch.setattr("app.services.video_montage_service.build_output_path", lambda image_json: image_path)
+    monkeypatch.setattr("app.services.video_montage_service.shutil.which", lambda name: f"/usr/bin/{name}")
+    captured = {}
+
+    def _fake_render(cmd, **kwargs):
+        captured["cmd"] = cmd
+        Path(cmd[-1]).write_bytes(b"rendered")
+
+    monkeypatch.setattr(service, "_run_ffmpeg_render", _fake_render)
+
+    service.create_bulk_images_youtube_video(
+        bulk_category="Nature Wallpaper",
+        audio_filename=audio_path.name,
+    )
+
+    assert "-filter_complex" not in captured["cmd"]
+    script_path = Path(captured["cmd"][captured["cmd"].index("-filter_complex_script") + 1])
+    assert script_path == output_dir / "bulk_images_youtube_long_filters.txt"
+    filter_graph = script_path.read_text(encoding="utf-8")
+    assert "[100:v]scale=3840:2160" in filter_graph
+    assert "[xf99][v100]xfade=" in filter_graph
+
 
 def test_create_bulk_images_youtube_video_reports_progress(tmp_path, monkeypatch):
     audio_dir = tmp_path / "resources" / "audio_relax"
