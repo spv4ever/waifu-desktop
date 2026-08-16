@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+import subprocess
+import sys
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -92,11 +95,17 @@ class SocialMediaService:
             "quiet": True,
             "no_warnings": True,
         }
+        info: dict = {}
+        yt_dlp_error: Exception | None = None
         try:
             with yt_dlp.YoutubeDL(options) as downloader:
                 info = downloader.extract_info(source_url, download=True)
         except Exception as exc:
-            raise SocialMediaDownloadError(f"No se pudo descargar el contenido público: {exc}") from exc
+            yt_dlp_error = exc
+            if platform != "x":
+                raise SocialMediaDownloadError(
+                    f"No se pudo descargar el contenido público: {self._clean_error(exc)}"
+                ) from exc
 
         entries = [entry for entry in (info.get("entries") or [info]) if entry]
         files: list[Path] = []
@@ -112,10 +121,24 @@ class SocialMediaService:
                         files.append(path)
                         original_urls[str(path)] = entry.get("webpage_url") or entry.get("url")
 
-        post_id_value = str(info.get("id") or entries[0].get("id") or "post")
+        post_id_value = str(
+            info.get("id")
+            or (entries[0].get("id") if entries else None)
+            or self._x_status_id(source_url)
+            or "post"
+        )
         post_folder = platform_dir / post_id_value
+        if yt_dlp_error is not None:
+            try:
+                files.extend(self._download_x_gallery(source_url, post_folder))
+            except SocialMediaDownloadError as gallery_error:
+                yt_error = self._clean_error(yt_dlp_error)
+                raise SocialMediaDownloadError(
+                    "No se pudo descargar la publicación de X. "
+                    f"yt-dlp: {yt_error}. Alternativa para imágenes: {gallery_error}"
+                ) from yt_dlp_error
         if post_folder.exists():
-            for path in sorted(post_folder.iterdir()):
+            for path in sorted(post_folder.rglob("*")):
                 if path.is_file() and path.suffix.lower() not in {".json", ".part", ".ytdl"} and path.resolve() not in files:
                     files.append(path.resolve())
                     original_urls[str(path.resolve())] = None
@@ -148,6 +171,46 @@ class SocialMediaService:
     def list_posts(self) -> list[SocialMediaPostRow]:
         with get_connection() as conn:
             return self.repository.list_posts(conn)
+
+    @staticmethod
+    def _x_status_id(url: str) -> str | None:
+        match = re.search(r"/status/(\d+)", urlparse(url).path)
+        return match.group(1) if match else None
+
+    @staticmethod
+    def _clean_error(error: object) -> str:
+        """Remove terminal control codes that should never be shown in a dialog."""
+        ansi_escape = r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))"
+        return re.sub(ansi_escape, "", str(error)).strip()
+
+    @staticmethod
+    def _download_x_gallery(url: str, post_folder: Path) -> list[Path]:
+        """Use gallery-dl for photo-only X posts, which yt-dlp does not support."""
+        post_folder.mkdir(parents=True, exist_ok=True)
+        command = [
+            sys.executable,
+            "-m",
+            "gallery_dl",
+            "--destination",
+            str(post_folder),
+            "--no-mtime",
+            url,
+        ]
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, check=False)
+        except OSError as exc:
+            raise SocialMediaDownloadError(str(exc)) from exc
+        if result.returncode:
+            detail = SocialMediaService._clean_error(result.stderr or result.stdout)
+            raise SocialMediaDownloadError(detail or "gallery-dl terminó con un error desconocido.")
+        files = [
+            path.resolve()
+            for path in sorted(post_folder.rglob("*"))
+            if path.is_file() and path.suffix.lower() not in {".json", ".part"}
+        ]
+        if not files:
+            raise SocialMediaDownloadError("gallery-dl no encontró imágenes descargables.")
+        return files
 
     @staticmethod
     def _media_type(path: Path) -> str:
