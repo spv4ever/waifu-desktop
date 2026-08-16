@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -80,6 +81,7 @@ class SocialMediaService:
     def download(self, url: str) -> SocialMediaPostRow:
         source_url = self.validate_url(url)
         platform = self.platform_for_url(source_url)
+        download_url = self._canonical_x_url(source_url) if platform == "x" else source_url
         try:
             import yt_dlp
         except ImportError as exc:
@@ -97,15 +99,27 @@ class SocialMediaService:
         }
         info: dict = {}
         yt_dlp_error: Exception | None = None
-        try:
-            with yt_dlp.YoutubeDL(options) as downloader:
-                info = downloader.extract_info(source_url, download=True)
-        except Exception as exc:
-            yt_dlp_error = exc
-            if platform != "x":
-                raise SocialMediaDownloadError(
-                    f"No se pudo descargar el contenido público: {self._clean_error(exc)}"
-                ) from exc
+        attempts: list[tuple[str | None, dict]] = [(None, options)]
+        if platform == "x":
+            attempts.extend(
+                (browser, {**options, "cookiesfrombrowser": (browser,)})
+                for browser in self._x_cookie_browsers()
+            )
+        errors: list[str] = []
+        for browser, attempt_options in attempts:
+            try:
+                with yt_dlp.YoutubeDL(attempt_options) as downloader:
+                    info = downloader.extract_info(download_url, download=True)
+                yt_dlp_error = None
+                break
+            except Exception as exc:
+                yt_dlp_error = exc
+                label = f"con cookies de {browser}" if browser else "sin iniciar sesión"
+                errors.append(f"{label}: {self._clean_error(exc)}")
+                if platform != "x":
+                    raise SocialMediaDownloadError(
+                        f"No se pudo descargar el contenido público: {self._clean_error(exc)}"
+                    ) from exc
 
         entries = [entry for entry in (info.get("entries") or [info]) if entry]
         files: list[Path] = []
@@ -130,12 +144,14 @@ class SocialMediaService:
         post_folder = platform_dir / post_id_value
         if yt_dlp_error is not None:
             try:
-                files.extend(self._download_x_gallery(source_url, post_folder))
+                files.extend(self._download_x_gallery(download_url, post_folder))
             except SocialMediaDownloadError as gallery_error:
-                yt_error = self._clean_error(yt_dlp_error)
+                yt_error = "; ".join(errors) or self._clean_error(yt_dlp_error)
                 raise SocialMediaDownloadError(
                     "No se pudo descargar la publicación de X. "
-                    f"yt-dlp: {yt_error}. Alternativa para imágenes: {gallery_error}"
+                    f"yt-dlp: {yt_error}. Alternativa gallery-dl: {gallery_error}. "
+                    "Si el contenido está marcado como sensible, inicia sesión en X en "
+                    "Chrome, Edge o Firefox y vuelve a intentarlo."
                 ) from yt_dlp_error
         if post_folder.exists():
             for path in sorted(post_folder.rglob("*")):
@@ -176,6 +192,33 @@ class SocialMediaService:
     def _x_status_id(url: str) -> str | None:
         match = re.search(r"/status/(\d+)", urlparse(url).path)
         return match.group(1) if match else None
+
+    @staticmethod
+    def _canonical_x_url(url: str) -> str:
+        """Remove X's UI-only /video/N suffix before handing a post to extractors."""
+        parsed = urlparse(url)
+        path = re.sub(r"/video/\d+/?$", "", parsed.path)
+        return parsed._replace(path=path, query="", fragment="").geturl()
+
+    @staticmethod
+    def _x_cookie_browsers() -> list[str]:
+        """Return configured or locally installed browsers usable by yt-dlp."""
+        configured = settings.x_cookies_browser
+        if configured and configured != "auto":
+            return [] if configured in {"none", "off"} else [configured]
+
+        local = Path(os.getenv("LOCALAPPDATA", ""))
+        roaming = Path(os.getenv("APPDATA", ""))
+        candidates = {
+            "chrome": local / "Google" / "Chrome" / "User Data",
+            "edge": local / "Microsoft" / "Edge" / "User Data",
+            "firefox": roaming / "Mozilla" / "Firefox" / "Profiles",
+        }
+        return [
+            browser
+            for browser, path in candidates.items()
+            if str(path) != "." and path.exists()
+        ]
 
     @staticmethod
     def _clean_error(error: object) -> str:

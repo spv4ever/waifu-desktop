@@ -16,6 +16,7 @@ class Settings:
     social_media_dir: Path = Path(
         os.getenv("SOCIAL_MEDIA_DIR", str(Path("resources") / "social_media"))
     )
+    x_cookies_browser: str = os.getenv("X_COOKIES_BROWSER", "auto").strip().lower()
 
     # ComfyUI (desde .env)
     comfyui_base_url: str = os.getenv("COMFYUI_BASE_URL", "http://127.0.0.1:8188")
