@@ -117,6 +117,18 @@ def test_x_cookie_browser_can_be_disabled(monkeypatch: pytest.MonkeyPatch) -> No
     assert XMediaService._x_cookie_browsers() == []
 
 
+def test_configured_x_cookie_file_is_used(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cookie_file = tmp_path / "cookies.txt"
+    cookie_file.write_text("# Netscape HTTP Cookie File", encoding="utf-8")
+    monkeypatch.setattr(
+        "app.services.x_media_service.settings",
+        type("Settings", (), {"x_cookies_file": str(cookie_file)})(),
+    )
+    assert XMediaService._x_cookie_file() == cookie_file
+
+
 def test_clean_error_removes_ansi_codes() -> None:
     error = "\x1b[0;31mERROR:\x1b[0m [twitter] No video could be found"
     assert XMediaService._clean_error(error) == "ERROR: [twitter] No video could be found"
@@ -131,6 +143,7 @@ def test_gallery_fallback_collects_downloaded_images(
         return type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})()
 
     monkeypatch.setattr("app.services.x_media_service.subprocess.run", fake_run)
+    monkeypatch.setattr(XMediaService, "_x_cookie_browsers", staticmethod(lambda: []))
 
     assert XMediaService._download_x_gallery(
         "https://x.com/example/status/123", tmp_path
@@ -149,6 +162,7 @@ def test_gallery_fallback_reports_clean_error(
         "app.services.x_media_service.subprocess.run",
         lambda *_args, **_kwargs: result,
     )
+    monkeypatch.setattr(XMediaService, "_x_cookie_browsers", staticmethod(lambda: []))
 
     with pytest.raises(SocialMediaDownloadError, match="AuthenticationError"):
         XMediaService._download_x_gallery("https://x.com/example/status/123", tmp_path)

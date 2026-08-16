@@ -45,6 +45,15 @@ detecta esos navegadores. Se puede elegir uno explícitamente con
 `X_COOKIES_BROWSER=edge` (también `chrome` o `firefox`) en `.env`, o desactivar el
 uso de cookies con `X_COOKIES_BROWSER=off`.
 
+En Windows, Chrome puede bloquear su base de datos mientras está abierto y las
+versiones recientes pueden impedir que otros procesos descifren sus cookies con
+DPAPI. En ese caso, exporta las cookies de `x.com` en formato Netscape
+(`cookies.txt`) y configura su ruta en `.env`, por ejemplo
+`X_COOKIES_FILE=C:\\Users\\usuario\\Downloads\\cookies.txt`. Este archivo se usa
+tanto con yt-dlp como con el respaldo gallery-dl y evita depender del almacén de
+cookies bloqueado de Chrome. Trata el archivo como una contraseña y no lo añadas
+al repositorio.
+
 La sección **Creador de Shorts** divide un vídeo horizontal 16:9 en el número de
 fragmentos indicado. Cada fragmento conserva su tramo de audio y usa un recorte
 vertical 9:16 centrado, sin escalar la imagen. Junto a cada MP4 se guardan tres
