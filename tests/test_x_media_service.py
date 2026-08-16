@@ -94,6 +94,29 @@ def test_x_status_id_is_extracted_from_url() -> None:
     assert XMediaService._x_status_id(url) == "2089055730645307814"
 
 
+def test_x_video_url_is_canonicalized_for_extractors() -> None:
+    url = "https://x.com/_Enjoysex/status/2088536024322634228/video/1?ref_src=test"
+    assert XMediaService._canonical_x_url(url) == (
+        "https://x.com/_Enjoysex/status/2088536024322634228"
+    )
+
+
+def test_configured_x_cookie_browser_is_used(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.services.x_media_service.settings",
+        type("Settings", (), {"x_cookies_browser": "edge"})(),
+    )
+    assert XMediaService._x_cookie_browsers() == ["edge"]
+
+
+def test_x_cookie_browser_can_be_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.services.x_media_service.settings",
+        type("Settings", (), {"x_cookies_browser": "off"})(),
+    )
+    assert XMediaService._x_cookie_browsers() == []
+
+
 def test_clean_error_removes_ansi_codes() -> None:
     error = "\x1b[0;31mERROR:\x1b[0m [twitter] No video could be found"
     assert XMediaService._clean_error(error) == "ERROR: [twitter] No video could be found"

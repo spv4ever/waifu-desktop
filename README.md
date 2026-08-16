@@ -39,6 +39,12 @@ defecto en `resources/social_media/x`, `resources/social_media/instagram`,
 `resources/social_media/tiktok` o `resources/social_media/youtube`; se puede cambiar mediante
 `SOCIAL_MEDIA_DIR` en `.env`.
 
+Las publicaciones de X marcadas como contenido sensible requieren una sesión. La
+aplicación reintenta automáticamente con las cookies de Chrome, Edge o Firefox si
+detecta esos navegadores. Se puede elegir uno explícitamente con
+`X_COOKIES_BROWSER=edge` (también `chrome` o `firefox`) en `.env`, o desactivar el
+uso de cookies con `X_COOKIES_BROWSER=off`.
+
 La sección **Creador de Shorts** divide un vídeo horizontal 16:9 en el número de
 fragmentos indicado. Cada fragmento conserva su tramo de audio y usa un recorte
 vertical 9:16 centrado, sin escalar la imagen. Junto a cada MP4 se guardan tres
