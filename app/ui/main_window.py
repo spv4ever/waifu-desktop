@@ -87,6 +87,7 @@ from app.ui.video_prompt_template_window import VideoPromptTemplateWindow
 from app.ui.anime_v5_maintenance_window import AnimeV5MaintenanceWindow
 from app.ui.bulk_images_prompt_window import BulkImagesPromptWindow
 from app.ui.social_tools_window import SocialToolsWindow
+from app.ui.short_creator_window import ShortCreatorWindow
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
 
@@ -282,6 +283,7 @@ class MainWindow(QMainWindow):
         self.bulk_youtube_progress_dialog: QDialog | None = None
         self.repeat_video_thread: RepeatVideoThread | None = None
         self.social_tools_window: SocialToolsWindow | None = None
+        self.short_creator_window: ShortCreatorWindow | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -320,6 +322,8 @@ class MainWindow(QMainWindow):
         self.image_generation_action = sections_menu.addAction("Generación de imagen")
         self.social_tools_action = sections_menu.addAction("Herramientas de redes")
         self.social_tools_action.triggered.connect(self.open_social_tools_window)
+        self.short_creator_action = sections_menu.addAction("Creador de Shorts")
+        self.short_creator_action.triggered.connect(self.open_short_creator_window)
         self.open_base_action = file_menu.addAction("Abrir Base")
         self.open_up_action = file_menu.addAction("Abrir Upscale")
         self.open_folder_base_action = file_menu.addAction("Abrir Carpeta (Base)")
@@ -391,8 +395,12 @@ class MainWindow(QMainWindow):
         self.social_tools_section_btn = QPushButton("Herramientas de redes →")
         self.social_tools_section_btn.setObjectName("PrimaryButton")
         self.social_tools_section_btn.clicked.connect(self.open_social_tools_window)
+        self.short_creator_section_btn = QPushButton("Creador de Shorts →")
+        self.short_creator_section_btn.setObjectName("PrimaryButton")
+        self.short_creator_section_btn.clicked.connect(self.open_short_creator_window)
         header.addWidget(self.image_generation_section_btn)
         header.addWidget(self.social_tools_section_btn)
+        header.addWidget(self.short_creator_section_btn)
         layout.addLayout(header)
 
         self.quick_actions_layout = QGridLayout()
@@ -5016,6 +5024,13 @@ class MainWindow(QMainWindow):
         self.social_tools_window.show()
         self.social_tools_window.raise_()
         self.social_tools_window.activateWindow()
+
+    def open_short_creator_window(self) -> None:
+        if self.short_creator_window is None:
+            self.short_creator_window = ShortCreatorWindow(self)
+        self.short_creator_window.show()
+        self.short_creator_window.raise_()
+        self.short_creator_window.activateWindow()
 
     def delete_selected_prompt(self, prompt_id: int | None = None) -> None:
         pid = prompt_id if prompt_id is not None else self._selected_prompt_id()
