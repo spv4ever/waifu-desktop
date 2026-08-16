@@ -39,6 +39,13 @@ defecto en `resources/social_media/x`, `resources/social_media/instagram`,
 `resources/social_media/tiktok` o `resources/social_media/youtube`; se puede cambiar mediante
 `SOCIAL_MEDIA_DIR` en `.env`.
 
+La sección **Creador de Shorts** divide un vídeo horizontal 16:9 en el número de
+fragmentos indicado. Cada fragmento conserva su tramo de audio y usa un recorte
+vertical 9:16 centrado, sin escalar la imagen. Junto a cada MP4 se guardan tres
+propuestas de publicación con el nombre de la canción y un enlace configurable al
+vídeo completo de YouTube. Es necesario tener `ffmpeg` y `ffprobe` disponibles en
+el `PATH`; los resultados se guardan en `outputs/youtube_shorts`.
+
 Importar prompts Dollimages desde JSON:
 
 python -m app.runner.import_dollimages_prompts --path resources/config/dollimages_prompts.example.json
