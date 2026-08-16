@@ -3,6 +3,7 @@ requests>=2.31
 PyYAML>=6.0.1
 Pillow>=10.0
 yt-dlp>=2025.7.21
+gallery-dl>=1.30.0
 # Dev / tests
 pytest>=8.0
 
