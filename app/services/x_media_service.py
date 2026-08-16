@@ -96,17 +96,24 @@ class SocialMediaService:
             "writethumbnail": True,
             "quiet": True,
             "no_warnings": True,
+            # yt-dlp writes expected extractor failures to stderr even in quiet
+            # mode.  We collect those failures below and show one useful dialog.
+            "logger": _SilentYtDlpLogger(),
         }
+        cookie_file = self._x_cookie_file() if platform == "x" else None
+        if cookie_file:
+            options["cookiefile"] = str(cookie_file)
         info: dict = {}
         yt_dlp_error: Exception | None = None
-        attempts: list[tuple[str | None, dict]] = [(None, options)]
+        default_label = "con X_COOKIES_FILE" if cookie_file else "sin iniciar sesión"
+        attempts: list[tuple[str, dict]] = [(default_label, options)]
         if platform == "x":
-            attempts.extend(
-                (browser, {**options, "cookiesfrombrowser": (browser,)})
-                for browser in self._x_cookie_browsers()
-            )
+            for browser in self._x_cookie_browsers():
+                browser_options = {**options, "cookiesfrombrowser": (browser,)}
+                browser_options.pop("cookiefile", None)
+                attempts.append((f"con cookies de {browser}", browser_options))
         errors: list[str] = []
-        for browser, attempt_options in attempts:
+        for label, attempt_options in attempts:
             try:
                 with yt_dlp.YoutubeDL(attempt_options) as downloader:
                     info = downloader.extract_info(download_url, download=True)
@@ -114,7 +121,6 @@ class SocialMediaService:
                 break
             except Exception as exc:
                 yt_dlp_error = exc
-                label = f"con cookies de {browser}" if browser else "sin iniciar sesión"
                 errors.append(f"{label}: {self._clean_error(exc)}")
                 if platform != "x":
                     raise SocialMediaDownloadError(
@@ -151,7 +157,9 @@ class SocialMediaService:
                     "No se pudo descargar la publicación de X. "
                     f"yt-dlp: {yt_error}. Alternativa gallery-dl: {gallery_error}. "
                     "Si el contenido está marcado como sensible, inicia sesión en X en "
-                    "Chrome, Edge o Firefox y vuelve a intentarlo."
+                    "Chrome, Edge o Firefox y vuelve a intentarlo. Si Chrome está abierto "
+                    "o Windows no permite descifrar sus cookies, exporta cookies.txt y "
+                    "configura X_COOKIES_FILE en .env."
                 ) from yt_dlp_error
         if post_folder.exists():
             for path in sorted(post_folder.rglob("*")):
@@ -221,6 +229,15 @@ class SocialMediaService:
         ]
 
     @staticmethod
+    def _x_cookie_file() -> Path | None:
+        """Return a user-exported Netscape cookie file, the reliable Windows fallback."""
+        configured = getattr(settings, "x_cookies_file", "")
+        if not configured:
+            return None
+        path = Path(configured).expanduser()
+        return path if path.is_file() else None
+
+    @staticmethod
     def _clean_error(error: object) -> str:
         """Remove terminal control codes that should never be shown in a dialog."""
         ansi_escape = r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))"
@@ -230,22 +247,39 @@ class SocialMediaService:
     def _download_x_gallery(url: str, post_folder: Path) -> list[Path]:
         """Use gallery-dl for photo-only X posts, which yt-dlp does not support."""
         post_folder.mkdir(parents=True, exist_ok=True)
-        command = [
+        base_command = [
             sys.executable,
             "-m",
             "gallery_dl",
             "--destination",
             str(post_folder),
             "--no-mtime",
-            url,
         ]
-        try:
-            result = subprocess.run(command, capture_output=True, text=True, check=False)
-        except OSError as exc:
-            raise SocialMediaDownloadError(str(exc)) from exc
-        if result.returncode:
+        auth_arguments: list[list[str]] = [[]]
+        cookie_file = SocialMediaService._x_cookie_file()
+        if cookie_file:
+            auth_arguments.insert(0, ["--cookies", str(cookie_file)])
+        auth_arguments.extend([
+            ["--cookies-from-browser", browser]
+            for browser in SocialMediaService._x_cookie_browsers()
+        ])
+        failures: list[str] = []
+        for auth in auth_arguments:
+            try:
+                result = subprocess.run(
+                    [*base_command, *auth, url], capture_output=True, text=True, check=False
+                )
+            except OSError as exc:
+                raise SocialMediaDownloadError(str(exc)) from exc
+            if not result.returncode:
+                break
             detail = SocialMediaService._clean_error(result.stderr or result.stdout)
-            raise SocialMediaDownloadError(detail or "gallery-dl terminó con un error desconocido.")
+            if detail:
+                failures.append(detail)
+        else:
+            raise SocialMediaDownloadError(
+                "; ".join(failures) or "gallery-dl terminó con un error desconocido."
+            )
         files = [
             path.resolve()
             for path in sorted(post_folder.rglob("*"))
@@ -265,3 +299,16 @@ class SocialMediaService:
 # Compatibilidad con importaciones existentes.
 XMediaService = SocialMediaService
 XMediaDownloadError = SocialMediaDownloadError
+
+
+class _SilentYtDlpLogger:
+    """Prevent yt-dlp from duplicating handled errors in the application console."""
+
+    def debug(self, _message: str) -> None:
+        pass
+
+    def warning(self, _message: str) -> None:
+        pass
+
+    def error(self, _message: str) -> None:
+        pass
