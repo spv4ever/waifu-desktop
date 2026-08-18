@@ -734,6 +734,10 @@ class MainWindow(QMainWindow):
             ("Combinación JSON verano", "summer_combinations"),
             ("Combinación JSON bikinis", "bikini_combinations"),
             ("Combinación JSON chicas en la piscina", "pool_combinations"),
+            (
+                "Combinación JSON camisetas oversize",
+                "oversized_tshirt_combinations",
+            ),
             ("Combinación JSON nieve", "snow_combinations"),
             ("Combinación JSON saunas", "sauna_combinations"),
             ("Combinación JSON viajeras", "travel_combinations"),

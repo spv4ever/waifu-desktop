@@ -81,7 +81,11 @@ def test_every_themed_catalog_is_complete_and_photographic(prompt_source):
     "prompt_source",
     (
         "combinations",
-        *(source for source in THEMED_OPTIONS_PATHS if source != "sauna_combinations"),
+        *(
+            source
+            for source in THEMED_OPTIONS_PATHS
+            if source not in ("sauna_combinations", "oversized_tshirt_combinations")
+        ),
     ),
 )
 def test_every_dollimages_outfit_is_sexy_and_avoids_conventional_suits(
@@ -136,6 +140,7 @@ def test_every_dollimages_outfit_is_sexy_and_avoids_conventional_suits(
                 "bikini_combinations",
                 "pool_combinations",
                 "sauna_combinations",
+                "oversized_tshirt_combinations",
             )
         ),
     ),
@@ -251,6 +256,34 @@ def test_pool_catalog_includes_twilight_lunar_eclipse_and_normal_scenes():
     assert any(
         daytime in lighting for daytime in ("morning", "midday", "daylight")
     )
+
+
+def test_oversized_tshirt_catalog_uses_only_shirts_without_bottoms():
+    template, options = load_dollimages_themed_prompt_options(
+        "oversized_tshirt_combinations"
+    )
+    outfits = [outfit.lower() for outfit in options["outfits"]]
+    forbidden_bottoms = (
+        "pants",
+        "trousers",
+        "shorts",
+        "skirt",
+        "dress",
+        "leggings",
+        "jeans",
+    )
+
+    assert "wearing only [outfit]" in template
+    assert "no pants, no shorts, no skirt" in template
+    assert all("oversized" in outfit and "shirt" in outfit for outfit in outfits)
+    assert not any(term in outfit for outfit in outfits for term in forbidden_bottoms)
+    assert any("sheer" in outfit or "translucent" in outfit for outfit in outfits)
+    colors = ("white", "black", "pink", "red", "blue", "green", "orange", "purple")
+    represented_colors = {
+        color for outfit in outfits for color in colors if color in outfit
+    }
+
+    assert len(represented_colors) >= 6
 
 
 def test_bikini_catalog_covers_reclining_and_seated_sand_scenes():

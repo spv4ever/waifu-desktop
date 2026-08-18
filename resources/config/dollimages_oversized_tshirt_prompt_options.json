@@ -1,0 +1,85 @@
+{
+  "template": "RAW contemporary lifestyle photograph of [girl_type], single adult female subject, [shot], [pose], wearing only [outfit], bare legs, no pants, no shorts, no skirt, no lower-body garment, the long shirt hem and pose keep intimate anatomy fully concealed, [location], [expression], [lighting], [style], tasteful non-explicit mood, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long wavy hair",
+    "an adult blonde woman with a tousled bob",
+    "an adult red-haired woman with natural freckles",
+    "an adult woman with long black hair",
+    "an adult athletic woman with a high ponytail",
+    "an adult woman with shoulder-length silver hair",
+    "an adult woman with dark curly hair",
+    "an adult woman with a sleek auburn ponytail"
+  ],
+  "poses": [
+    "standing frontally with one hand lightly holding the shirt hem",
+    "sitting sideways on the edge of a bed with her knees together",
+    "kneeling upright on a sofa while facing the camera",
+    "walking toward the camera with a relaxed confident stride",
+    "leaning against a wall with one knee softly bent",
+    "sitting cross-legged in an armchair with the shirt draped securely",
+    "stretching both arms overhead while the long shirt remains fully covering",
+    "crouching frontally in a balanced editorial pose",
+    "lying face-down across a neatly made bed and looking toward the camera",
+    "standing by a window with her legs crossed at the ankles"
+  ],
+  "outfits": [
+    "an opaque crisp white oversized cotton T-shirt with a long relaxed hem",
+    "an opaque jet-black oversized vintage band T-shirt with rolled sleeves",
+    "a pastel pink oversized jersey T-shirt with a wide crew neck",
+    "a cherry-red oversized heavyweight T-shirt with minimalist typography",
+    "a cobalt-blue oversized washed cotton T-shirt with dropped shoulders",
+    "an emerald-green oversized soft jersey T-shirt with a long curved hem",
+    "a vivid orange oversized breathable T-shirt with a subtle graphic print",
+    "a rich purple oversized slub-cotton T-shirt with extra-long sleeves",
+    "a pale yellow oversized semi-sheer T-shirt with tasteful strategic opacity",
+    "a translucent sky-blue oversized mesh T-shirt layered with opaque chest coverage",
+    "a sheer smoky-gray oversized gauze T-shirt with strategic opaque panels",
+    "a translucent lavender oversized lightweight T-shirt with discreet opaque coverage",
+    "an opaque turquoise oversized tie-dye T-shirt with dropped shoulders",
+    "an opaque raspberry-pink oversized sports T-shirt with contrast trim",
+    "an ivory oversized semi-sheer linen T-shirt with tasteful strategic coverage",
+    "a neon-lime oversized perforated T-shirt with an opaque chest panel"
+  ],
+  "locations": [
+    "in a bright minimalist bedroom",
+    "in a modern loft living room",
+    "beside a large sunlit studio window",
+    "in a stylish boutique hotel suite",
+    "against a clean pastel studio backdrop",
+    "on a covered apartment balcony",
+    "in a cozy reading corner",
+    "in a contemporary photography studio"
+  ],
+  "expressions": [
+    "with a warm relaxed smile",
+    "with a playful confident half-smile",
+    "with a calm direct gaze",
+    "with a joyful candid expression",
+    "with a soft thoughtful expression",
+    "with an assured editorial gaze"
+  ],
+  "lighting": [
+    "soft natural morning window light",
+    "warm golden-hour side lighting",
+    "clean diffused studio lighting",
+    "gentle overcast daylight through a window",
+    "soft cinematic tungsten ambience",
+    "bright high-key editorial lighting"
+  ],
+  "shots": [
+    "front-facing full-body fashion photograph showing the complete shirt silhouette",
+    "three-quarter body lifestyle photograph",
+    "low-angle full-body editorial photograph",
+    "wide environmental fashion portrait",
+    "eye-level full-body catalog photograph",
+    "dynamic full-body candid photograph"
+  ],
+  "styles": [
+    "contemporary casual fashion editorial photography",
+    "premium lifestyle campaign photography",
+    "minimalist studio lookbook photography",
+    "modern streetwear magazine photography",
+    "soft cinematic indoor fashion photography",
+    "bright social-media fashion campaign photography"
+  ]
+}
