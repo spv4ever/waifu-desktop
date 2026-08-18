@@ -26,6 +26,7 @@ COMBINATION_PROMPT_SOURCES = {
     "summer_combinations",
     "bikini_combinations",
     "pool_combinations",
+    "oversized_tshirt_combinations",
     "snow_combinations",
     "sauna_combinations",
     "travel_combinations",
