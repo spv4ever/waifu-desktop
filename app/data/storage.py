@@ -948,6 +948,7 @@ class SQLiteStore(BaseStore):
                     p.base_image_json,
                     p.upscale_image_json,
                     p.meta_json,
+                    p.status,
                     (
                         SELECT q.output_json
                         FROM queue_job q

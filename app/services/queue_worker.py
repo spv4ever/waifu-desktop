@@ -144,12 +144,29 @@ class QueueWorker:
         index = int(meta.get("image2vid_long_index") or 0)
         target = Path(settings.comfyui_input_dir) / f"image2vid_long_{project_id}_{index}_last.png"
         target.parent.mkdir(parents=True, exist_ok=True)
+        # Decode the final second and continually replace the PNG.  Using
+        # ``-frames:v 1`` here would save the *first* decoded frame after the
+        # seek, not the actual final frame of the preceding segment.
         subprocess.run(
-            [ffmpeg, "-y", "-sseof", "-0.05", "-i", str(video_path), "-frames:v", "1", str(target)],
+            [
+                ffmpeg,
+                "-y",
+                "-sseof",
+                "-1",
+                "-i",
+                str(video_path),
+                "-an",
+                "-update",
+                "1",
+                str(target),
+            ],
             check=True,
             capture_output=True,
         )
         validate_image_file(target)
+        self._log(
+            f"[WORKER][IMAGE2VID LONG] Último frame PNG preparado: {target.name}"
+        )
         return target.name
 
     def _combine_image2vid_long(self, *, meta: dict[str, Any], prompt_item_id: int) -> dict[str, str]:
