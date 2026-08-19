@@ -1152,7 +1152,9 @@ class MainWindow(QMainWindow):
         undress_layout.addWidget(self.undress_format_label, 2, 2, 1, 5, Qt.AlignTop)
         undress_layout.addWidget(QLabel("Prompt fijo:"), 3, 0)
         self.undress_prompt_preview = QPlainTextEdit()
-        self.undress_prompt_preview.setReadOnly(True)
+        self.undress_prompt_preview.setPlaceholderText(
+            "Edita el prompt que se usará en esta generación Undress"
+        )
         self.undress_prompt_preview.setFixedHeight(110)
         undress_layout.addWidget(self.undress_prompt_preview, 3, 1, 1, 6)
         self.undress_generate_btn = QPushButton("Enviar Undress a cola")
@@ -1839,7 +1841,7 @@ class MainWindow(QMainWindow):
         self.undress_paste_source_btn.clicked.connect(self._set_undress_source_from_clipboard)
         self.undress_source_label.imageDropped.connect(self._set_undress_source_from_drop)
         self.undress_garment_list.itemChanged.connect(self._update_undress_prompt)
-        self.undress_seconds_spin.valueChanged.connect(self._update_undress_prompt)
+        self.undress_seconds_spin.valueChanged.connect(self._update_undress_format_label)
         self.image2vid_select_source_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_select_file_btn.clicked.connect(self._set_image2vid_source_from_disk)
         self.image2vid_source_label.imageDropped.connect(self._set_image2vid_source_from_drop)
@@ -3244,6 +3246,9 @@ class MainWindow(QMainWindow):
         self.undress_prompt_preview.setPlainText(
             build_undress_prompt(garments)
         )
+        self._update_undress_format_label()
+
+    def _update_undress_format_label(self, _value: object | None = None) -> None:
         seconds = self.undress_seconds_spin.value()
         frames = calculate_undress_frames(seconds)
         self.undress_format_label.setText(
@@ -3329,8 +3334,7 @@ class MainWindow(QMainWindow):
             )
             return
 
-        garments = self._selected_undress_garments()
-        prompt = build_undress_prompt(garments)
+        prompt = self.undress_prompt_preview.toPlainText().strip()
         seconds = self.undress_seconds_spin.value()
         length_frames = calculate_undress_frames(seconds)
         source_category = str(source.get("source_category") or "waifu")
