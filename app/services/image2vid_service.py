@@ -102,6 +102,50 @@ class ImageToVideoService:
             created_queue_job_ids=queue_job_ids,
         )
 
+    def create_long_and_enqueue(
+        self, requests: list[ImageToVideoCreate]
+    ) -> ImageToVideoResult:
+        """Create one ordered project whose clips continue from the prior last frame."""
+        if not requests:
+            raise ValueError("Debes indicar al menos un prompt para Image2Vid Long.")
+        if any(abs(req.seconds - 5.0) > 0.001 for req in requests):
+            raise ValueError("Cada tramo de Image2Vid Long debe durar exactamente 5 segundos.")
+
+        first = requests[0]
+        pack_id = self.store.create_pack(
+            category="image2vid_long",
+            variant=first.source_category,
+            requested_n=len(requests),
+            notes=first.title or "Image2Vid Long",
+        )
+        source_image = self._prepare_source_image(first.source_image)
+        prompt_ids: list[int] = []
+        job_ids: list[int] = []
+        previous_prompt_id: int | None = None
+        for index, req in enumerate(requests):
+            prompt_id, job_id = self._enqueue_request(
+                req,
+                pack_id=pack_id,
+                source_image=source_image,
+                workflow_key="image2vid",
+                extra_meta={
+                    "image2vid_long": True,
+                    "image2vid_long_project_id": pack_id,
+                    "image2vid_long_index": index,
+                    "image2vid_long_count": len(requests),
+                    "image2vid_long_previous_prompt_id": previous_prompt_id,
+                    "image2vid_long_final": index == len(requests) - 1,
+                },
+            )
+            prompt_ids.append(prompt_id)
+            job_ids.append(job_id)
+            previous_prompt_id = prompt_id
+        self.store.update_prompt_item_meta(
+            prompt_id=prompt_ids[-1],
+            updates={"image2vid_long_prompt_ids": prompt_ids},
+        )
+        return ImageToVideoResult(pack_id, prompt_ids, job_ids)
+
     def _enqueue_request(
         self,
         req: ImageToVideoCreate,
@@ -109,6 +153,7 @@ class ImageToVideoService:
         pack_id: int,
         source_image: str,
         workflow_key: str,
+        extra_meta: dict[str, object] | None = None,
     ) -> tuple[int, int]:
         rng = random.Random()
         signature = None
@@ -163,6 +208,8 @@ class ImageToVideoService:
             "image2vid_length": req.length_frames,
             "created_at": created_at,
         }
+        if extra_meta:
+            meta.update(extra_meta)
 
         prompt_item_id = self.store.create_prompt_item(
             pack_id=pack_id,

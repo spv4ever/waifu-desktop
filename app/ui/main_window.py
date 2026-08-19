@@ -412,6 +412,7 @@ class MainWindow(QMainWindow):
         self.open_dollimages_pack_btn = QPushButton("Crear Pack Dollimages")
         self.open_dollimages_manual_prompt_btn = QPushButton("Prompt Manual Dollimages")
         self.open_image2vid_btn = QPushButton("Image2Vid WAN 2.2")
+        self.open_image2vid_long_btn = QPushButton("Image2Vid Long")
         self.open_undress_btn = QPushButton("Undress")
         self.open_anime_v5_btn = QPushButton("Anime V5")
         self.open_bulk_images_btn = QPushButton("Bulk Images")
@@ -428,6 +429,7 @@ class MainWindow(QMainWindow):
             self.open_dollimages_pack_btn,
             self.open_dollimages_manual_prompt_btn,
             self.open_image2vid_btn,
+            self.open_image2vid_long_btn,
             self.open_undress_btn,
             self.open_anime_v5_btn,
             self.open_bulk_images_btn,
@@ -1101,6 +1103,49 @@ class MainWindow(QMainWindow):
 
         image2vid_dialog_layout.addWidget(image2vid_group)
 
+        self.image2vid_long_dialog = QDialog(self)
+        self.image2vid_long_dialog.setWindowTitle("Image2Vid Long · WAN 2.2")
+        self.image2vid_long_dialog.setModal(False)
+        self.image2vid_long_dialog.resize(900, 700)
+        long_layout = QVBoxLayout(self.image2vid_long_dialog)
+        long_group = QGroupBox("Proyecto continuo en tramos de 5 segundos")
+        long_grid = QGridLayout(long_group)
+        long_grid.addWidget(QLabel("Imagen inicial:"), 0, 0)
+        self.image2vid_long_source_label = ImageDropLabel("Sin imagen seleccionada · arrastra una imagen aquí")
+        long_grid.addWidget(self.image2vid_long_source_label, 0, 1, 1, 3)
+        self.image2vid_long_current_btn = QPushButton("Usar selección actual")
+        self.image2vid_long_file_btn = QPushButton("Cargar desde disco")
+        long_grid.addWidget(self.image2vid_long_current_btn, 0, 4)
+        long_grid.addWidget(self.image2vid_long_file_btn, 0, 5)
+        long_grid.addWidget(QLabel("Ratio:"), 1, 0)
+        self.image2vid_long_ratio_combo = QComboBox()
+        for ratio in ("1:1", "4:5", "9:16", "16:9"):
+            self.image2vid_long_ratio_combo.addItem(ratio, ratio)
+        long_grid.addWidget(self.image2vid_long_ratio_combo, 1, 1)
+        long_grid.addWidget(QLabel("Prompts / tramos:"), 1, 2)
+        self.image2vid_long_count_spin = QSpinBox()
+        self.image2vid_long_count_spin.setRange(1, 50)
+        self.image2vid_long_count_spin.setValue(2)
+        long_grid.addWidget(self.image2vid_long_count_spin, 1, 3)
+        self.image2vid_long_duration_label = QLabel("Duración final: 10 s")
+        long_grid.addWidget(self.image2vid_long_duration_label, 1, 4, 1, 2)
+        long_grid.addWidget(QLabel("Título:"), 2, 0)
+        self.image2vid_long_title_input = QLineEdit()
+        self.image2vid_long_title_input.setPlaceholderText("Título del proyecto")
+        long_grid.addWidget(self.image2vid_long_title_input, 2, 1, 1, 5)
+        long_grid.addWidget(QLabel("Prompt -:"), 3, 0)
+        self.image2vid_long_negative_input = QPlainTextEdit(IMAGE2VID_MIN_NEGATIVE_PROMPT)
+        self.image2vid_long_negative_input.setFixedHeight(70)
+        long_grid.addWidget(self.image2vid_long_negative_input, 3, 1, 1, 5)
+        long_layout.addWidget(long_group)
+        self.image2vid_long_prompts_group = QGroupBox("Prompts en orden")
+        self.image2vid_long_prompts_layout = QVBoxLayout(self.image2vid_long_prompts_group)
+        long_layout.addWidget(self.image2vid_long_prompts_group, 1)
+        self.image2vid_long_prompt_editors: list[QPlainTextEdit] = []
+        self.image2vid_long_generate_btn = QPushButton("Crear proyecto Image2Vid Long")
+        long_layout.addWidget(self.image2vid_long_generate_btn)
+        self._rebuild_image2vid_long_prompts()
+
         self.undress_dialog = QDialog(self)
         self.undress_dialog.setWindowTitle("Undress")
         self.undress_dialog.setModal(False)
@@ -1771,6 +1816,7 @@ class MainWindow(QMainWindow):
         self.video_montage_clear_btn.clicked.connect(self.video_montage_list.clear)
         self.dollimages_reel_generate_btn.clicked.connect(self.generate_dollimages_reel)
         self.image2vid_generate_btn.clicked.connect(self.generate_image2vid)
+        self.image2vid_long_generate_btn.clicked.connect(self.generate_image2vid_long)
         self.undress_generate_btn.clicked.connect(self.generate_undress)
         self.open_filters_btn.clicked.connect(self.filters_dialog.show)
         self.open_pack_btn.clicked.connect(self.pack_dialog.show)
@@ -1778,6 +1824,7 @@ class MainWindow(QMainWindow):
         self.open_dollimages_pack_btn.clicked.connect(self.dollimages_dialog.show)
         self.open_dollimages_manual_prompt_btn.clicked.connect(self.dollimages_manual_dialog.show)
         self.open_image2vid_btn.clicked.connect(self.open_image2vid_dialog)
+        self.open_image2vid_long_btn.clicked.connect(self.open_image2vid_long_dialog)
         self.open_undress_btn.clicked.connect(self.open_undress_dialog)
         self.open_anime_v5_btn.clicked.connect(self.anime_v5_dialog.show)
         self.open_bulk_images_btn.clicked.connect(self.open_bulk_images_prompt_window)
@@ -1845,6 +1892,10 @@ class MainWindow(QMainWindow):
         self.image2vid_select_source_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_select_file_btn.clicked.connect(self._set_image2vid_source_from_disk)
         self.image2vid_source_label.imageDropped.connect(self._set_image2vid_source_from_drop)
+        self.image2vid_long_current_btn.clicked.connect(self._set_image2vid_long_source_from_current)
+        self.image2vid_long_file_btn.clicked.connect(self._set_image2vid_long_source_from_disk)
+        self.image2vid_long_source_label.imageDropped.connect(self._set_image2vid_long_source_from_drop)
+        self.image2vid_long_count_spin.valueChanged.connect(self._rebuild_image2vid_long_prompts)
         self.image2vid_pick_prompt_btn.clicked.connect(self.open_image2vid_prompt_picker)
         self.image2vid_source_cancel_btn.clicked.connect(self.image2vid_source_picker_dialog.reject)
         self.image2vid_prompt_cancel_btn.clicked.connect(self.image2vid_prompt_picker_dialog.reject)
@@ -3229,6 +3280,111 @@ class MainWindow(QMainWindow):
         self._update_image2vid_labels()
         self.image2vid_dialog.show()
 
+    def open_image2vid_long_dialog(self) -> None:
+        self._set_image2vid_long_source_from_current(show_warning=False)
+        self.image2vid_long_dialog.show()
+
+    def _rebuild_image2vid_long_prompts(self, _value: object | None = None) -> None:
+        previous = [editor.toPlainText() for editor in getattr(self, "image2vid_long_prompt_editors", [])]
+        while self.image2vid_long_prompts_layout.count():
+            item = self.image2vid_long_prompts_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self.image2vid_long_prompt_editors = []
+        count = int(self.image2vid_long_count_spin.value())
+        templates = getattr(self, "_image2vid_prompt_templates", [])
+        for index in range(count):
+            row = QWidget()
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.addWidget(QLabel(f"{index + 1}."))
+            editor = QPlainTextEdit()
+            editor.setPlaceholderText(f"Movimiento para el tramo {index + 1} (5 segundos)")
+            editor.setFixedHeight(72)
+            if index < len(previous):
+                editor.setPlainText(previous[index])
+            template_combo = QComboBox()
+            template_combo.addItem("Plantilla…", "")
+            for template in templates:
+                template_combo.addItem(str(template.get("title") or "Sin título"), str(template.get("prompt_text") or ""))
+            template_combo.currentIndexChanged.connect(
+                lambda _idx, combo=template_combo, target=editor: target.setPlainText(str(combo.currentData() or ""))
+            )
+            row_layout.addWidget(editor, 1)
+            row_layout.addWidget(template_combo)
+            self.image2vid_long_prompts_layout.addWidget(row)
+            self.image2vid_long_prompt_editors.append(editor)
+        self.image2vid_long_duration_label.setText(f"Duración final: {count * 5} s")
+
+    def _set_image2vid_long_source(self, option: dict[str, Any] | None) -> None:
+        self.image2vid_long_selected_source = option
+        if option:
+            self.image2vid_long_source_label.setText(
+                f"[{option.get('source_category', 'waifu')}] {option.get('title', 'Imagen')}"
+            )
+        else:
+            self.image2vid_long_source_label.setText("Sin imagen seleccionada · arrastra una imagen aquí")
+
+    def _set_image2vid_long_source_from_current(self, show_warning: bool = True) -> None:
+        option = self._selected_image2vid_source_from_browser()
+        self._set_image2vid_long_source(option)
+        if not option and show_warning:
+            QMessageBox.warning(self, "Image2Vid Long", "Selecciona un prompt con imagen generada.")
+
+    def _set_image2vid_long_source_from_disk(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Cargar imagen inicial para Image2Vid Long", "",
+            "Imágenes (*.png *.jpg *.jpeg *.webp *.bmp);;Todos los archivos (*)",
+        )
+        if path:
+            self._set_image2vid_long_source({
+                "source_category": "disco", "prompt_id": 0, "url": "",
+                "local_path": path, "title": Path(path).name,
+            })
+
+    def _set_image2vid_long_source_from_drop(self, path: str) -> None:
+        self._set_image2vid_long_source({
+            "source_category": "arrastrada", "prompt_id": 0, "url": "",
+            "local_path": path, "title": Path(path).name,
+        })
+
+    def generate_image2vid_long(self) -> None:
+        source = getattr(self, "image2vid_long_selected_source", None) or {}
+        if not source.get("local_path"):
+            QMessageBox.warning(self, "Image2Vid Long", "Debes seleccionar o cargar una imagen inicial.")
+            return
+        prompts = [editor.toPlainText().strip() for editor in self.image2vid_long_prompt_editors]
+        if any(not prompt for prompt in prompts):
+            QMessageBox.warning(self, "Image2Vid Long", "Completa todos los prompts del proyecto.")
+            return
+        ratio = str(self.image2vid_long_ratio_combo.currentData() or "1:1")
+        width, height = self._image2vid_ratio_dimensions(ratio)
+        base_title = self.image2vid_long_title_input.text().strip() or "Image2Vid Long"
+        requests = [
+            ImageToVideoCreate(
+                source_category=str(source.get("source_category") or "waifu"),
+                source_prompt_id=int(source.get("prompt_id") or 0),
+                source_url=str(source.get("url") or ""),
+                source_image=str(source.get("local_path") or ""),
+                title=f"{base_title} · tramo {index + 1}/{len(prompts)}",
+                prompt_text=prompt,
+                negative_text=self.image2vid_long_negative_input.toPlainText().strip(),
+                ratio=ratio, width=width, height=height, seconds=5.0, fps=32,
+                length_frames=self._compute_image2vid_length(seconds=5.0),
+            )
+            for index, prompt in enumerate(prompts)
+        ]
+        try:
+            result = self.image2vid_service.create_long_and_enqueue(requests)
+        except Exception as exc:
+            QMessageBox.critical(self, "Image2Vid Long", f"No se pudo crear el proyecto.\n{exc}")
+            return
+        self.refresh()
+        QMessageBox.information(
+            self, "Image2Vid Long",
+            f"Proyecto #{result.pack_id} creado con {len(prompts)} tramos ({len(prompts) * 5} s).",
+        )
+
     def open_undress_dialog(self) -> None:
         self._set_undress_source_from_current_selection(show_warning=False)
         self._update_undress_prompt()
@@ -3681,6 +3837,8 @@ class MainWindow(QMainWindow):
             {"id": row.id, "title": row.title, "prompt_text": row.prompt_text}
             for row in rows
         ]
+        if hasattr(self, "image2vid_long_prompts_layout"):
+            self._rebuild_image2vid_long_prompts()
 
     def open_image2vid_prompt_picker(self) -> None:
         self._load_image2vid_prompt_templates()
