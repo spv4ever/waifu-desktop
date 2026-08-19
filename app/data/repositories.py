@@ -765,7 +765,7 @@ class QueueRepository:
                 SELECT id, prompt_item_id, priority, attempts
                 FROM queue_job
                 WHERE status='PENDING'
-                ORDER BY priority ASC, created_at ASC
+                ORDER BY priority ASC, created_at ASC, id ASC
                 LIMIT 1
                 """
             ).fetchone()

@@ -120,6 +120,78 @@ class QueueWorker:
         if self._progress_callback:
             self._progress_callback()
 
+    def _image2vid_long_reference(self, *, meta: dict[str, Any]) -> str:
+        """Extract the preceding clip's last frame into ComfyUI's input folder."""
+        previous_id = int(meta.get("image2vid_long_previous_prompt_id") or 0)
+        if not previous_id:
+            return str(meta.get("image2vid_source_image") or "")
+        previous = self.store.get_prompt_item_media(previous_id)
+        if not previous or str(previous.get("status")) != "DONE":
+            raise RuntimeError(f"El tramo anterior #{previous_id} todavía no está terminado.")
+        try:
+            media = json.loads(previous.get("base_image_json") or "null")
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"El tramo anterior #{previous_id} no tiene vídeo válido.") from exc
+        if not isinstance(media, dict):
+            raise RuntimeError(f"El tramo anterior #{previous_id} no tiene vídeo válido.")
+        video_path = build_output_path(media, workflow_key="image2vid")
+        if not video_path.exists():
+            raise RuntimeError(f"No se encontró el vídeo del tramo anterior: {video_path}")
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            raise RuntimeError("ffmpeg es necesario para encadenar Image2Vid Long.")
+        project_id = int(meta.get("image2vid_long_project_id") or 0)
+        index = int(meta.get("image2vid_long_index") or 0)
+        target = Path(settings.comfyui_input_dir) / f"image2vid_long_{project_id}_{index}_last.png"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            [ffmpeg, "-y", "-sseof", "-0.05", "-i", str(video_path), "-frames:v", "1", str(target)],
+            check=True,
+            capture_output=True,
+        )
+        validate_image_file(target)
+        return target.name
+
+    def _combine_image2vid_long(self, *, meta: dict[str, Any], prompt_item_id: int) -> dict[str, str]:
+        """Concatenate every project clip and return a normal saved-media descriptor."""
+        project_id = int(meta.get("image2vid_long_project_id") or 0)
+        prompt_ids = meta.get("image2vid_long_prompt_ids")
+        if not isinstance(prompt_ids, list) or not prompt_ids:
+            raise RuntimeError("El proyecto Image2Vid Long no contiene la lista de tramos.")
+        paths: list[Path] = []
+        for raw_item_id in prompt_ids:
+            item_id = int(raw_item_id)
+            row = self.store.get_prompt_item_media(item_id)
+            try:
+                media = json.loads((row or {}).get("base_image_json") or "null")
+            except (TypeError, json.JSONDecodeError):
+                media = None
+            if not isinstance(media, dict):
+                raise RuntimeError(f"Falta el vídeo del tramo #{item_id}.")
+            paths.append(build_output_path(media, workflow_key="image2vid"))
+        if any(not path.exists() for path in paths):
+            raise RuntimeError("No se encontraron todos los tramos de Image2Vid Long.")
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            raise RuntimeError("ffmpeg es necesario para combinar Image2Vid Long.")
+        relative_folder = Path("image2vid") / "long" / f"project_{project_id}"
+        output = build_output_path(
+            {"filename": "final.mp4", "subfolder": relative_folder.as_posix()},
+            workflow_key="image2vid",
+        )
+        output.parent.mkdir(parents=True, exist_ok=True)
+        concat_file = output.parent / "segments.txt"
+        concat_file.write_text(
+            "".join(f"file '{str(path.resolve()).replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}'\n" for path in paths),
+            encoding="utf-8",
+        )
+        subprocess.run(
+            [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c", "copy", str(output)],
+            check=True,
+            capture_output=True,
+        )
+        return {"filename": output.name, "subfolder": relative_folder.as_posix(), "type": "output"}
+
     def _pick_reel_audio_for_duration(self, *, duration_seconds: float) -> tuple[Path, float, bool] | None:
         repo_root = Path(__file__).resolve().parents[2]
         audio_dir = repo_root / "resources" / "audio"
@@ -365,6 +437,13 @@ class QueueWorker:
         checkpoint_base = checkpoints.get("base")
         checkpoint_refiner = checkpoints.get("refiner")
         workflow_key = str(meta.get("workflow") or "waifu")
+        if meta.get("image2vid_long"):
+            try:
+                meta["image2vid_source_image"] = self._image2vid_long_reference(meta=meta)
+            except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
+                self.store.mark_failed(job_id, str(exc))
+                self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="FAILED")
+                return "PROCESSED"
         use_dollimages_comfy = workflow_key in {
             "dollimages", "dollimagesz", "anime_v5", "krea2", "krea2_v2"
         }
@@ -691,6 +770,21 @@ class QueueWorker:
                     ),
                     upscale_image_json=json.dumps(up_img, ensure_ascii=False) if up_img and not is_video_workflow else None,
                 )
+
+                if meta.get("image2vid_long_final"):
+                    try:
+                        final_output = self._combine_image2vid_long(
+                            meta=meta, prompt_item_id=prompt_item_id
+                        )
+                    except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
+                        self.store.mark_failed(job_id, f"No se pudo crear el vídeo final: {exc}")
+                        self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="FAILED")
+                        return "PROCESSED"
+                    self.store.set_prompt_outputs(
+                        item_id=prompt_item_id,
+                        base_image_json=json.dumps(final_output, ensure_ascii=False),
+                        upscale_image_json=None,
+                    )
 
                 self.store.mark_done(job_id)
                 self.store.bulk_update_prompt_status(ids=[prompt_item_id], status="DONE")

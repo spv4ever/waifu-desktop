@@ -25,6 +25,9 @@ class _Store:
         self.queue_jobs.append(kwargs)
         return len(self.queue_jobs) + 10
 
+    def update_prompt_item_meta(self, *, prompt_id, updates) -> None:
+        self.prompt_items[prompt_id - 2]["meta"].update(updates)
+
 
 def test_undress_meta_uses_undress_category() -> None:
     store = _Store()
@@ -89,6 +92,29 @@ def test_image2vid_batch_enqueues_every_prompt_in_one_pack() -> None:
     assert [item["prompt_text"] for item in store.prompt_items] == ["prompt uno", "prompt dos"]
     assert len(store.queue_jobs) == 2
     assert result.created_prompt_item_ids == [2, 3]
+
+
+def test_image2vid_long_links_segments_and_marks_only_last_as_final() -> None:
+    store = _Store()
+    service = ImageToVideoService.__new__(ImageToVideoService)
+    service.store = store
+    service._prepare_source_image = lambda _source_path: "source.png"
+    request = ImageToVideoCreate(
+        source_category="waifu", source_prompt_id=10, source_url="",
+        source_image="source.jpg", title="Long", prompt_text="move",
+        negative_text="negative", ratio="1:1", width=720, height=720,
+        seconds=5.0, fps=32, length_frames=80,
+    )
+
+    result = service.create_long_and_enqueue([request, request])
+
+    first_meta, second_meta = [item["meta"] for item in store.prompt_items]
+    assert store.pack_kwargs["category"] == "image2vid_long"
+    assert first_meta["image2vid_long_previous_prompt_id"] is None
+    assert second_meta["image2vid_long_previous_prompt_id"] == result.created_prompt_item_ids[0]
+    assert first_meta["image2vid_long_final"] is False
+    assert second_meta["image2vid_long_final"] is True
+    assert second_meta["image2vid_long_prompt_ids"] == result.created_prompt_item_ids
 
 
 def test_undress_batch_reuses_source_image_for_repeated_clips() -> None:
