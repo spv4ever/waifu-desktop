@@ -111,6 +111,7 @@ def test_image2vid_long_links_segments_and_marks_only_last_as_final() -> None:
     first_meta, second_meta = [item["meta"] for item in store.prompt_items]
     assert store.pack_kwargs["category"] == "image2vid_long"
     assert first_meta["image2vid_long_previous_prompt_id"] is None
+    assert first_meta["image2vid_long_initial_source_image"] == "source.png"
     assert second_meta["image2vid_long_previous_prompt_id"] == result.created_prompt_item_ids[0]
     assert first_meta["image2vid_long_final"] is False
     assert second_meta["image2vid_long_final"] is True

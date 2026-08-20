@@ -197,6 +197,11 @@ class QueueWorker:
             workflow_key="image2vid",
         )
         output.parent.mkdir(parents=True, exist_ok=True)
+        self._copy_image2vid_long_references(
+            meta=meta,
+            project_folder=output.parent,
+            segment_count=len(prompt_ids),
+        )
         concat_file = output.parent / "segments.txt"
         concat_file.write_text(
             "".join(f"file '{str(path.resolve()).replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}'\n" for path in paths),
@@ -208,6 +213,50 @@ class QueueWorker:
             capture_output=True,
         )
         return {"filename": output.name, "subfolder": relative_folder.as_posix(), "type": "output"}
+
+    def _copy_image2vid_long_references(
+        self,
+        *,
+        meta: dict[str, Any],
+        project_folder: Path,
+        segment_count: int,
+    ) -> None:
+        """Keep every image that served as input to a long-project segment."""
+        project_id = int(meta.get("image2vid_long_project_id") or 0)
+        source_name = str(
+            meta.get("image2vid_long_initial_source_image")
+            or meta.get("image2vid_source_image")
+            or ""
+        ).strip()
+        if not source_name:
+            raise RuntimeError("El proyecto Image2Vid Long no tiene imagen inicial.")
+
+        input_dir = Path(settings.comfyui_input_dir)
+        references: list[tuple[Path, str]] = [
+            (input_dir / source_name, f"000_initial{Path(source_name).suffix or '.png'}")
+        ]
+        references.extend(
+            (
+                input_dir / f"image2vid_long_{project_id}_{index}_last.png",
+                f"{index:03d}_between_prompts.png",
+            )
+            for index in range(1, segment_count)
+        )
+
+        missing = [str(source) for source, _name in references if not source.is_file()]
+        if missing:
+            raise RuntimeError(
+                "Faltan imágenes de referencia de Image2Vid Long: " + ", ".join(missing)
+            )
+
+        references_dir = project_folder / "references"
+        references_dir.mkdir(parents=True, exist_ok=True)
+        for source, filename in references:
+            shutil.copy2(source, references_dir / filename)
+        self._log(
+            f"[WORKER][IMAGE2VID LONG] {len(references)} imágenes de referencia "
+            f"guardadas en: {references_dir}"
+        )
 
     def _pick_reel_audio_for_duration(self, *, duration_seconds: float) -> tuple[Path, float, bool] | None:
         repo_root = Path(__file__).resolve().parents[2]
