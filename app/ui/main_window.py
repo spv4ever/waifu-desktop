@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem, QLabel, QMessageBox, QSpinBox,
     QGroupBox, QComboBox, QAbstractItemView, QPlainTextEdit, QApplication, QDateTimeEdit,
     QLineEdit, QCheckBox, QDialog, QDoubleSpinBox, QFileDialog, QMenu, QStackedWidget,
-    QHeaderView, QListWidget, QListWidgetItem, QSizePolicy,
+    QHeaderView, QListWidget, QListWidgetItem, QSizePolicy, QScrollArea,
 )
 
 from app.config.app_config import load_app_config
@@ -1140,7 +1140,13 @@ class MainWindow(QMainWindow):
         long_layout.addWidget(long_group)
         self.image2vid_long_prompts_group = QGroupBox("Prompts en orden")
         self.image2vid_long_prompts_layout = QVBoxLayout(self.image2vid_long_prompts_group)
-        long_layout.addWidget(self.image2vid_long_prompts_group, 1)
+        self.image2vid_long_prompts_scroll = QScrollArea()
+        self.image2vid_long_prompts_scroll.setWidgetResizable(True)
+        self.image2vid_long_prompts_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self.image2vid_long_prompts_scroll.setWidget(self.image2vid_long_prompts_group)
+        long_layout.addWidget(self.image2vid_long_prompts_scroll, 1)
         self.image2vid_long_prompt_editors: list[QPlainTextEdit] = []
         self.image2vid_long_generate_btn = QPushButton("Crear proyecto Image2Vid Long")
         long_layout.addWidget(self.image2vid_long_generate_btn)
