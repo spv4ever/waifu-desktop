@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from PIL import Image
+import pytest
 
 from app.data.storage import SQLiteStore
 from app.services.queue_worker import QueueWorker
@@ -80,3 +81,57 @@ def test_long_reference_extracts_actual_last_frame_as_png(tmp_path, monkeypatch)
     assert "-frames:v" not in command
     assert (input_dir / result).read_bytes().startswith(b"\x89PNG")
     assert any("Último frame PNG preparado" in message for message in messages)
+
+
+def test_long_project_keeps_all_images_used_between_prompts(tmp_path, monkeypatch) -> None:
+    input_dir = tmp_path / "input"
+    project_dir = tmp_path / "output" / "project_7"
+    input_dir.mkdir()
+    (input_dir / "source.jpg").write_bytes(b"initial")
+    (input_dir / "image2vid_long_7_1_last.png").write_bytes(b"frame-one")
+    (input_dir / "image2vid_long_7_2_last.png").write_bytes(b"frame-two")
+    messages: list[str] = []
+
+    worker = QueueWorker.__new__(QueueWorker)
+    worker._log_callback = messages.append
+    monkeypatch.setattr(
+        "app.services.queue_worker.settings",
+        SimpleNamespace(comfyui_input_dir=str(input_dir)),
+    )
+
+    worker._copy_image2vid_long_references(
+        meta={
+            "image2vid_long_project_id": 7,
+            "image2vid_long_initial_source_image": "source.jpg",
+            "image2vid_source_image": "image2vid_long_7_2_last.png",
+        },
+        project_folder=project_dir,
+        segment_count=3,
+    )
+
+    references = project_dir / "references"
+    assert (references / "000_initial.jpg").read_bytes() == b"initial"
+    assert (references / "001_between_prompts.png").read_bytes() == b"frame-one"
+    assert (references / "002_between_prompts.png").read_bytes() == b"frame-two"
+    assert any("3 imágenes de referencia" in message for message in messages)
+
+
+def test_long_project_fails_if_a_used_reference_is_missing(tmp_path, monkeypatch) -> None:
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "source.png").write_bytes(b"initial")
+    worker = QueueWorker.__new__(QueueWorker)
+    monkeypatch.setattr(
+        "app.services.queue_worker.settings",
+        SimpleNamespace(comfyui_input_dir=str(input_dir)),
+    )
+
+    with pytest.raises(RuntimeError, match="Faltan imágenes de referencia"):
+        worker._copy_image2vid_long_references(
+            meta={
+                "image2vid_long_project_id": 8,
+                "image2vid_source_image": "source.png",
+            },
+            project_folder=tmp_path / "project_8",
+            segment_count=2,
+        )

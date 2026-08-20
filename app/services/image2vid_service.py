@@ -131,6 +131,7 @@ class ImageToVideoService:
                 extra_meta={
                     "image2vid_long": True,
                     "image2vid_long_project_id": pack_id,
+                    "image2vid_long_initial_source_image": source_image,
                     "image2vid_long_index": index,
                     "image2vid_long_count": len(requests),
                     "image2vid_long_previous_prompt_id": previous_prompt_id,
