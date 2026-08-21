@@ -135,3 +135,64 @@ def test_long_project_fails_if_a_used_reference_is_missing(tmp_path, monkeypatch
             project_folder=tmp_path / "project_8",
             segment_count=2,
         )
+
+
+def test_long_project_saves_each_segment_prompt_next_to_final_video(tmp_path, monkeypatch) -> None:
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    (input_dir / "source.png").write_bytes(b"initial")
+    (input_dir / "image2vid_long_7_1_last.png").write_bytes(b"frame-one")
+    segment_paths = [tmp_path / "segment-one.mp4", tmp_path / "segment-two.mp4"]
+    for path in segment_paths:
+        path.write_bytes(b"video")
+
+    rows = {
+        41: {
+            "prompt_text": "First movement",
+            "base_image_json": '{"filename":"segment-one.mp4"}',
+        },
+        42: {
+            "prompt_text": "Second movement\nwith another action",
+            "base_image_json": '{"filename":"segment-two.mp4"}',
+        },
+    }
+
+    class _Store:
+        def get_prompt_item_media(self, prompt_id):
+            return rows[prompt_id]
+
+    worker = QueueWorker.__new__(QueueWorker)
+    worker.store = _Store()
+    worker._log_callback = None
+    monkeypatch.setattr(
+        "app.services.queue_worker.settings",
+        SimpleNamespace(comfyui_input_dir=str(input_dir)),
+    )
+    monkeypatch.setattr("app.services.queue_worker.shutil.which", lambda _name: "/usr/bin/ffmpeg")
+    monkeypatch.setattr(
+        "app.services.queue_worker.build_output_path",
+        lambda media, **_kwargs: (
+            tmp_path / media["filename"]
+            if media["filename"] != "final.mp4"
+            else tmp_path / media["subfolder"] / media["filename"]
+        ),
+    )
+    monkeypatch.setattr(
+        "app.services.queue_worker.subprocess.run",
+        lambda cmd, **_kwargs: Path(cmd[-1]).write_bytes(b"final-video"),
+    )
+
+    worker._combine_image2vid_long(
+        meta={
+            "image2vid_long_project_id": 7,
+            "image2vid_long_prompt_ids": [41, 42],
+            "image2vid_long_initial_source_image": "source.png",
+        },
+        prompt_item_id=42,
+    )
+
+    prompts_file = tmp_path / "image2vid" / "long" / "project_7" / "prompts.txt"
+    assert prompts_file.read_text(encoding="utf-8") == (
+        "Prompt 1:\nFirst movement\n\n"
+        "Prompt 2:\nSecond movement\nwith another action\n"
+    )
