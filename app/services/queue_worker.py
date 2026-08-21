@@ -176,6 +176,7 @@ class QueueWorker:
         if not isinstance(prompt_ids, list) or not prompt_ids:
             raise RuntimeError("El proyecto Image2Vid Long no contiene la lista de tramos.")
         paths: list[Path] = []
+        prompts: list[str] = []
         for raw_item_id in prompt_ids:
             item_id = int(raw_item_id)
             row = self.store.get_prompt_item_media(item_id)
@@ -186,6 +187,7 @@ class QueueWorker:
             if not isinstance(media, dict):
                 raise RuntimeError(f"Falta el vídeo del tramo #{item_id}.")
             paths.append(build_output_path(media, workflow_key="image2vid"))
+            prompts.append(str((row or {}).get("prompt_text") or ""))
         if any(not path.exists() for path in paths):
             raise RuntimeError("No se encontraron todos los tramos de Image2Vid Long.")
         ffmpeg = shutil.which("ffmpeg")
@@ -211,6 +213,19 @@ class QueueWorker:
             [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c", "copy", str(output)],
             check=True,
             capture_output=True,
+        )
+        prompts_file = output.parent / "prompts.txt"
+        prompts_file.write_text(
+            "\n\n".join(
+                f"Prompt {index}:\n{prompt.strip()}"
+                for index, prompt in enumerate(prompts, start=1)
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self._log(
+            f"[WORKER][IMAGE2VID LONG] {len(prompts)} prompts guardados en: "
+            f"{prompts_file}"
         )
         return {"filename": output.name, "subfolder": relative_folder.as_posix(), "type": "output"}
 
