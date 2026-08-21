@@ -215,8 +215,10 @@ class QueueWorker:
             capture_output=True,
         )
         prompts_file = output.parent / "prompts.txt"
+        project_seed = meta.get("image2vid_long_seed", meta.get("seed", ""))
         prompts_file.write_text(
-            "\n\n".join(
+            f"Seed: {project_seed}\n\n"
+            + "\n\n".join(
                 f"Prompt {index}:\n{prompt.strip()}"
                 for index, prompt in enumerate(prompts, start=1)
             )

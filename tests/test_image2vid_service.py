@@ -106,7 +106,7 @@ def test_image2vid_long_links_segments_and_marks_only_last_as_final() -> None:
         seconds=5.0, fps=32, length_frames=80,
     )
 
-    result = service.create_long_and_enqueue([request, request])
+    result = service.create_long_and_enqueue([request, request], seed=123456)
 
     first_meta, second_meta = [item["meta"] for item in store.prompt_items]
     assert store.pack_kwargs["category"] == "image2vid_long"
@@ -116,6 +116,8 @@ def test_image2vid_long_links_segments_and_marks_only_last_as_final() -> None:
     assert first_meta["image2vid_long_final"] is False
     assert second_meta["image2vid_long_final"] is True
     assert second_meta["image2vid_long_prompt_ids"] == result.created_prompt_item_ids
+    assert first_meta["seed"] == second_meta["seed"] == 123456
+    assert first_meta["image2vid_long_seed"] == second_meta["image2vid_long_seed"] == 123456
 
 
 def test_undress_batch_reuses_source_image_for_repeated_clips() -> None:

@@ -187,12 +187,14 @@ def test_long_project_saves_each_segment_prompt_next_to_final_video(tmp_path, mo
             "image2vid_long_project_id": 7,
             "image2vid_long_prompt_ids": [41, 42],
             "image2vid_long_initial_source_image": "source.png",
+            "image2vid_long_seed": 123456,
         },
         prompt_item_id=42,
     )
 
     prompts_file = tmp_path / "image2vid" / "long" / "project_7" / "prompts.txt"
     assert prompts_file.read_text(encoding="utf-8") == (
+        "Seed: 123456\n\n"
         "Prompt 1:\nFirst movement\n\n"
         "Prompt 2:\nSecond movement\nwith another action\n"
     )
