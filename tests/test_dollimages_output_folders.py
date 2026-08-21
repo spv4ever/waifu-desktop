@@ -18,6 +18,7 @@ from app.services.queue_worker import (
             "dollimages/sfw/oversized_tshirt_combinations",
         ),
         ("venice_carnival_combinations", "dollimages/sfw/venice_carnival_combinations"),
+        ("ibiza_party_combinations", "dollimages/sfw/ibiza_party_combinations"),
     ],
 )
 def test_json_combinations_get_their_own_dollimages_folder(
@@ -71,6 +72,7 @@ def test_combination_folder_segments_are_sanitized():
         "sauna_combinations",
         "travel_combinations",
         "venice_carnival_combinations",
+        "ibiza_party_combinations",
     ],
 )
 def test_json_combinations_separate_base_and_upscale_outputs(prompt_source):

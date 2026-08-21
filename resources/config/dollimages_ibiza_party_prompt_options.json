@@ -1,0 +1,97 @@
+{
+  "template": "RAW vibrant Ibiza nightlife glamour photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], alluring but non-explicit party mood, authentic Balearic nightlife atmosphere, [details], photorealistic, natural skin texture, realistic anatomy, detailed eyes, cinematic depth of field, realistic shadows, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long beach-wave hair",
+    "an adult blonde woman with a sleek sun-kissed bob",
+    "an adult red-haired woman with natural freckles and loose curls",
+    "an adult woman with long glossy black hair",
+    "an adult athletic woman with a high ponytail",
+    "an adult woman with shoulder-length silver hair",
+    "an adult woman with voluminous dark curls",
+    "an adult woman with long honey-blonde hair"
+  ],
+  "poses": [
+    "dancing confidently with both arms raised above her head",
+    "walking toward the camera through the lively dance floor with a bold catwalk stride",
+    "turning mid-dance as her hair and short skirt catch the sea breeze",
+    "leaning against a whitewashed terrace wall with one knee softly bent",
+    "standing beside the DJ booth with one hand in her hair and an elegant hip tilt",
+    "looking back over her shoulder while stepping toward the crowded club entrance",
+    "sitting gracefully on a VIP lounge sofa with her legs crossed",
+    "raising a sparkling mocktail in a joyful sunset toast",
+    "caught in a playful jump with both feet above the beach-club deck",
+    "crouching in a balanced editorial party pose and looking directly at the camera",
+    "swaying barefoot at the shoreline with relaxed, graceful movement",
+    "standing frontally beneath fluttering streamers with both hands on her hips"
+  ],
+  "outfits": [
+    "a silver sequin bralette with a white ultra-short pleated mini skirt and metallic sandals",
+    "a vivid fuchsia halter crop top with a turquoise micro skirt and platform heels",
+    "a sheer crystal-mesh blouse with strategic opaque coverage over a black lingerie set with opaque intimate coverage",
+    "an iridescent sculpting bodysuit with a plunging neckline, opaque panels, and a short sheer overskirt",
+    "a cobalt satin bralette with high-waisted figure-hugging shorts and jeweled ankle boots",
+    "a backless white crochet mini dress with a deep neckline over opaque matching lingerie",
+    "a neon-lime asymmetric crop top with a silver micro pleated mini skirt and colorful trainers",
+    "a coral cutout bralette with a very short tropical-print wrap mini skirt and strappy sandals",
+    "a sheer violet long-sleeve top with strategic opaque coverage and a black leather micro skirt",
+    "a gold chain-detailed lingerie set with opaque intimate coverage and a translucent fringed cape",
+    "a turquoise sequined bodysuit with a plunging neckline, opaque panels, and white western boots",
+    "a hot-pink off-the-shoulder crop top with ultra-short white tailored shorts and glitter heels",
+    "a pearl-embellished bralette with a champagne micro skirt and translucent flowing sleeves",
+    "a scarlet satin corset crop top with a black ultra-short ruffled mini skirt and platform sandals"
+  ],
+  "locations": [
+    "at a glamorous open-air beach club in Playa d'en Bossa",
+    "on a whitewashed Ibiza Old Town rooftop overlooking Dalt Vila",
+    "beside a cliffside sunset lounge in Sant Antoni de Portmany",
+    "on a lively dance floor beneath palm trees and colorful streamers",
+    "inside a world-famous Ibiza superclub with a vast illuminated stage",
+    "at a bohemian beach party in Cala Benirras",
+    "on a luxury catamaran party deck off the Ibiza coast",
+    "in a chic marina lounge surrounded by white yachts",
+    "beside a neon-lit infinity pool at a Balearic resort",
+    "at an intimate open-air DJ set among white cabanas and bougainvillea"
+  ],
+  "expressions": [
+    "with a joyful and magnetic party smile",
+    "with a playful, flirtatious half-smile",
+    "with a confident direct editorial gaze",
+    "with a carefree candid laugh",
+    "with a relaxed and captivating expression",
+    "with an excited celebratory expression"
+  ],
+  "lighting": [
+    "vivid magenta and cyan club lighting with a soft flattering key light",
+    "warm Ibiza sunset backlighting with a golden rim light",
+    "deep blue-hour ambience mixed with colorful neon accents",
+    "dynamic stage lighting with crisp violet and cobalt beams",
+    "soft moonlight balanced with warm festoon lights",
+    "bright Mediterranean daylight with prismatic reflections from disco balls"
+  ],
+  "shots": [
+    "full-body nightlife fashion photograph",
+    "three-quarter body party editorial photograph",
+    "dynamic full-body dance photograph capturing the complete pose",
+    "low-angle full-body club fashion photograph",
+    "wide environmental photograph showing the Ibiza celebration",
+    "medium glamour portrait captured with an 85mm camera lens",
+    "candid full-body beach-club photograph",
+    "cinematic rooftop party portrait"
+  ],
+  "styles": [
+    "high-fashion Ibiza nightlife editorial photography with elegant sensuality",
+    "vibrant contemporary beach-club campaign photography",
+    "bold 2020s festival fashion photography with playful glamour",
+    "cinematic Balearic luxury lifestyle photography",
+    "premium international club campaign photography with authentic atmosphere",
+    "colorful Mediterranean party photography with polished magazine styling"
+  ],
+  "details": [
+    "subtle glitter makeup, wind-touched hair, and colorful bokeh from the dance floor",
+    "a distant DJ booth, raised hands in soft focus, and drifting atmospheric haze",
+    "white island architecture, bougainvillea, and the Mediterranean sea visible behind her",
+    "sparkling disco-ball reflections and delicate biodegradable confetti in the air",
+    "luxury cabanas, palms, and warm festoon lights framing the scene",
+    "a vivid sunset horizon and elegant party guests rendered as soft background silhouettes"
+  ]
+}

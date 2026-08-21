@@ -30,6 +30,9 @@ THEMED_OPTIONS_PATHS = {
     "venice_carnival_combinations": Path(
         "resources/config/dollimages_venice_carnival_prompt_options.json"
     ),
+    "ibiza_party_combinations": Path(
+        "resources/config/dollimages_ibiza_party_prompt_options.json"
+    ),
 }
 REQUIRED_GROUPS = (
     "girl_types",

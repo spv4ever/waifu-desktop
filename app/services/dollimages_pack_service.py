@@ -31,6 +31,7 @@ COMBINATION_PROMPT_SOURCES = {
     "sauna_combinations",
     "travel_combinations",
     "venice_carnival_combinations",
+    "ibiza_party_combinations",
 }
 
 
