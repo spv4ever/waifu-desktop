@@ -9,6 +9,11 @@ def test_venice_carnival_is_a_combination_prompt_source():
     assert is_combination_prompt_source("venice_carnival_combinations")
 
 
+def test_ibiza_party_is_a_combination_prompt_source():
+    assert "ibiza_party_combinations" in COMBINATION_PROMPT_SOURCES
+    assert is_combination_prompt_source("ibiza_party_combinations")
+
+
 @pytest.mark.parametrize("prompt_source", sorted(COMBINATION_PROMPT_SOURCES))
 def test_every_json_prompt_source_enables_editing_combination_count(prompt_source):
     assert is_combination_prompt_source(prompt_source) is True
