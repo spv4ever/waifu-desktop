@@ -28,8 +28,13 @@ def test_image2vid_long_generate_button_remains_outside_prompt_scroll_area() -> 
     assert scroll_index < button_index < button_layout_index
 
 
-def test_image2vid_long_has_one_editable_project_seed_and_randomizer() -> None:
+def test_image2vid_long_can_switch_between_fixed_and_per_prompt_random_seed() -> None:
     assert "self.image2vid_long_seed_spin = QSpinBox()" in MAIN_WINDOW_SOURCE
     assert "self.image2vid_long_seed_spin.setRange(0, 2**31 - 1)" in MAIN_WINDOW_SOURCE
     assert 'self.image2vid_long_random_seed_btn = QPushButton("Seed aleatorio")' in MAIN_WINDOW_SOURCE
-    assert "requests, seed=self.image2vid_long_seed_spin.value()" in MAIN_WINDOW_SOURCE
+    assert (
+        'self.image2vid_long_fixed_seed_check = QCheckBox("Seed fija en todos los prompts")'
+        in MAIN_WINDOW_SOURCE
+    )
+    assert "self.image2vid_long_fixed_seed_check.setChecked(True)" in MAIN_WINDOW_SOURCE
+    assert "fixed_seed=fixed_seed" in MAIN_WINDOW_SOURCE

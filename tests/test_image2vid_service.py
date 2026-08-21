@@ -120,6 +120,32 @@ def test_image2vid_long_links_segments_and_marks_only_last_as_final() -> None:
     assert first_meta["image2vid_long_seed"] == second_meta["image2vid_long_seed"] == 123456
 
 
+def test_image2vid_long_can_use_a_random_seed_for_each_segment(monkeypatch) -> None:
+    store = _Store()
+    service = ImageToVideoService.__new__(ImageToVideoService)
+    service.store = store
+    service._prepare_source_image = lambda _source_path: "source.png"
+    request = ImageToVideoCreate(
+        source_category="waifu", source_prompt_id=10, source_url="",
+        source_image="source.jpg", title="Long", prompt_text="move",
+        negative_text="negative", ratio="1:1", width=720, height=720,
+        seconds=5.0, fps=32, length_frames=80,
+    )
+    seeds = iter((111, 222))
+    monkeypatch.setattr(
+        "app.services.image2vid_service.random.Random.randint",
+        lambda *_args: next(seeds),
+    )
+
+    service.create_long_and_enqueue([request, request], fixed_seed=False)
+
+    first_meta, second_meta = [item["meta"] for item in store.prompt_items]
+    assert first_meta["seed"] == 111
+    assert second_meta["seed"] == 222
+    assert first_meta["image2vid_long_fixed_seed"] is False
+    assert "image2vid_long_seed" not in first_meta
+
+
 def test_undress_batch_reuses_source_image_for_repeated_clips() -> None:
     store = _Store()
     service = ImageToVideoService.__new__(ImageToVideoService)
