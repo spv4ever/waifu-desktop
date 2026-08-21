@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import random
 from pathlib import Path
 import tempfile
 from functools import partial
@@ -1133,14 +1134,23 @@ class MainWindow(QMainWindow):
         long_grid.addWidget(self.image2vid_long_count_spin, 1, 3)
         self.image2vid_long_duration_label = QLabel("Duración final: 10 s")
         long_grid.addWidget(self.image2vid_long_duration_label, 1, 4, 1, 2)
-        long_grid.addWidget(QLabel("Título:"), 2, 0)
+        long_grid.addWidget(QLabel("Seed del proyecto:"), 2, 0)
+        self.image2vid_long_seed_spin = QSpinBox()
+        self.image2vid_long_seed_spin.setRange(0, 2**31 - 1)
+        self.image2vid_long_seed_spin.setToolTip(
+            "Este mismo seed se enviará a todos los tramos del proyecto."
+        )
+        long_grid.addWidget(self.image2vid_long_seed_spin, 2, 1, 1, 2)
+        self.image2vid_long_random_seed_btn = QPushButton("Seed aleatorio")
+        long_grid.addWidget(self.image2vid_long_random_seed_btn, 2, 3)
+        long_grid.addWidget(QLabel("Título:"), 3, 0)
         self.image2vid_long_title_input = QLineEdit()
         self.image2vid_long_title_input.setPlaceholderText("Título del proyecto")
-        long_grid.addWidget(self.image2vid_long_title_input, 2, 1, 1, 5)
-        long_grid.addWidget(QLabel("Prompt -:"), 3, 0)
+        long_grid.addWidget(self.image2vid_long_title_input, 3, 1, 1, 5)
+        long_grid.addWidget(QLabel("Prompt -:"), 4, 0)
         self.image2vid_long_negative_input = QPlainTextEdit(IMAGE2VID_MIN_NEGATIVE_PROMPT)
         self.image2vid_long_negative_input.setFixedHeight(70)
-        long_grid.addWidget(self.image2vid_long_negative_input, 3, 1, 1, 5)
+        long_grid.addWidget(self.image2vid_long_negative_input, 4, 1, 1, 5)
         long_layout.addWidget(long_group)
         self.image2vid_long_prompts_group = QGroupBox("Prompts en orden")
         self.image2vid_long_prompts_layout = QVBoxLayout(self.image2vid_long_prompts_group)
@@ -1155,6 +1165,7 @@ class MainWindow(QMainWindow):
         self.image2vid_long_generate_btn = QPushButton("Crear proyecto Image2Vid Long")
         long_layout.addWidget(self.image2vid_long_generate_btn)
         self._rebuild_image2vid_long_prompts()
+        self._randomize_image2vid_long_seed()
 
         self.undress_dialog = QDialog(self)
         self.undress_dialog.setWindowTitle("Undress")
@@ -1827,6 +1838,7 @@ class MainWindow(QMainWindow):
         self.dollimages_reel_generate_btn.clicked.connect(self.generate_dollimages_reel)
         self.image2vid_generate_btn.clicked.connect(self.generate_image2vid)
         self.image2vid_long_generate_btn.clicked.connect(self.generate_image2vid_long)
+        self.image2vid_long_random_seed_btn.clicked.connect(self._randomize_image2vid_long_seed)
         self.undress_generate_btn.clicked.connect(self.generate_undress)
         self.open_filters_btn.clicked.connect(self.filters_dialog.show)
         self.open_pack_btn.clicked.connect(self.pack_dialog.show)
@@ -3294,6 +3306,9 @@ class MainWindow(QMainWindow):
         self._set_image2vid_long_source_from_current(show_warning=False)
         self.image2vid_long_dialog.show()
 
+    def _randomize_image2vid_long_seed(self) -> None:
+        self.image2vid_long_seed_spin.setValue(random.randint(0, 2**31 - 1))
+
     def _rebuild_image2vid_long_prompts(self, _value: object | None = None) -> None:
         previous = [editor.toPlainText() for editor in getattr(self, "image2vid_long_prompt_editors", [])]
         while self.image2vid_long_prompts_layout.count():
@@ -3385,7 +3400,9 @@ class MainWindow(QMainWindow):
             for index, prompt in enumerate(prompts)
         ]
         try:
-            result = self.image2vid_service.create_long_and_enqueue(requests)
+            result = self.image2vid_service.create_long_and_enqueue(
+                requests, seed=self.image2vid_long_seed_spin.value()
+            )
         except Exception as exc:
             QMessageBox.critical(self, "Image2Vid Long", f"No se pudo crear el proyecto.\n{exc}")
             return

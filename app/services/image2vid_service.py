@@ -103,7 +103,7 @@ class ImageToVideoService:
         )
 
     def create_long_and_enqueue(
-        self, requests: list[ImageToVideoCreate]
+        self, requests: list[ImageToVideoCreate], *, seed: int | None = None
     ) -> ImageToVideoResult:
         """Create one ordered project whose clips continue from the prior last frame."""
         if not requests:
@@ -112,6 +112,10 @@ class ImageToVideoService:
             raise ValueError("Cada tramo de Image2Vid Long debe durar exactamente 5 segundos.")
 
         first = requests[0]
+        if seed is None:
+            seed = random.randint(0, 2**31 - 1)
+        if not 0 <= seed <= 2**31 - 1:
+            raise ValueError("El seed de Image2Vid Long debe estar entre 0 y 2147483647.")
         pack_id = self.store.create_pack(
             category="image2vid_long",
             variant=first.source_category,
@@ -136,7 +140,9 @@ class ImageToVideoService:
                     "image2vid_long_count": len(requests),
                     "image2vid_long_previous_prompt_id": previous_prompt_id,
                     "image2vid_long_final": index == len(requests) - 1,
+                    "image2vid_long_seed": seed,
                 },
+                seed=seed,
             )
             prompt_ids.append(prompt_id)
             job_ids.append(job_id)
@@ -155,12 +161,14 @@ class ImageToVideoService:
         source_image: str,
         workflow_key: str,
         extra_meta: dict[str, object] | None = None,
+        seed: int | None = None,
     ) -> tuple[int, int]:
         rng = random.Random()
         signature = None
-        seed = None
-        for _ in range(15):
-            seed = rng.randint(0, 2**31 - 1)
+        fixed_seed = seed is not None
+        for _ in range(1 if fixed_seed else 15):
+            if not fixed_seed:
+                seed = rng.randint(0, 2**31 - 1)
             candidate = _hash_signature(
                 workflow_key,
                 req.source_category,
@@ -173,6 +181,8 @@ class ImageToVideoService:
                 req.height,
                 req.length_frames,
                 seed,
+                pack_id if fixed_seed else "",
+                (extra_meta or {}).get("image2vid_long_index", "") if fixed_seed else "",
             )
             if self.store.try_register_combo(
                 combo_key=candidate,
