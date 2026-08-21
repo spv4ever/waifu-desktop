@@ -103,7 +103,11 @@ class ImageToVideoService:
         )
 
     def create_long_and_enqueue(
-        self, requests: list[ImageToVideoCreate], *, seed: int | None = None
+        self,
+        requests: list[ImageToVideoCreate],
+        *,
+        seed: int | None = None,
+        fixed_seed: bool = True,
     ) -> ImageToVideoResult:
         """Create one ordered project whose clips continue from the prior last frame."""
         if not requests:
@@ -112,9 +116,9 @@ class ImageToVideoService:
             raise ValueError("Cada tramo de Image2Vid Long debe durar exactamente 5 segundos.")
 
         first = requests[0]
-        if seed is None:
+        if fixed_seed and seed is None:
             seed = random.randint(0, 2**31 - 1)
-        if not 0 <= seed <= 2**31 - 1:
+        if fixed_seed and not 0 <= seed <= 2**31 - 1:
             raise ValueError("El seed de Image2Vid Long debe estar entre 0 y 2147483647.")
         pack_id = self.store.create_pack(
             category="image2vid_long",
@@ -140,9 +144,10 @@ class ImageToVideoService:
                     "image2vid_long_count": len(requests),
                     "image2vid_long_previous_prompt_id": previous_prompt_id,
                     "image2vid_long_final": index == len(requests) - 1,
-                    "image2vid_long_seed": seed,
+                    "image2vid_long_fixed_seed": fixed_seed,
+                    **({"image2vid_long_seed": seed} if fixed_seed else {}),
                 },
-                seed=seed,
+                seed=seed if fixed_seed else None,
             )
             prompt_ids.append(prompt_id)
             job_ids.append(job_id)

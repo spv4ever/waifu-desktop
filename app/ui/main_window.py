@@ -1143,6 +1143,12 @@ class MainWindow(QMainWindow):
         long_grid.addWidget(self.image2vid_long_seed_spin, 2, 1, 1, 2)
         self.image2vid_long_random_seed_btn = QPushButton("Seed aleatorio")
         long_grid.addWidget(self.image2vid_long_random_seed_btn, 2, 3)
+        self.image2vid_long_fixed_seed_check = QCheckBox("Seed fija en todos los prompts")
+        self.image2vid_long_fixed_seed_check.setChecked(True)
+        self.image2vid_long_fixed_seed_check.setToolTip(
+            "Desactiva esta opción para generar un seed aleatorio distinto en cada tramo."
+        )
+        long_grid.addWidget(self.image2vid_long_fixed_seed_check, 2, 4, 1, 2)
         long_grid.addWidget(QLabel("Título:"), 3, 0)
         self.image2vid_long_title_input = QLineEdit()
         self.image2vid_long_title_input.setPlaceholderText("Título del proyecto")
@@ -1839,6 +1845,7 @@ class MainWindow(QMainWindow):
         self.image2vid_generate_btn.clicked.connect(self.generate_image2vid)
         self.image2vid_long_generate_btn.clicked.connect(self.generate_image2vid_long)
         self.image2vid_long_random_seed_btn.clicked.connect(self._randomize_image2vid_long_seed)
+        self.image2vid_long_fixed_seed_check.toggled.connect(self._toggle_image2vid_long_fixed_seed)
         self.undress_generate_btn.clicked.connect(self.generate_undress)
         self.open_filters_btn.clicked.connect(self.filters_dialog.show)
         self.open_pack_btn.clicked.connect(self.pack_dialog.show)
@@ -3309,6 +3316,10 @@ class MainWindow(QMainWindow):
     def _randomize_image2vid_long_seed(self) -> None:
         self.image2vid_long_seed_spin.setValue(random.randint(0, 2**31 - 1))
 
+    def _toggle_image2vid_long_fixed_seed(self, checked: bool) -> None:
+        self.image2vid_long_seed_spin.setEnabled(checked)
+        self.image2vid_long_random_seed_btn.setEnabled(checked)
+
     def _rebuild_image2vid_long_prompts(self, _value: object | None = None) -> None:
         previous = [editor.toPlainText() for editor in getattr(self, "image2vid_long_prompt_editors", [])]
         while self.image2vid_long_prompts_layout.count():
@@ -3400,8 +3411,11 @@ class MainWindow(QMainWindow):
             for index, prompt in enumerate(prompts)
         ]
         try:
+            fixed_seed = self.image2vid_long_fixed_seed_check.isChecked()
             result = self.image2vid_service.create_long_and_enqueue(
-                requests, seed=self.image2vid_long_seed_spin.value()
+                requests,
+                seed=self.image2vid_long_seed_spin.value() if fixed_seed else None,
+                fixed_seed=fixed_seed,
             )
         except Exception as exc:
             QMessageBox.critical(self, "Image2Vid Long", f"No se pudo crear el proyecto.\n{exc}")
