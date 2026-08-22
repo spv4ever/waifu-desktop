@@ -49,6 +49,7 @@ from app.services.video_montage_service import (
 from app.services.manual_prompt_service import ManualPromptService
 from app.services.dollimages_manual_prompt_service import DollimagesManualPromptService
 from app.services.image2vid_service import ImageToVideoService
+from app.services.image2vid_prompt_file import parse_image2vid_long_prompts
 from app.services.anime_generation_service import AnimeGenerationService
 from app.services.bulk_images_service import BulkImagesEnqueueRequest, BulkImagesService
 from app.services.anime_v5_prompt_generator import (
@@ -1133,7 +1134,12 @@ class MainWindow(QMainWindow):
         self.image2vid_long_count_spin.setValue(2)
         long_grid.addWidget(self.image2vid_long_count_spin, 1, 3)
         self.image2vid_long_duration_label = QLabel("Duración final: 10 s")
-        long_grid.addWidget(self.image2vid_long_duration_label, 1, 4, 1, 2)
+        long_grid.addWidget(self.image2vid_long_duration_label, 1, 4)
+        self.image2vid_long_prompts_file_btn = QPushButton("Cargar prompts TXT")
+        self.image2vid_long_prompts_file_btn.setToolTip(
+            "Carga los bloques 'Prompt N:' de un proyecto anterior; el seed se ignora."
+        )
+        long_grid.addWidget(self.image2vid_long_prompts_file_btn, 1, 5)
         long_grid.addWidget(QLabel("Seed del proyecto:"), 2, 0)
         self.image2vid_long_seed_spin = QSpinBox()
         self.image2vid_long_seed_spin.setRange(0, 2**31 - 1)
@@ -1846,6 +1852,7 @@ class MainWindow(QMainWindow):
         self.image2vid_long_generate_btn.clicked.connect(self.generate_image2vid_long)
         self.image2vid_long_random_seed_btn.clicked.connect(self._randomize_image2vid_long_seed)
         self.image2vid_long_fixed_seed_check.toggled.connect(self._toggle_image2vid_long_fixed_seed)
+        self.image2vid_long_prompts_file_btn.clicked.connect(self._load_image2vid_long_prompts_file)
         self.undress_generate_btn.clicked.connect(self.generate_undress)
         self.open_filters_btn.clicked.connect(self.filters_dialog.show)
         self.open_pack_btn.clicked.connect(self.pack_dialog.show)
@@ -3319,6 +3326,34 @@ class MainWindow(QMainWindow):
     def _toggle_image2vid_long_fixed_seed(self, checked: bool) -> None:
         self.image2vid_long_seed_spin.setEnabled(checked)
         self.image2vid_long_random_seed_btn.setEnabled(checked)
+
+    def _load_image2vid_long_prompts_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Cargar prompts de un proyecto anterior", "",
+            "Archivos de texto (*.txt);;Todos los archivos (*)",
+        )
+        if not path:
+            return
+        try:
+            text = Path(path).read_text(encoding="utf-8-sig")
+            prompts = parse_image2vid_long_prompts(text)
+            if len(prompts) > self.image2vid_long_count_spin.maximum():
+                raise ValueError(
+                    f"El archivo contiene {len(prompts)} prompts; el máximo es "
+                    f"{self.image2vid_long_count_spin.maximum()}."
+                )
+        except (OSError, UnicodeError, ValueError) as exc:
+            QMessageBox.warning(
+                self, "Image2Vid Long", f"No se pudieron cargar los prompts.\n{exc}"
+            )
+            return
+
+        self.image2vid_long_count_spin.setValue(len(prompts))
+        for editor, prompt in zip(self.image2vid_long_prompt_editors, prompts):
+            editor.setPlainText(prompt)
+        QMessageBox.information(
+            self, "Image2Vid Long", f"Se cargaron {len(prompts)} prompts desde el TXT."
+        )
 
     def _rebuild_image2vid_long_prompts(self, _value: object | None = None) -> None:
         previous = [editor.toPlainText() for editor in getattr(self, "image2vid_long_prompt_editors", [])]
