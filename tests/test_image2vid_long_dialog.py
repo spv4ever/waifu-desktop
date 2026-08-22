@@ -38,3 +38,12 @@ def test_image2vid_long_can_switch_between_fixed_and_per_prompt_random_seed() ->
     )
     assert "self.image2vid_long_fixed_seed_check.setChecked(True)" in MAIN_WINDOW_SOURCE
     assert "fixed_seed=fixed_seed" in MAIN_WINDOW_SOURCE
+
+
+def test_image2vid_long_can_load_prompts_from_a_previous_project_txt() -> None:
+    assert (
+        'self.image2vid_long_prompts_file_btn = QPushButton("Cargar prompts TXT")'
+        in MAIN_WINDOW_SOURCE
+    )
+    assert "parse_image2vid_long_prompts(text)" in MAIN_WINDOW_SOURCE
+    assert "self.image2vid_long_count_spin.setValue(len(prompts))" in MAIN_WINDOW_SOURCE
