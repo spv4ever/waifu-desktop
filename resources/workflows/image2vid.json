@@ -267,8 +267,8 @@
         "strength": 1
       },
       "lora_2": {
-        "on": false,
-        "lora": "wan\\i2v-Missionary-Sex-H.safetensors",
+        "on": true,
+        "lora": "wan\\NSFWWAN22H_nsfwsks.safetensors",
         "strength": 1
       },
       "➕ Add Lora": "",
@@ -297,8 +297,8 @@
         "strength": 1
       },
       "lora_2": {
-        "on": false,
-        "lora": "wan\\w22_i2v_Multiple-Angles-Missionary_L.safetensors",
+        "on": true,
+        "lora": "wan\\NSFWWAN22L_nsfwsks.safetensors",
         "strength": 1
       },
       "➕ Add Lora": "",
