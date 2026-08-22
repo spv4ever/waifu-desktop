@@ -8,6 +8,13 @@ import yaml
 from app.services.workflow_service import WorkflowService
 
 
+IMAGE2VID_ADDITIONAL_NEGATIVE_PROMPT = (
+    "distorted hands, fused fingers, deformed bodies, robotic or jerky movements, drastic anatomy changes, "
+    "unnatural skin textures, unrealistic breast shapes, extra limbs, floating body parts, loss of coherence, "
+    "sudden pose changes, blurry face"
+)
+
+
 def test_image2vid_uses_comfyui_load_image_node_for_local_inputs() -> None:
     workflow = json.loads(Path("resources/workflows/image2vid.json").read_text(encoding="utf-8"))
     config = yaml.safe_load(Path("resources/config/app_config.yaml").read_text(encoding="utf-8"))
@@ -18,6 +25,12 @@ def test_image2vid_uses_comfyui_load_image_node_for_local_inputs() -> None:
     assert load_image_node_id == "97"
     assert workflow[load_image_node_id]["class_type"] == "LoadImage"
     assert workflow["98"]["inputs"]["start_image"] == [load_image_node_id, 0]
+
+
+def test_image2vid_template_includes_additional_negative_prompt() -> None:
+    workflow = json.loads(Path("resources/workflows/image2vid.json").read_text(encoding="utf-8"))
+
+    assert IMAGE2VID_ADDITIONAL_NEGATIVE_PROMPT in workflow["89"]["inputs"]["text"]
 
 
 def test_image2vid_overrides_force_high_and_low_noise_loras_on() -> None:
