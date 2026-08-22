@@ -142,4 +142,19 @@ class WorkflowService:
                 bool(faceswap_enabled),
             )
 
+        # Some custom LoRA loaders store their enabled state inside the LoRA
+        # input itself.  Keep workflow-specific, required LoRAs explicit in the
+        # mapping so an API export with a disabled widget cannot silently submit
+        # an Image2Vid job without them.
+        for lora in mapping.get("active_loras", []):
+            set_input(
+                lora["node_id"],
+                lora["input"],
+                {
+                    "on": True,
+                    "lora": lora["lora"],
+                    "strength": float(lora.get("strength", 1)),
+                },
+            )
+
         return workflow
