@@ -1117,7 +1117,7 @@ class MainWindow(QMainWindow):
         self.image2vid_long_dialog.setModal(False)
         self.image2vid_long_dialog.resize(900, 700)
         long_layout = QVBoxLayout(self.image2vid_long_dialog)
-        long_group = QGroupBox("Proyecto continuo en tramos de 5 segundos")
+        long_group = QGroupBox("Proyecto continuo en tramos de 2 a 5 segundos")
         long_grid = QGridLayout(long_group)
         long_grid.addWidget(QLabel("Imagen inicial:"), 0, 0)
         self.image2vid_long_source_label = ImageDropLabel("Sin imagen seleccionada · arrastra una imagen aquí")
@@ -1177,6 +1177,7 @@ class MainWindow(QMainWindow):
         self.image2vid_long_prompts_scroll.setWidget(self.image2vid_long_prompts_group)
         long_layout.addWidget(self.image2vid_long_prompts_scroll, 1)
         self.image2vid_long_prompt_editors: list[QPlainTextEdit] = []
+        self.image2vid_long_duration_spins: list[QDoubleSpinBox] = []
         self.image2vid_long_generate_btn = QPushButton("Crear proyecto Image2Vid Long")
         long_layout.addWidget(self.image2vid_long_generate_btn)
         self._rebuild_image2vid_long_prompts()
@@ -3360,11 +3361,16 @@ class MainWindow(QMainWindow):
 
     def _rebuild_image2vid_long_prompts(self, _value: object | None = None) -> None:
         previous = [editor.toPlainText() for editor in getattr(self, "image2vid_long_prompt_editors", [])]
+        previous_durations = [
+            spin.value()
+            for spin in getattr(self, "image2vid_long_duration_spins", [])
+        ]
         while self.image2vid_long_prompts_layout.count():
             item = self.image2vid_long_prompts_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
         self.image2vid_long_prompt_editors = []
+        self.image2vid_long_duration_spins = []
         count = int(self.image2vid_long_count_spin.value())
         templates = getattr(self, "_image2vid_prompt_templates", [])
         for index in range(count):
@@ -3373,7 +3379,7 @@ class MainWindow(QMainWindow):
             row_layout.setContentsMargins(0, 0, 0, 0)
             row_layout.addWidget(QLabel(f"{index + 1}."))
             editor = QPlainTextEdit()
-            editor.setPlaceholderText(f"Movimiento para el tramo {index + 1} (5 segundos)")
+            editor.setPlaceholderText(f"Movimiento para el tramo {index + 1}")
             editor.setFixedHeight(72)
             if index < len(previous):
                 editor.setPlainText(previous[index])
@@ -3386,9 +3392,23 @@ class MainWindow(QMainWindow):
             )
             row_layout.addWidget(editor, 1)
             row_layout.addWidget(template_combo)
+            duration_spin = QDoubleSpinBox()
+            duration_spin.setRange(2.0, 5.0)
+            duration_spin.setDecimals(1)
+            duration_spin.setSingleStep(0.1)
+            duration_spin.setSuffix(" s")
+            duration_spin.setValue(previous_durations[index] if index < len(previous_durations) else 5.0)
+            duration_spin.setToolTip("Duración de este prompt, entre 2,0 y 5,0 segundos.")
+            duration_spin.valueChanged.connect(self._update_image2vid_long_duration)
+            row_layout.addWidget(duration_spin)
             self.image2vid_long_prompts_layout.addWidget(row)
             self.image2vid_long_prompt_editors.append(editor)
-        self.image2vid_long_duration_label.setText(f"Duración final: {count * 5} s")
+            self.image2vid_long_duration_spins.append(duration_spin)
+        self._update_image2vid_long_duration()
+
+    def _update_image2vid_long_duration(self, _value: object | None = None) -> None:
+        total = sum(spin.value() for spin in self.image2vid_long_duration_spins)
+        self.image2vid_long_duration_label.setText(f"Duración final: {total:.1f} s")
 
     def _set_image2vid_long_source(self, option: dict[str, Any] | None) -> None:
         self.image2vid_long_selected_source = option
@@ -3434,6 +3454,7 @@ class MainWindow(QMainWindow):
         ratio = str(self.image2vid_long_ratio_combo.currentData() or "1:1")
         width, height = self._image2vid_ratio_dimensions(ratio)
         base_title = self.image2vid_long_title_input.text().strip() or "Image2Vid Long"
+        durations = [float(spin.value()) for spin in self.image2vid_long_duration_spins]
         requests = [
             ImageToVideoCreate(
                 source_category=str(source.get("source_category") or "waifu"),
@@ -3443,10 +3464,10 @@ class MainWindow(QMainWindow):
                 title=f"{base_title} · tramo {index + 1}/{len(prompts)}",
                 prompt_text=prompt,
                 negative_text=self.image2vid_long_negative_input.toPlainText().strip(),
-                ratio=ratio, width=width, height=height, seconds=5.0, fps=32,
-                length_frames=self._compute_image2vid_length(seconds=5.0),
+                ratio=ratio, width=width, height=height, seconds=duration, fps=32,
+                length_frames=self._compute_image2vid_length(seconds=duration),
             )
-            for index, prompt in enumerate(prompts)
+            for index, (prompt, duration) in enumerate(zip(prompts, durations))
         ]
         try:
             fixed_seed = self.image2vid_long_fixed_seed_check.isChecked()
@@ -3461,7 +3482,7 @@ class MainWindow(QMainWindow):
         self.refresh()
         QMessageBox.information(
             self, "Image2Vid Long",
-            f"Proyecto #{result.pack_id} creado con {len(prompts)} tramos ({len(prompts) * 5} s).",
+            f"Proyecto #{result.pack_id} creado con {len(prompts)} tramos ({sum(durations):.1f} s).",
         )
 
     def open_undress_dialog(self) -> None:

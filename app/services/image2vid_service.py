@@ -112,8 +112,10 @@ class ImageToVideoService:
         """Create one ordered project whose clips continue from the prior last frame."""
         if not requests:
             raise ValueError("Debes indicar al menos un prompt para Image2Vid Long.")
-        if any(abs(req.seconds - 5.0) > 0.001 for req in requests):
-            raise ValueError("Cada tramo de Image2Vid Long debe durar exactamente 5 segundos.")
+        if any(not 2.0 <= req.seconds <= 5.0 for req in requests):
+            raise ValueError("Cada tramo de Image2Vid Long debe durar entre 2 y 5 segundos.")
+        if any(abs(req.seconds * 10 - round(req.seconds * 10)) > 0.001 for req in requests):
+            raise ValueError("La duración de cada tramo debe tener como máximo un decimal.")
 
         first = requests[0]
         if fixed_seed and seed is None:

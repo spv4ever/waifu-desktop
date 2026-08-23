@@ -47,3 +47,12 @@ def test_image2vid_long_can_load_prompts_from_a_previous_project_txt() -> None:
     )
     assert "parse_image2vid_long_prompts(text)" in MAIN_WINDOW_SOURCE
     assert "self.image2vid_long_count_spin.setValue(len(prompts))" in MAIN_WINDOW_SOURCE
+
+
+def test_image2vid_long_has_a_tenth_second_duration_control_per_prompt() -> None:
+    assert "self.image2vid_long_duration_spins: list[QDoubleSpinBox] = []" in MAIN_WINDOW_SOURCE
+    assert "duration_spin.setRange(2.0, 5.0)" in MAIN_WINDOW_SOURCE
+    assert "duration_spin.setDecimals(1)" in MAIN_WINDOW_SOURCE
+    assert "duration_spin.setSingleStep(0.1)" in MAIN_WINDOW_SOURCE
+    assert "seconds=duration" in MAIN_WINDOW_SOURCE
+    assert "length_frames=self._compute_image2vid_length(seconds=duration)" in MAIN_WINDOW_SOURCE
