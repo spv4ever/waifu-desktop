@@ -418,6 +418,7 @@ class MainWindow(QMainWindow):
         self.open_dollimages_manual_prompt_btn = QPushButton("Prompt Manual Dollimages")
         self.open_image2vid_btn = QPushButton("Image2Vid WAN 2.2")
         self.open_image2vid_long_btn = QPushButton("Image2Vid Long")
+        self.open_vid2vid_long_btn = QPushButton("Vid2Vid Long")
         self.open_undress_btn = QPushButton("Undress")
         self.open_anime_v5_btn = QPushButton("Anime V5")
         self.open_bulk_images_btn = QPushButton("Bulk Images")
@@ -435,6 +436,7 @@ class MainWindow(QMainWindow):
             self.open_dollimages_manual_prompt_btn,
             self.open_image2vid_btn,
             self.open_image2vid_long_btn,
+            self.open_vid2vid_long_btn,
             self.open_undress_btn,
             self.open_anime_v5_btn,
             self.open_bulk_images_btn,
@@ -1865,6 +1867,7 @@ class MainWindow(QMainWindow):
         self.open_dollimages_manual_prompt_btn.clicked.connect(self.dollimages_manual_dialog.show)
         self.open_image2vid_btn.clicked.connect(self.open_image2vid_dialog)
         self.open_image2vid_long_btn.clicked.connect(self.open_image2vid_long_dialog)
+        self.open_vid2vid_long_btn.clicked.connect(self.open_vid2vid_long_dialog)
         self.open_undress_btn.clicked.connect(self.open_undress_dialog)
         self.open_anime_v5_btn.clicked.connect(self.anime_v5_dialog.show)
         self.open_bulk_images_btn.clicked.connect(self.open_bulk_images_prompt_window)
@@ -3321,7 +3324,22 @@ class MainWindow(QMainWindow):
         self.image2vid_dialog.show()
 
     def open_image2vid_long_dialog(self) -> None:
+        self.image2vid_long_mode = "image2vid"
+        self.image2vid_long_dialog.setWindowTitle("Image2Vid Long · WAN 2.2")
+        self.image2vid_long_generate_btn.setText("Crear proyecto Image2Vid Long")
+        self.image2vid_long_current_btn.setEnabled(True)
+        self.image2vid_long_source_label.setAcceptDrops(True)
         self._set_image2vid_long_source_from_current(show_warning=False)
+        self.image2vid_long_dialog.show()
+
+    def open_vid2vid_long_dialog(self) -> None:
+        self.image2vid_long_mode = "vid2vid"
+        self.image2vid_long_dialog.setWindowTitle("Vid2Vid Long · WAN 2.2")
+        self.image2vid_long_generate_btn.setText("Crear proyecto Vid2Vid Long")
+        self.image2vid_long_current_btn.setEnabled(False)
+        self.image2vid_long_source_label.setAcceptDrops(False)
+        self._set_image2vid_long_source(None)
+        self.image2vid_long_source_label.setText("Sin vídeo seleccionado · cárgalo desde disco")
         self.image2vid_long_dialog.show()
 
     def _randomize_image2vid_long_seed(self) -> None:
@@ -3426,9 +3444,15 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Image2Vid Long", "Selecciona un prompt con imagen generada.")
 
     def _set_image2vid_long_source_from_disk(self) -> None:
+        is_video = getattr(self, "image2vid_long_mode", "image2vid") == "vid2vid"
         path, _ = QFileDialog.getOpenFileName(
-            self, "Cargar imagen inicial para Image2Vid Long", "",
-            "Imágenes (*.png *.jpg *.jpeg *.webp *.bmp);;Todos los archivos (*)",
+            self,
+            "Cargar vídeo inicial para Vid2Vid Long"
+            if is_video
+            else "Cargar imagen inicial para Image2Vid Long",
+            "",
+            "Vídeos (*.mp4 *.mov *.mkv *.webm *.avi *.m4v);;Todos los archivos (*)" if is_video
+            else "Imágenes (*.png *.jpg *.jpeg *.webp *.bmp);;Todos los archivos (*)",
         )
         if path:
             self._set_image2vid_long_source({
@@ -3444,8 +3468,15 @@ class MainWindow(QMainWindow):
 
     def generate_image2vid_long(self) -> None:
         source = getattr(self, "image2vid_long_selected_source", None) or {}
+        is_video = getattr(self, "image2vid_long_mode", "image2vid") == "vid2vid"
         if not source.get("local_path"):
-            QMessageBox.warning(self, "Image2Vid Long", "Debes seleccionar o cargar una imagen inicial.")
+            QMessageBox.warning(
+                self,
+                "Vid2Vid Long" if is_video else "Image2Vid Long",
+                "Debes cargar un vídeo inicial."
+                if is_video
+                else "Debes seleccionar o cargar una imagen inicial.",
+            )
             return
         prompts = [editor.toPlainText().strip() for editor in self.image2vid_long_prompt_editors]
         if any(not prompt for prompt in prompts):
@@ -3471,11 +3502,16 @@ class MainWindow(QMainWindow):
         ]
         try:
             fixed_seed = self.image2vid_long_fixed_seed_check.isChecked()
-            result = self.image2vid_service.create_long_and_enqueue(
-                requests,
-                seed=self.image2vid_long_seed_spin.value() if fixed_seed else None,
-                fixed_seed=fixed_seed,
-            )
+            seed = self.image2vid_long_seed_spin.value() if fixed_seed else None
+            if is_video:
+                result = self.image2vid_service.create_vid2vid_long_and_enqueue(
+                    requests, source_video=str(source["local_path"]),
+                    seed=seed, fixed_seed=fixed_seed,
+                )
+            else:
+                result = self.image2vid_service.create_long_and_enqueue(
+                    requests, seed=seed, fixed_seed=fixed_seed,
+                )
         except Exception as exc:
             QMessageBox.critical(self, "Image2Vid Long", f"No se pudo crear el proyecto.\n{exc}")
             return

@@ -122,6 +122,34 @@ def test_image2vid_long_links_segments_and_marks_only_last_as_final() -> None:
     assert first_meta["image2vid_long_seed"] == second_meta["image2vid_long_seed"] == 123456
 
 
+def test_vid2vid_long_uses_last_video_frame_and_remembers_original_video() -> None:
+    store = _Store()
+    service = ImageToVideoService.__new__(ImageToVideoService)
+    service.store = store
+    prepared = []
+    service._prepare_source_video = lambda path, project_id: (
+        prepared.append((path, project_id)) or ("original.mp4", "last.png")
+    )
+    request = ImageToVideoCreate(
+        source_category="disco", source_prompt_id=0, source_url="",
+        source_image="ignored.mp4", title="Vid2Vid", prompt_text="continue",
+        negative_text="negative", ratio="16:9", width=832, height=480,
+        seconds=5.0, fps=32, length_frames=80,
+    )
+
+    result = service.create_vid2vid_long_and_enqueue(
+        [request, request], source_video="input.mp4", seed=77
+    )
+
+    first_meta, final_meta = [item["meta"] for item in store.prompt_items]
+    assert prepared == [("input.mp4", result.pack_id)]
+    assert store.pack_kwargs["category"] == "vid2vid_long"
+    assert first_meta["image2vid_source_image"] == "last.png"
+    assert first_meta["image2vid_long_initial_source_image"] == "last.png"
+    assert first_meta["vid2vid_long_source_video"] == "original.mp4"
+    assert final_meta["vid2vid_long"] is True
+
+
 def test_image2vid_long_accepts_a_different_tenth_second_duration_per_segment() -> None:
     store = _Store()
     service = ImageToVideoService.__new__(ImageToVideoService)

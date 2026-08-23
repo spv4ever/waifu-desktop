@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import random
+import shutil
+import subprocess
 from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
@@ -109,6 +111,65 @@ class ImageToVideoService:
         seed: int | None = None,
         fixed_seed: bool = True,
     ) -> ImageToVideoResult:
+        return self._create_long_project(
+            requests, seed=seed, fixed_seed=fixed_seed, source_video=None
+        )
+
+    def create_vid2vid_long_and_enqueue(
+        self,
+        requests: list[ImageToVideoCreate],
+        *,
+        source_video: str,
+        seed: int | None = None,
+        fixed_seed: bool = True,
+    ) -> ImageToVideoResult:
+        """Continue a video from its last frame and prepend it to the final result."""
+        return self._create_long_project(
+            requests, seed=seed, fixed_seed=fixed_seed, source_video=source_video
+        )
+
+    def _prepare_source_video(
+        self, source_path: str, *, project_id: int
+    ) -> tuple[str, str]:
+        src = Path(source_path)
+        if not src.is_file():
+            raise FileNotFoundError(f"Vídeo de referencia no encontrado: {source_path}")
+        ffmpeg = shutil.which("ffmpeg")
+        if not ffmpeg:
+            raise RuntimeError("ffmpeg es necesario para crear Vid2Vid Long.")
+        input_dir = Path(settings.comfyui_input_dir)
+        input_dir.mkdir(parents=True, exist_ok=True)
+        video_target = unique_suffixed_path(
+            input_dir / f"vid2vid_long_{project_id}_source{src.suffix or '.mp4'}"
+        )
+        shutil.copy2(src, video_target)
+        frame_target = unique_suffixed_path(
+            input_dir / f"vid2vid_long_{project_id}_initial.png"
+        )
+        try:
+            subprocess.run(
+                [
+                    ffmpeg, "-y", "-sseof", "-1", "-i", str(video_target),
+                    "-an", "-update", "1", str(frame_target),
+                ],
+                check=True,
+                capture_output=True,
+            )
+            validate_image_file(frame_target)
+        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+            video_target.unlink(missing_ok=True)
+            frame_target.unlink(missing_ok=True)
+            raise ValueError(f"No se pudo extraer el último fotograma de {src.name}.") from exc
+        return video_target.name, frame_target.name
+
+    def _create_long_project(
+        self,
+        requests: list[ImageToVideoCreate],
+        *,
+        seed: int | None,
+        fixed_seed: bool,
+        source_video: str | None,
+    ) -> ImageToVideoResult:
         """Create one ordered project whose clips continue from the prior last frame."""
         if not requests:
             raise ValueError("Debes indicar al menos un prompt para Image2Vid Long.")
@@ -122,13 +183,20 @@ class ImageToVideoService:
             seed = random.randint(0, 2**31 - 1)
         if fixed_seed and not 0 <= seed <= 2**31 - 1:
             raise ValueError("El seed de Image2Vid Long debe estar entre 0 y 2147483647.")
+        project_kind = "vid2vid_long" if source_video else "image2vid_long"
         pack_id = self.store.create_pack(
-            category="image2vid_long",
+            category=project_kind,
             variant=first.source_category,
             requested_n=len(requests),
             notes=first.title or "Image2Vid Long",
         )
-        source_image = self._prepare_source_image(first.source_image)
+        prepared_video = None
+        if source_video:
+            prepared_video, source_image = self._prepare_source_video(
+                source_video, project_id=pack_id
+            )
+        else:
+            source_image = self._prepare_source_image(first.source_image)
         prompt_ids: list[int] = []
         job_ids: list[int] = []
         previous_prompt_id: int | None = None
@@ -147,6 +215,8 @@ class ImageToVideoService:
                     "image2vid_long_previous_prompt_id": previous_prompt_id,
                     "image2vid_long_final": index == len(requests) - 1,
                     "image2vid_long_fixed_seed": fixed_seed,
+                    "vid2vid_long": bool(source_video),
+                    **({"vid2vid_long_source_video": prepared_video} if prepared_video else {}),
                     **({"image2vid_long_seed": seed} if fixed_seed else {}),
                 },
                 seed=seed if fixed_seed else None,

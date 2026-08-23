@@ -190,30 +190,58 @@ class QueueWorker:
             prompts.append(str((row or {}).get("prompt_text") or ""))
         if any(not path.exists() for path in paths):
             raise RuntimeError("No se encontraron todos los tramos de Image2Vid Long.")
+        source_video_name = str(meta.get("vid2vid_long_source_video") or "").strip()
+        if source_video_name:
+            source_video = Path(settings.comfyui_input_dir) / source_video_name
+            if not source_video.is_file():
+                raise RuntimeError(f"No se encontró el vídeo inicial de Vid2Vid Long: {source_video}")
+            paths.insert(0, source_video)
         ffmpeg = shutil.which("ffmpeg")
         if not ffmpeg:
             raise RuntimeError("ffmpeg es necesario para combinar Image2Vid Long.")
-        relative_folder = Path("image2vid") / "long" / f"project_{project_id}"
+        project_family = "vid2vid" if source_video_name else "image2vid"
+        relative_folder = Path(project_family) / "long" / f"project_{project_id}"
         output = build_output_path(
             {"filename": "final.mp4", "subfolder": relative_folder.as_posix()},
             workflow_key="image2vid",
         )
         output.parent.mkdir(parents=True, exist_ok=True)
+        if source_video_name:
+            shutil.copy2(source_video, output.parent / f"000_source{source_video.suffix}")
         self._copy_image2vid_long_references(
             meta=meta,
             project_folder=output.parent,
             segment_count=len(prompt_ids),
         )
         concat_file = output.parent / "segments.txt"
-        concat_file.write_text(
-            "".join(f"file '{str(path.resolve()).replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}'\n" for path in paths),
-            encoding="utf-8",
-        )
-        subprocess.run(
-            [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c", "copy", str(output)],
-            check=True,
-            capture_output=True,
-        )
+        if source_video_name:
+            width = int(meta.get("width") or 720)
+            height = int(meta.get("height") or 720)
+            fps = int(meta.get("image2vid_fps") or 32)
+            inputs = [argument for path in paths for argument in ("-i", str(path))]
+            filters = ";".join(
+                f"[{index}:v]scale={width}:{height}:force_original_aspect_ratio=decrease,"
+                f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps},"
+                f"setpts=PTS-STARTPTS[v{index}]"
+                for index in range(len(paths))
+            )
+            filters += ";" + "".join(f"[v{index}]" for index in range(len(paths)))
+            filters += f"concat=n={len(paths)}:v=1:a=0[outv]"
+            subprocess.run(
+                [ffmpeg, "-y", *inputs, "-filter_complex", filters, "-map", "[outv]", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(output)],
+                check=True,
+                capture_output=True,
+            )
+        else:
+            concat_file.write_text(
+                "".join(f"file '{str(path.resolve()).replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}'\n" for path in paths),
+                encoding="utf-8",
+            )
+            subprocess.run(
+                [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c", "copy", str(output)],
+                check=True,
+                capture_output=True,
+            )
         prompts_file = output.parent / "prompts.txt"
         project_seed = meta.get("image2vid_long_seed", meta.get("seed", ""))
         prompts_file.write_text(
