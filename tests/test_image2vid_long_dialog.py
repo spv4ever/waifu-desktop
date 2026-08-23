@@ -4,6 +4,13 @@ from pathlib import Path
 MAIN_WINDOW_SOURCE = Path("app/ui/main_window.py").read_text(encoding="utf-8")
 
 
+def test_vid2vid_long_reuses_long_editor_with_a_video_source() -> None:
+    assert 'self.open_vid2vid_long_btn = QPushButton("Vid2Vid Long")' in MAIN_WINDOW_SOURCE
+    assert "def open_vid2vid_long_dialog(self)" in MAIN_WINDOW_SOURCE
+    assert 'self.image2vid_long_mode = "vid2vid"' in MAIN_WINDOW_SOURCE
+    assert "create_vid2vid_long_and_enqueue(" in MAIN_WINDOW_SOURCE
+
+
 def test_image2vid_long_prompts_are_inside_resizable_scroll_area() -> None:
     assert "self.image2vid_long_prompts_scroll = QScrollArea()" in MAIN_WINDOW_SOURCE
     assert "self.image2vid_long_prompts_scroll.setWidgetResizable(True)" in MAIN_WINDOW_SOURCE
