@@ -1,3 +1,5 @@
+import pytest
+
 from app.domain.models import ImageToVideoCreate
 from app.services.image2vid_service import ImageToVideoService
 
@@ -118,6 +120,41 @@ def test_image2vid_long_links_segments_and_marks_only_last_as_final() -> None:
     assert second_meta["image2vid_long_prompt_ids"] == result.created_prompt_item_ids
     assert first_meta["seed"] == second_meta["seed"] == 123456
     assert first_meta["image2vid_long_seed"] == second_meta["image2vid_long_seed"] == 123456
+
+
+def test_image2vid_long_accepts_a_different_tenth_second_duration_per_segment() -> None:
+    store = _Store()
+    service = ImageToVideoService.__new__(ImageToVideoService)
+    service.store = store
+    service._prepare_source_image = lambda _source_path: "source.png"
+    request = ImageToVideoCreate(
+        source_category="waifu", source_prompt_id=10, source_url="",
+        source_image="source.jpg", title="Long", prompt_text="move",
+        negative_text="negative", ratio="1:1", width=720, height=720,
+        seconds=2.1, fps=32, length_frames=34,
+    )
+    second = ImageToVideoCreate(**{**request.__dict__, "seconds": 4.9, "length_frames": 78})
+
+    service.create_long_and_enqueue([request, second], seed=123456)
+
+    assert [item["meta"]["image2vid_seconds"] for item in store.prompt_items] == [2.1, 4.9]
+
+
+def test_image2vid_long_rejects_durations_outside_range_or_with_extra_decimals() -> None:
+    service = ImageToVideoService.__new__(ImageToVideoService)
+    base = ImageToVideoCreate(
+        source_category="waifu", source_prompt_id=10, source_url="",
+        source_image="source.jpg", title="Long", prompt_text="move",
+        negative_text="negative", ratio="1:1", width=720, height=720,
+        seconds=5.1, fps=32, length_frames=82,
+    )
+
+    with pytest.raises(ValueError, match="entre 2 y 5"):
+        service.create_long_and_enqueue([base])
+    with pytest.raises(ValueError, match="máximo un decimal"):
+        service.create_long_and_enqueue([
+            ImageToVideoCreate(**{**base.__dict__, "seconds": 3.25})
+        ])
 
 
 def test_image2vid_long_can_use_a_random_seed_for_each_segment(monkeypatch) -> None:
