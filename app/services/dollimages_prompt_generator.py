@@ -16,6 +16,9 @@ THEMED_OPTIONS_PATHS = {
     "bikini_combinations": Path(
         "resources/config/dollimages_bikini_prompt_options.json"
     ),
+    "lingerie_combinations": Path(
+        "resources/config/dollimages_lingerie_prompt_options.json"
+    ),
     "pool_combinations": Path(
         "resources/config/dollimages_pool_prompt_options.json"
     ),
