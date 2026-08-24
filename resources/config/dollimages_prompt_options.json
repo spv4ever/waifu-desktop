@@ -1,5 +1,5 @@
 {
-  "template": "RAW glamour photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], alluring but non-explicit mood, elegant sensuality,  cinematic composition, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
+  "template": "RAW glamour photograph of [girl_type], single adult female subject, with a fit, toned physique, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], alluring but non-explicit mood, elegant sensuality,  cinematic composition, photorealistic, natural skin texture, realistic anatomy, detailed eyes, sharp focus.",
   "girl_types": [
     "an elegant brunette woman with long wavy hair",
     "a confident blonde woman with a sleek bob haircut",
@@ -7,7 +7,7 @@
     "a sophisticated woman with long black hair",
     "an athletic woman with a high ponytail",
     "a glamorous woman with shoulder-length silver hair",
-    "a curvy woman with voluminous curly brown hair",
+    "a fit woman with a toned physique and voluminous curly brown hair",
     "a petite woman with a short dark pixie cut"
   ],
   "poses": [
