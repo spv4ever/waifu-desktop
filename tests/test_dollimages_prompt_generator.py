@@ -160,6 +160,22 @@ def test_every_dollimages_catalog_includes_lingerie_bodysuits_and_sheer_outfits(
     assert "sheer" in outfits
 
 
+def test_lingerie_catalog_covers_requested_furniture_and_poses():
+    template, options = load_dollimages_themed_prompt_options("lingerie_combinations")
+    poses = " ".join(options["poses"]).lower()
+    locations = " ".join(options["locations"]).lower()
+
+    assert "single adult female subject" in template
+    assert "lingerie remains fully worn" in template
+    assert all(
+        "lingerie" in outfit or "bodysuit" in outfit for outfit in options["outfits"]
+    )
+    assert all(term in poses for term in ("lying", "sitting", "hands and knees"))
+    assert all(
+        term in poses + " " + locations for term in ("bed", "sofa", "chair", "kitchen")
+    )
+
+
 def test_bikini_catalog_uses_only_vivid_modern_micro_bikinis():
     template, options = load_dollimages_themed_prompt_options("bikini_combinations")
     outfits = options["outfits"]

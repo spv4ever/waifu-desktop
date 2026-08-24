@@ -783,6 +783,7 @@ class MainWindow(QMainWindow):
         for label, source in (
             ("Combinación JSON verano", "summer_combinations"),
             ("Combinación JSON bikinis", "bikini_combinations"),
+            ("Combinación JSON chicas en lencería", "lingerie_combinations"),
             ("Combinación JSON chicas en la piscina", "pool_combinations"),
             (
                 "Combinación JSON camisetas oversize",
