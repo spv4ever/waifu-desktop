@@ -1274,6 +1274,14 @@ class MainWindow(QMainWindow):
             "Cantidad de clips que se generarán usando la misma imagen y configuración."
         )
         undress_layout.addWidget(self.undress_repetitions_spin, 1, 5, Qt.AlignTop)
+        undress_layout.addWidget(QLabel("Aspect ratio:"), 2, 0, Qt.AlignTop)
+        self.undress_ratio_combo = QComboBox()
+        for ratio in ("5:8", "1:1", "4:5", "9:16", "16:9"):
+            self.undress_ratio_combo.addItem(ratio, ratio)
+        self.undress_ratio_combo.setToolTip(
+            "Relación de aspecto y resolución que se enviarán al workflow Undress."
+        )
+        undress_layout.addWidget(self.undress_ratio_combo, 2, 1, Qt.AlignTop)
         self.undress_format_label = QLabel()
         undress_layout.addWidget(self.undress_format_label, 2, 2, 1, 5, Qt.AlignTop)
         undress_layout.addWidget(QLabel("Prompt fijo:"), 3, 0)
@@ -1978,6 +1986,7 @@ class MainWindow(QMainWindow):
         self.undress_source_label.imageDropped.connect(self._set_undress_source_from_drop)
         self.undress_garment_list.itemChanged.connect(self._update_undress_prompt)
         self.undress_seconds_spin.valueChanged.connect(self._update_undress_format_label)
+        self.undress_ratio_combo.currentIndexChanged.connect(self._update_undress_format_label)
         self.image2vid_select_source_btn.clicked.connect(self._set_image2vid_source_from_current_selection)
         self.image2vid_select_file_btn.clicked.connect(self._set_image2vid_source_from_disk)
         self.image2vid_source_label.imageDropped.connect(self._set_image2vid_source_from_drop)
@@ -3589,9 +3598,22 @@ class MainWindow(QMainWindow):
     def _update_undress_format_label(self, _value: object | None = None) -> None:
         seconds = self.undress_seconds_spin.value()
         frames = calculate_undress_frames(seconds)
+        ratio = str(self.undress_ratio_combo.currentData() or "5:8")
+        width, height = self._undress_ratio_dimensions(ratio)
         self.undress_format_label.setText(
-            f"Formato: 480x768 · {frames} frames · {UNDRESS_FPS} fps · {seconds:g} s"
+            f"Formato: {ratio} · {width}x{height} · {frames} frames · "
+            f"{UNDRESS_FPS} fps · {seconds:g} s"
         )
+
+    @staticmethod
+    def _undress_ratio_dimensions(ratio: str) -> tuple[int, int]:
+        return {
+            "5:8": (480, 768),
+            "1:1": (720, 720),
+            "4:5": (576, 720),
+            "9:16": (480, 848),
+            "16:9": (848, 480),
+        }.get(ratio, (480, 768))
 
     def _set_undress_external_source(self, *, local_path: str, title: str, source_category: str) -> None:
         self.undress_selected_source = {
@@ -3675,6 +3697,8 @@ class MainWindow(QMainWindow):
         prompt = self.undress_prompt_preview.toPlainText().strip()
         seconds = self.undress_seconds_spin.value()
         length_frames = calculate_undress_frames(seconds)
+        ratio = str(self.undress_ratio_combo.currentData() or "5:8")
+        width, height = self._undress_ratio_dimensions(ratio)
         source_category = str(source.get("source_category") or "waifu")
         source_prompt_id = int(source.get("prompt_id") or 0)
         source_title = str(
@@ -3693,9 +3717,9 @@ class MainWindow(QMainWindow):
             title=title,
             prompt_text=prompt,
             negative_text=IMAGE2VID_MIN_NEGATIVE_PROMPT,
-            ratio="5:8",
-            width=480,
-            height=768,
+            ratio=ratio,
+            width=width,
+            height=height,
             seconds=seconds,
             fps=UNDRESS_FPS,
             length_frames=length_frames,

@@ -15,6 +15,9 @@ from app.config.undress import (
 from app.services.workflow_service import WorkflowService
 
 
+MAIN_WINDOW_SOURCE = Path("app/ui/main_window.py").read_text(encoding="utf-8")
+
+
 def test_undress_workflow_mappings_target_existing_nodes() -> None:
     workflow = json.loads(Path("resources/workflows/undress.json").read_text(encoding="utf-8"))
     config = yaml.safe_load(Path("resources/config/app_config.yaml").read_text(encoding="utf-8"))
@@ -111,3 +114,20 @@ def test_undress_workflow_receives_scaled_video_length() -> None:
     )
 
     assert updated["63"]["inputs"]["length"] == 193
+
+
+def test_undress_dialog_allows_selecting_an_aspect_ratio() -> None:
+    assert "self.undress_ratio_combo = QComboBox()" in MAIN_WINDOW_SOURCE
+    assert 'for ratio in ("5:8", "1:1", "4:5", "9:16", "16:9")' in MAIN_WINDOW_SOURCE
+    assert (
+        "self.undress_ratio_combo.currentIndexChanged.connect("
+        "self._update_undress_format_label)"
+    ) in MAIN_WINDOW_SOURCE
+
+
+def test_undress_request_uses_selected_ratio_dimensions() -> None:
+    assert 'ratio = str(self.undress_ratio_combo.currentData() or "5:8")' in MAIN_WINDOW_SOURCE
+    assert "width, height = self._undress_ratio_dimensions(ratio)" in MAIN_WINDOW_SOURCE
+    assert "ratio=ratio," in MAIN_WINDOW_SOURCE
+    assert "width=width," in MAIN_WINDOW_SOURCE
+    assert "height=height," in MAIN_WINDOW_SOURCE
