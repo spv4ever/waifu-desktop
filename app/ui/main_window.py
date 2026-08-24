@@ -214,6 +214,47 @@ class VideoDropList(QListWidget):
         return [str(self.item(row).data(Qt.UserRole)) for row in range(self.count())]
 
 
+class VideoDropLineEdit(QLineEdit):
+    """Campo de ruta que acepta un único vídeo arrastrado desde el explorador."""
+
+    _VIDEO_EXTENSIONS = VideoDropList._VIDEO_EXTENSIONS
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event) -> None:  # noqa: N802 - Qt API
+        if self._video_path_from_mime(event.mimeData()):
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event) -> None:  # noqa: N802 - Qt API
+        if self._video_path_from_mime(event.mimeData()):
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event) -> None:  # noqa: N802 - Qt API
+        video_path = self._video_path_from_mime(event.mimeData())
+        if not video_path:
+            super().dropEvent(event)
+            return
+        self.setText(str(video_path.expanduser().resolve()))
+        event.acceptProposedAction()
+
+    def _video_path_from_mime(self, mime_data) -> Path | None:
+        if not mime_data.hasUrls():
+            return None
+        for url in mime_data.urls():
+            if not url.isLocalFile():
+                continue
+            path = Path(url.toLocalFile())
+            if path.is_file() and path.suffix.lower() in self._VIDEO_EXTENSIONS:
+                return path
+        return None
+
+
 class ImageDropLabel(QLabel):
     """Etiqueta que acepta una imagen local arrastrada desde el explorador."""
 
@@ -1539,9 +1580,13 @@ class MainWindow(QMainWindow):
         self.repeat_video_dialog.setWindowTitle("Crear vídeo largo")
         repeat_video_layout = QGridLayout(self.repeat_video_dialog)
         repeat_video_layout.addWidget(QLabel("Vídeo original:"), 0, 0)
-        self.repeat_video_path_input = QLineEdit()
+        self.repeat_video_path_input = VideoDropLineEdit()
         self.repeat_video_path_input.setReadOnly(True)
         self.repeat_video_path_input.setMinimumWidth(480)
+        self.repeat_video_path_input.setPlaceholderText("Arrastra un vídeo aquí o pulsa Elegir vídeo…")
+        self.repeat_video_path_input.setToolTip(
+            "Suelta aquí un archivo MP4, MOV, M4V, MKV, WEBM o AVI."
+        )
         repeat_video_layout.addWidget(self.repeat_video_path_input, 0, 1)
         self.repeat_video_select_btn = QPushButton("Elegir vídeo…")
         repeat_video_layout.addWidget(self.repeat_video_select_btn, 0, 2)
