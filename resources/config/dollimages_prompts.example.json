@@ -4,21 +4,21 @@
     {
       "group_name": "enfermeras",
       "title": "Enfermera futurista",
-      "prompt_text": "confident adult futuristic nurse, fitted white uniform dress with a tasteful neckline and neon accents, flirtatious direct gaze, alluring but non-explicit,  soft studio light, shallow depth of field",
+      "prompt_text": "confident adult futuristic nurse with a fit, toned physique, fitted white uniform dress with a tasteful neckline and neon accents, flirtatious direct gaze, alluring but non-explicit,  soft studio light, shallow depth of field",
       "typology": "normal",
       "enabled": true
     },
     {
       "group_name": "playa",
       "title": "Retrato en la playa",
-      "prompt_text": "glamour portrait of an adult woman on a tropical beach, elegant fitted resort dress, captivating over-the-shoulder gaze, alluring but non-explicit,  golden hour, natural skin texture, 85mm lens",
+      "prompt_text": "glamour portrait of a fit adult woman with a toned physique on a tropical beach, elegant fitted resort dress, captivating over-the-shoulder gaze, alluring but non-explicit,  golden hour, natural skin texture, 85mm lens",
       "typology": "sfw",
       "enabled": true
     },
     {
       "group_name": "",
       "title": "Noir dramático",
-      "prompt_text": "adult woman in an elegant fitted black dress, captivating direct gaze, sophisticated sensuality, non-explicit black-and-white noir portrait, dramatic shadows, cinematic lighting, film grain",
+      "prompt_text": "fit adult woman with a toned physique in an elegant fitted black dress, captivating direct gaze, sophisticated sensuality, non-explicit black-and-white noir portrait, dramatic shadows, cinematic lighting, film grain",
       "typology": "normal",
       "enabled": false
     }
