@@ -1,0 +1,95 @@
+{
+  "template": "RAW cinematic river and waterfall fashion photograph of [girl_type], single adult female subject, with a fit, toned physique, [shot], [pose], wearing [outfit], bikini styling only, [location], [expression], [lighting], [style], [details], tasteful sensuality, photorealistic, natural wet skin texture, realistic anatomy, detailed eyes, realistic flowing water, cinematic depth of field, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long wet wavy hair",
+    "an adult blonde woman with damp sunlit hair",
+    "an adult red-haired woman with natural freckles and wet curls",
+    "an adult woman with long wet black hair",
+    "an adult athletic woman with a high wet ponytail",
+    "an adult woman with shoulder-length silver hair",
+    "an adult woman with voluminous dark curls dampened by the river mist",
+    "an adult woman with long honey-blonde hair"
+  ],
+  "poses": [
+    "bathing waist-deep in the clear river while gently splashing the water",
+    "bathing beneath the soft edge of a waterfall with a relaxed natural posture",
+    "walking barefoot along the pebbled river shore with water around her ankles",
+    "walking calmly along the sandy shore beside the flowing river",
+    "standing knee-deep in the current while brushing wet hair away from her face",
+    "sitting on a smooth riverside rock with both feet trailing in the water",
+    "wading toward the shore after a refreshing swim",
+    "reclining safely on a broad dry rock beside the waterfall spray",
+    "turning toward the camera while strolling at the water's edge",
+    "resting on the grassy riverbank with one knee softly bent"
+  ],
+  "outfits": [
+    "a vivid turquoise triangle micro bikini with slim adjustable straps",
+    "a coral high-leg micro bikini with minimalist gold ring connectors",
+    "an emerald green string micro bikini with delicate side ties",
+    "a cobalt blue halter micro bikini with contrasting aqua trim",
+    "a hot-pink bandeau micro bikini with a sleek central twist",
+    "a sunny yellow micro bikini with translucent bead details",
+    "a violet asymmetrical micro bikini with contemporary clean lines",
+    "a fuchsia and orange color-block micro bikini with slim knots",
+    "a cyan tropical-print micro bikini with vivid botanical accents",
+    "a scarlet micro bikini with subtle textured fabric and fine straps"
+  ],
+  "locations": [
+    "in a crystal-clear mountain river below a wide moss-covered waterfall",
+    "beside a secluded forest waterfall flowing into a turquoise natural pool",
+    "on the pebbled shore of a gentle river surrounded by lush green woodland",
+    "at a sandy bend in a tropical river beneath tall palms",
+    "among smooth granite rocks beside a cascading alpine river",
+    "in a shallow river lagoon fed by twin waterfalls and framed by ferns",
+    "on a quiet riverbank beneath weeping willows and drifting morning mist",
+    "beside a dramatic stepped waterfall deep in a subtropical forest",
+    "at the edge of a broad moonlit river with distant waterfall silhouettes",
+    "on a wildflower-covered shore beside a slow clear river"
+  ],
+  "expressions": [
+    "with a relaxed and captivating expression",
+    "with a warm magnetic smile",
+    "with a carefree natural laugh",
+    "with calm confident direct eye contact",
+    "with a playful knowing half-smile",
+    "with a serene contemplative gaze"
+  ],
+  "lighting": [
+    "fresh early-morning sunlight filtering through mist above the river",
+    "bright natural morning light with sparkling reflections on the current",
+    "soft overcast daylight diffused by waterfall mist",
+    "warm dusk light painting the river in amber and rose tones",
+    "deep blue-hour twilight with the last glow behind the trees",
+    "closed night illuminated by soft moonlight and discreet warm lantern light",
+    "moonless night with subtle cinematic blue fill light and distant fireflies",
+    "clear starry night with cool reflections moving across the dark river"
+  ],
+  "shots": [
+    "full-body riverside fashion photograph",
+    "three-quarter body portrait at water level",
+    "wide environmental portrait including the river and waterfall",
+    "low-angle full-body photograph framed by sparkling water",
+    "cinematic medium portrait through soft waterfall mist",
+    "dynamic full-body photograph captured while walking along the shore",
+    "overhead editorial photograph beside the shallow current",
+    "nighttime environmental portrait with the complete river landscape"
+  ],
+  "styles": [
+    "cinematic outdoor swimwear editorial photography",
+    "premium nature-travel campaign photography",
+    "vibrant contemporary bikini fashion photography",
+    "atmospheric wilderness lifestyle photography",
+    "luxury adventure magazine photography",
+    "polished photorealistic river portrait photography"
+  ],
+  "details": [
+    "fine water droplets sparkling naturally on her hair and shoulders",
+    "soft waterfall mist drifting through the background",
+    "realistic ripples curling around her legs",
+    "wet stones reflecting the colors of the sky",
+    "lush ferns framing the composition",
+    "a gentle breeze moving loose damp strands of hair",
+    "subtle waterproof jewelry catching the available light",
+    "natural reflections dancing across her skin"
+  ]
+}

@@ -22,6 +22,9 @@ THEMED_OPTIONS_PATHS = {
     "pool_combinations": Path(
         "resources/config/dollimages_pool_prompt_options.json"
     ),
+    "river_combinations": Path(
+        "resources/config/dollimages_river_prompt_options.json"
+    ),
     "oversized_tshirt_combinations": Path(
         "resources/config/dollimages_oversized_tshirt_prompt_options.json"
     ),

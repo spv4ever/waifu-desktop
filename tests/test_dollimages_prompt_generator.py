@@ -139,6 +139,7 @@ def test_every_dollimages_outfit_is_sexy_and_avoids_conventional_suits(
             not in (
                 "bikini_combinations",
                 "pool_combinations",
+                "river_combinations",
                 "sauna_combinations",
                 "oversized_tshirt_combinations",
             )
@@ -272,6 +273,23 @@ def test_pool_catalog_includes_twilight_lunar_eclipse_and_normal_scenes():
     assert any(
         daytime in lighting for daytime in ("morning", "midday", "daylight")
     )
+
+
+def test_river_catalog_covers_waterfalls_bathing_walks_and_times_of_day():
+    template, options = load_dollimages_themed_prompt_options("river_combinations")
+    locations = " ".join(options["locations"]).lower()
+    poses = " ".join(options["poses"]).lower()
+    lighting = " ".join(options["lighting"]).lower()
+
+    assert "river" in template.lower()
+    assert "waterfall" in locations
+    assert "bathing" in poses
+    assert "walking" in poses
+    assert "shore" in poses
+    assert "morning" in lighting
+    assert any(term in lighting for term in ("dusk", "twilight"))
+    assert any(term in lighting for term in ("closed night", "moonless night"))
+    assert all("bikini" in outfit.lower() for outfit in options["outfits"])
 
 
 def test_oversized_tshirt_catalog_uses_only_shirts_without_bottoms():
