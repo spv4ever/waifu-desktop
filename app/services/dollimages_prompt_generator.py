@@ -28,6 +28,9 @@ THEMED_OPTIONS_PATHS = {
     "oversized_tshirt_combinations": Path(
         "resources/config/dollimages_oversized_tshirt_prompt_options.json"
     ),
+    "wet_tshirt_combinations": Path(
+        "resources/config/dollimages_wet_tshirt_prompt_options.json"
+    ),
     "snow_combinations": Path("resources/config/dollimages_snow_prompt_options.json"),
     "sauna_combinations": Path("resources/config/dollimages_sauna_prompt_options.json"),
     "travel_combinations": Path(
