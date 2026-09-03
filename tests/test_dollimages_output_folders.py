@@ -19,6 +19,10 @@ from app.services.queue_worker import (
             "oversized_tshirt_combinations",
             "dollimages/sfw/oversized_tshirt_combinations",
         ),
+        (
+            "wet_tshirt_combinations",
+            "dollimages/sfw/wet_tshirt_combinations",
+        ),
         ("venice_carnival_combinations", "dollimages/sfw/venice_carnival_combinations"),
         ("ibiza_party_combinations", "dollimages/sfw/ibiza_party_combinations"),
     ],
@@ -72,6 +76,7 @@ def test_combination_folder_segments_are_sanitized():
         "pool_combinations",
         "river_combinations",
         "oversized_tshirt_combinations",
+        "wet_tshirt_combinations",
         "snow_combinations",
         "sauna_combinations",
         "travel_combinations",

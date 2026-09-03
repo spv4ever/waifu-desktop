@@ -1,0 +1,87 @@
+{
+  "template": "RAW contemporary wet-look fashion photograph of [girl_type], single adult female subject, [shot], [pose], wearing [outfit], the wet T-shirt remains securely in place with tasteful opaque coverage, [location], [expression], [lighting], [style], [details], tasteful non-explicit mood, photorealistic, natural wet skin and fabric texture, realistic anatomy, detailed eyes, cinematic depth of field, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long rain-soaked wavy hair",
+    "an adult blonde woman with a tousled wet bob",
+    "an adult red-haired woman with natural freckles and damp curls",
+    "an adult woman with long wet black hair",
+    "an adult athletic woman with a damp high ponytail",
+    "an adult woman with shoulder-length silver hair",
+    "an adult woman with dark rain-soaked curls",
+    "an adult woman with a sleek auburn ponytail"
+  ],
+  "poses": [
+    "standing confidently beneath a gentle shower of rain with her shoulders relaxed",
+    "walking through shallow water while brushing damp hair away from her face",
+    "sitting on the edge of a pool with her feet in the water",
+    "leaning against a tiled wall beneath a soft outdoor shower",
+    "turning toward the camera as droplets scatter from her hair",
+    "kneeling at the waterline in a composed editorial pose",
+    "standing beneath a light waterfall with one hand resting on her hip",
+    "walking along the beach after a wave with a carefree stride"
+  ],
+  "outfits": [
+    "a soaking-wet white fitted cotton T-shirt with discreet nude-tone lining for full coverage",
+    "a wet black cropped T-shirt with an opaque double-layer front for full coverage",
+    "a rain-soaked wet coral fitted T-shirt with integrated opaque coverage",
+    "a wet cobalt-blue athletic T-shirt with a lined front for secure coverage",
+    "a soaking-wet pastel-pink ribbed T-shirt with discreet full-coverage lining",
+    "a wet emerald-green fitted T-shirt with an opaque lined front for coverage",
+    "a rain-soaked wet lavender cropped T-shirt with integrated full coverage",
+    "a wet turquoise soft-cotton T-shirt with a double-layer chest panel for coverage",
+    "a soaking-wet cherry-red vintage T-shirt with discreet opaque lining for full coverage",
+    "a wet sunshine-yellow fitted T-shirt with a lined front for secure coverage"
+  ],
+  "locations": [
+    "on a colorful city street during warm summer rain",
+    "beside a tropical waterfall surrounded by vivid green foliage",
+    "at the shallow edge of a modern turquoise pool",
+    "on a quiet beach just after a breaking wave",
+    "beneath an outdoor shower at a luxury coastal resort",
+    "on a rain-swept rooftop with colorful city lights behind her",
+    "at a sunlit lakeshore with sparkling water droplets",
+    "in a minimalist studio with a controlled cinematic rain rig"
+  ],
+  "expressions": [
+    "with a joyful spontaneous smile",
+    "with a playful confident half-smile",
+    "with calm direct eye contact",
+    "with a carefree natural laugh",
+    "with a relaxed thoughtful expression",
+    "with a poised editorial gaze"
+  ],
+  "lighting": [
+    "soft overcast daylight with luminous skin tones",
+    "warm golden-hour backlighting through sparkling droplets",
+    "clean diffused studio lighting with crisp water highlights",
+    "vivid blue-hour light with magenta and cyan reflections",
+    "bright tropical daylight filtered through foliage",
+    "cinematic side lighting that reveals realistic wet fabric texture"
+  ],
+  "shots": [
+    "full-body wet-look fashion editorial photograph",
+    "three-quarter body lifestyle photograph",
+    "medium fashion portrait framed by suspended droplets",
+    "low-angle full-body photograph from near water level",
+    "wide environmental rain portrait",
+    "dynamic full-body candid fashion photograph",
+    "rear three-quarter portrait with the subject looking back",
+    "eye-level contemporary campaign photograph"
+  ],
+  "styles": [
+    "contemporary wet-look fashion editorial photography",
+    "premium summer lifestyle campaign photography",
+    "cinematic rain-soaked magazine photography",
+    "vibrant resort fashion advertising photography",
+    "polished 2020s social-media campaign photography",
+    "natural documentary-inspired fashion photography"
+  ],
+  "details": [
+    "fine water droplets sparkling naturally across the fabric and hair",
+    "a gentle breeze moving damp strands of hair",
+    "realistic beads of water catching colorful highlights",
+    "subtle reflections shimmering across the wet ground",
+    "vivid background colors softened by cinematic bokeh",
+    "premium editorial color grading with fresh aqua and coral tones"
+  ]
+}

@@ -84,7 +84,12 @@ def test_every_themed_catalog_is_complete_and_photographic(prompt_source):
         *(
             source
             for source in THEMED_OPTIONS_PATHS
-            if source not in ("sauna_combinations", "oversized_tshirt_combinations")
+            if source
+            not in (
+                "sauna_combinations",
+                "oversized_tshirt_combinations",
+                "wet_tshirt_combinations",
+            )
         ),
     ),
 )
@@ -142,6 +147,7 @@ def test_every_dollimages_outfit_is_sexy_and_avoids_conventional_suits(
                 "river_combinations",
                 "sauna_combinations",
                 "oversized_tshirt_combinations",
+                "wet_tshirt_combinations",
             )
         ),
     ),
@@ -318,6 +324,22 @@ def test_oversized_tshirt_catalog_uses_only_shirts_without_bottoms():
     }
 
     assert len(represented_colors) >= 6
+
+
+def test_wet_tshirt_catalog_keeps_adult_subjects_and_wet_shirt_theme():
+    template, options = load_dollimages_themed_prompt_options(
+        "wet_tshirt_combinations"
+    )
+    outfits = [outfit.lower() for outfit in options["outfits"]]
+    locations = " ".join(options["locations"]).lower()
+
+    assert "single adult female subject" in template
+    assert "wet t-shirt" in template.lower()
+    assert "tasteful non-explicit" in template.lower()
+    assert all("adult" in girl_type.lower() for girl_type in options["girl_types"])
+    assert all("wet" in outfit and "t-shirt" in outfit for outfit in outfits)
+    assert all("coverage" in outfit or "lined" in outfit for outfit in outfits)
+    assert any(term in locations for term in ("rain", "waterfall", "pool", "beach"))
 
 
 def test_bikini_catalog_covers_reclining_and_seated_sand_scenes():

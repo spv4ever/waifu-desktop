@@ -29,6 +29,7 @@ COMBINATION_PROMPT_SOURCES = {
     "pool_combinations",
     "river_combinations",
     "oversized_tshirt_combinations",
+    "wet_tshirt_combinations",
     "snow_combinations",
     "sauna_combinations",
     "travel_combinations",
