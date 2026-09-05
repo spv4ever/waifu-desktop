@@ -66,3 +66,13 @@ Importar prompts Dollimages desde JSON:
 python -m app.runner.import_dollimages_prompts --path resources/config/dollimages_prompts.example.json
 
 Opcionalmente, puedes usar la variable DOLLIMAGES_PROMPTS_JSON para definir la ruta por defecto y agregar --replace si quieres limpiar los prompts existentes.
+
+Bibliotecas temáticas para Bulk Images:
+
+- `resources/config/bulk_images_prompts/summer.json`
+- `resources/config/bulk_images_prompts/bikinis.json`
+- `resources/config/bulk_images_prompts/snow.json`
+- `resources/config/bulk_images_prompts/saunas.json`
+- `resources/config/bulk_images_prompts/iconic_travel.json`
+
+Cada archivo se puede importar por separado desde **Bulk Images → Importar prompts desde JSON**. Los identificadores son únicos entre bibliotecas, así que también se pueden importar todas para combinarlas en la biblioteca local.
