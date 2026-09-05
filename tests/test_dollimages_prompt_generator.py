@@ -415,6 +415,21 @@ def test_venice_carnival_catalog_uses_masks_and_venetian_locations():
     assert "grand canal" in locations
 
 
+def test_andorra_travel_catalog_uses_recognizable_andorran_destinations():
+    template, options = load_dollimages_themed_prompt_options(
+        "andorra_travel_combinations"
+    )
+    locations = " ".join(options["locations"]).lower()
+
+    assert "andorra" in template.lower()
+    assert "single adult female traveler" in template.lower()
+    assert all("adult" in girl_type.lower() for girl_type in options["girl_types"])
+    assert "andorra la vella" in locations
+    assert "caldea" in locations
+    assert "grandvalira" in locations
+    assert "ordino" in locations
+
+
 def test_unknown_themed_catalog_is_rejected():
     with pytest.raises(ValueError, match="no es válido"):
         load_dollimages_themed_prompt_options("unknown_combinations")
