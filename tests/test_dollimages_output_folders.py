@@ -24,6 +24,10 @@ from app.services.queue_worker import (
             "dollimages/sfw/wet_tshirt_combinations",
         ),
         ("venice_carnival_combinations", "dollimages/sfw/venice_carnival_combinations"),
+        (
+            "andorra_travel_combinations",
+            "dollimages/sfw/andorra_travel_combinations",
+        ),
         ("ibiza_party_combinations", "dollimages/sfw/ibiza_party_combinations"),
     ],
 )
@@ -80,6 +84,7 @@ def test_combination_folder_segments_are_sanitized():
         "snow_combinations",
         "sauna_combinations",
         "travel_combinations",
+        "andorra_travel_combinations",
         "venice_carnival_combinations",
         "ibiza_party_combinations",
     ],

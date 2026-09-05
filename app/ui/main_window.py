@@ -798,6 +798,10 @@ class MainWindow(QMainWindow):
             ("Combinación JSON saunas", "sauna_combinations"),
             ("Combinación JSON viajeras", "travel_combinations"),
             (
+                "Combinación JSON viajeras por Andorra",
+                "andorra_travel_combinations",
+            ),
+            (
                 "Combinación JSON carnaval de Venecia",
                 "venice_carnival_combinations",
             ),

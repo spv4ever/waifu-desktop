@@ -1,0 +1,95 @@
+{
+  "template": "RAW travel glamour photograph in Andorra of [girl_type], single adult female traveler, with a fit, toned physique, [shot], [pose], wearing [outfit], [location], [expression], [lighting], [style], alluring but non-explicit mood, authentic Pyrenean atmosphere, recognizable Andorran scenery clearly visible, [details], photorealistic, natural skin texture, realistic anatomy, detailed eyes, realistic shadows, sharp focus.",
+  "girl_types": [
+    "an adult brunette woman with long wavy hair",
+    "an adult blonde woman with a sleek bob",
+    "an adult red-haired woman with natural freckles",
+    "an adult woman with long glossy black hair",
+    "an adult athletic woman with a high ponytail",
+    "an adult woman with shoulder-length silver hair",
+    "an adult woman with voluminous dark curls",
+    "an adult woman with long honey-blonde hair"
+  ],
+  "poses": [
+    "standing frontally at a scenic overlook with both hands on her hips",
+    "walking toward the camera along a stone street with a confident stride",
+    "turning toward the camera as her short skirt moves in the mountain breeze",
+    "sitting on a low stone wall facing the camera with one leg extended",
+    "raising both arms joyfully before a sweeping Pyrenean panorama",
+    "crouching frontally in a balanced editorial pose and looking at the camera",
+    "looking back over her shoulder while following a mountain path",
+    "caught in a playful jump with the valley clearly visible behind her",
+    "leaning lightly against a historic stone facade with one knee bent",
+    "standing front-facing beside a viewpoint railing with one hand in her hair"
+  ],
+  "outfits": [
+    "a fitted coral crop top with a white ultra-short flared mini skirt and hiking sneakers",
+    "an open cobalt shirt over a ribbed bralette with a vivid micro pleated mini skirt",
+    "a fuchsia fitted top with a deep neckline, a black mini skirt, and ankle boots",
+    "a turquoise crop top with high-waisted tailored shorts and colorful trainers",
+    "an open checked shirt over a fitted bandeau with a very short denim mini skirt",
+    "a cherry-red halter crop top with a white micro tennis skirt and trail sneakers",
+    "a lilac off-the-shoulder top with a layered ultra-short mini skirt and boots",
+    "a fitted lemon top with a vivid blue flared mini skirt and ankle boots",
+    "a sheer long-sleeve blouse with strategic opaque coverage over a modern lingerie set",
+    "a sculpting bodysuit with a plunging neckline, opaque panels, and a short sheer overskirt",
+    "a colorful bralette with a coral micro cargo mini skirt and an open lightweight shirt",
+    "a plum lingerie bodysuit with opaque intimate coverage beneath an open knit cardigan"
+  ],
+  "locations": [
+    "on Meritxell Avenue in Andorra la Vella with the mountains rising behind her",
+    "outside the glass Caldea spa tower in Escaldes-Engordany",
+    "at a Grandvalira viewpoint overlooking the Pyrenean ski slopes",
+    "among the historic stone lanes of Ordino village",
+    "beside the Romanesque Sant Joan de Caselles church in Canillo",
+    "at the Roc del Quer viewpoint above the Montaup valley",
+    "on the panoramic Tristaina solar viewpoint near the high mountain lakes",
+    "beside the medieval Casa de la Vall in Andorra la Vella",
+    "on a scenic path by Engolasters Lake surrounded by forested peaks",
+    "in the stone village of Pal beneath the bell tower of Sant Climent",
+    "at the Mirador del Riu Runer with a broad southern valley panorama",
+    "on a lively terrace in Soldeu overlooking the Grandvalira mountains"
+  ],
+  "expressions": [
+    "with a warm and magnetic travel smile",
+    "with a relaxed and captivating expression",
+    "with a playful, flirtatious half-smile",
+    "with a calm, confident direct gaze",
+    "with a joyful candid laugh",
+    "with a serene expression inspired by the mountain view"
+  ],
+  "lighting": [
+    "crisp early-morning mountain light",
+    "warm golden-hour light spilling across the valley",
+    "bright natural Pyrenean daylight",
+    "cinematic blue-hour illumination from the town",
+    "soft overcast alpine lighting",
+    "clear winter sunlight reflected by distant snow"
+  ],
+  "shots": [
+    "front-facing full-body travel fashion photograph",
+    "front-facing three-quarter body editorial photograph",
+    "dynamic full-body action photograph capturing the complete pose",
+    "low-angle full-body fashion photograph with mountain peaks behind her",
+    "wide environmental portrait showing the recognizable Andorran destination",
+    "cinematic street-level travel portrait",
+    "full-body photograph framed by stone architecture",
+    "telephoto environmental portrait with layered Pyrenean ridges"
+  ],
+  "styles": [
+    "contemporary European travel fashion editorial photography",
+    "vibrant Pyrenean destination campaign photography",
+    "bold 2020s mountain-resort street-style photography",
+    "cinematic luxury travel photography with elegant sensuality",
+    "premium tourism magazine photography with an authentic sense of place",
+    "colorful alpine lifestyle photography with polished editorial styling"
+  ],
+  "details": [
+    "layered Pyrenean peaks and clean mountain air defining the background",
+    "traditional stone and slate architecture rendered in crisp detail",
+    "subtle travel accessories and wind-touched hair adding candid movement",
+    "Andorran flags and discreet local signage establishing the destination",
+    "pine-covered slopes and a winding valley road visible in the distance",
+    "seasonal mountain wildflowers and dramatic ridgelines framing the composition"
+  ]
+}
