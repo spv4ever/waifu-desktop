@@ -90,6 +90,7 @@ from app.ui.anime_v5_maintenance_window import AnimeV5MaintenanceWindow
 from app.ui.bulk_images_prompt_window import BulkImagesPromptWindow
 from app.ui.social_tools_window import SocialToolsWindow
 from app.ui.short_creator_window import ShortCreatorWindow
+from app.ui.qr_code_window import QrCodeWindow
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
 
@@ -330,6 +331,7 @@ class MainWindow(QMainWindow):
         self.repeat_video_thread: RepeatVideoThread | None = None
         self.social_tools_window: SocialToolsWindow | None = None
         self.short_creator_window: ShortCreatorWindow | None = None
+        self.qr_code_window: QrCodeWindow | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -370,6 +372,8 @@ class MainWindow(QMainWindow):
         self.social_tools_action.triggered.connect(self.open_social_tools_window)
         self.short_creator_action = sections_menu.addAction("Creador de Shorts")
         self.short_creator_action.triggered.connect(self.open_short_creator_window)
+        self.qr_code_action = sections_menu.addAction("Generador de códigos QR")
+        self.qr_code_action.triggered.connect(self.open_qr_code_window)
         self.open_base_action = file_menu.addAction("Abrir Base")
         self.open_up_action = file_menu.addAction("Abrir Upscale")
         self.open_folder_base_action = file_menu.addAction("Abrir Carpeta (Base)")
@@ -444,9 +448,13 @@ class MainWindow(QMainWindow):
         self.short_creator_section_btn = QPushButton("Creador de Shorts →")
         self.short_creator_section_btn.setObjectName("PrimaryButton")
         self.short_creator_section_btn.clicked.connect(self.open_short_creator_window)
+        self.qr_code_section_btn = QPushButton("Generador QR →")
+        self.qr_code_section_btn.setObjectName("PrimaryButton")
+        self.qr_code_section_btn.clicked.connect(self.open_qr_code_window)
         header.addWidget(self.image_generation_section_btn)
         header.addWidget(self.social_tools_section_btn)
         header.addWidget(self.short_creator_section_btn)
+        header.addWidget(self.qr_code_section_btn)
         layout.addLayout(header)
 
         self.quick_actions_layout = QGridLayout()
@@ -5412,6 +5420,13 @@ class MainWindow(QMainWindow):
         self.short_creator_window.show()
         self.short_creator_window.raise_()
         self.short_creator_window.activateWindow()
+
+    def open_qr_code_window(self) -> None:
+        if self.qr_code_window is None:
+            self.qr_code_window = QrCodeWindow(self)
+        self.qr_code_window.show()
+        self.qr_code_window.raise_()
+        self.qr_code_window.activateWindow()
 
     def delete_selected_prompt(self, prompt_id: int | None = None) -> None:
         pid = prompt_id if prompt_id is not None else self._selected_prompt_id()
