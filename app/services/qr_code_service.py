@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 import qrcode
-from qrcode.constants import ERROR_CORRECT_M
+from qrcode.constants import ERROR_CORRECT_L
 
 
 class InvalidQrUrl(ValueError):
@@ -51,7 +51,10 @@ class QrCodeService:
         normalized_url = normalize_web_url(url)
         qr = qrcode.QRCode(
             version=None,
-            error_correction=ERROR_CORRECT_M,
+            # The low correction level leaves more room for the URL, which
+            # lets qrcode choose a smaller matrix with fewer modules whenever
+            # the link is close to a version boundary.
+            error_correction=ERROR_CORRECT_L,
             box_size=10,
             border=4,
         )
