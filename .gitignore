@@ -32,7 +32,7 @@ resources/images/
 
 /data/
 data/
-
+TikTok/
 social_media/
 audio/
 audio_relax/
@@ -45,3 +45,4 @@ resources/config/azafatas.json
 
 import/
 outputs/
+descargados.txt
