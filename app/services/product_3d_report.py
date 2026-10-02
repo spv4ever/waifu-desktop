@@ -105,10 +105,10 @@ class Product3DReport:
                 painter.drawText(QRectF(x + 7, y, width - 14, row_h), Qt.AlignVCenter | Qt.AlignLeft, label)
                 x += width
             y += row_h
+            painter.setFont(QFont("Arial", 9))
             return y
 
         page_header()
-        painter.setFont(QFont("Arial", 9))
         for index, product in enumerate(products):
             if y + row_h + 70 > page.bottom():
                 page_footer()
