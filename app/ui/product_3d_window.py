@@ -16,9 +16,14 @@ from app.services.product_3d_report import Product3DReport, format_euros
 
 
 class ProductEditorDialog(QDialog):
-    def __init__(self, parent: QWidget, product: Product3D | None = None) -> None:
+    def __init__(
+        self, parent: QWidget, product: Product3D | None = None, *, duplicate: bool = False,
+    ) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Modificar producto 3D" if product else "Nuevo producto 3D")
+        if duplicate:
+            self.setWindowTitle("Duplicar producto 3D")
+        else:
+            self.setWindowTitle("Modificar producto 3D" if product else "Nuevo producto 3D")
         form = QFormLayout(self)
         self.category = QLineEdit(product.category if product else "")
         self.description = QLineEdit(product.description if product else "")
@@ -101,7 +106,12 @@ class Product3DWindow(QMainWindow):
         layout.addWidget(self.table, 1)
 
         actions = QHBoxLayout()
-        for label, callback in (("Nuevo", self.new_product), ("Modificar", self.edit_product), ("Borrar", self.delete_product)):
+        for label, callback in (
+            ("Nuevo", self.new_product),
+            ("Duplicar", self.duplicate_product),
+            ("Modificar", self.edit_product),
+            ("Borrar", self.delete_product),
+        ):
             button = QPushButton(label)
             button.clicked.connect(callback)
             actions.addWidget(button)
@@ -154,6 +164,17 @@ class Product3DWindow(QMainWindow):
         if dialog.exec() == QDialog.Accepted:
             with get_connection() as conn:
                 self.repository.update(conn, product.id, **dialog.values())
+            self.refresh()
+
+    def duplicate_product(self) -> None:
+        product = self._selected()
+        if product is None:
+            QMessageBox.information(self, "Duplicar", "Selecciona primero un producto.")
+            return
+        dialog = ProductEditorDialog(self, product, duplicate=True)
+        if dialog.exec() == QDialog.Accepted:
+            with get_connection() as conn:
+                self.repository.create(conn, **dialog.values())
             self.refresh()
 
     def delete_product(self) -> None:
