@@ -153,7 +153,7 @@ def test_create_montage_crossfades_overlapping_videos(tmp_path, monkeypatch):
     assert metadata["transition_type"] == "dissolve"
 
 
-def test_create_montage_join_only_uses_short_concat_command_and_keeps_streams(tmp_path, monkeypatch):
+def test_create_montage_join_only_uses_short_concat_command_and_compatible_streams(tmp_path, monkeypatch):
     source_paths = [tmp_path / f"video_{index:03d}.mp4" for index in range(149)]
     for path in source_paths:
         path.write_bytes(b"video")
@@ -179,9 +179,13 @@ def test_create_montage_join_only_uses_short_concat_command_and_keeps_streams(tm
         join_only=True,
     )
 
-    assert len(captured["cmd"]) == 13
-    assert captured["cmd"][captured["cmd"].index("-c") + 1] == "copy"
-    assert captured["cmd"][captured["cmd"].index("-map") + 1] == "0"
+    assert len(captured["cmd"]) < 60
+    assert captured["cmd"][captured["cmd"].index("-c:v") + 1] == "libx264"
+    assert captured["cmd"][captured["cmd"].index("-c:a") + 1] == "aac"
+    assert captured["cmd"][captured["cmd"].index("-profile:v") + 1] == "high"
+    assert captured["cmd"][captured["cmd"].index("-level:v") + 1] == "4.1"
+    assert captured["cmd"][captured["cmd"].index("-ar") + 1] == "48000"
+    assert captured["cmd"][captured["cmd"].index("-map") + 1] == "0:v:0"
     assert captured["concat"].count("file '") == 149
     assert result.duration_seconds == 298.0
     assert result.audio_path is None
@@ -189,6 +193,38 @@ def test_create_montage_join_only_uses_short_concat_command_and_keeps_streams(tm
     metadata = json.loads((output_dir / "montaje.json").read_text(encoding="utf-8"))
     assert metadata["join_only"] is True
     assert metadata["audio"] == "original"
+    assert metadata["encoding"] == "H.264 High 4.1 / AAC-LC 48 kHz"
+
+
+def test_create_montage_normalizes_video_timestamps_and_audio(tmp_path, monkeypatch):
+    source_paths = [tmp_path / "one.mp4", tmp_path / "two.mp4"]
+    for path in source_paths:
+        path.write_bytes(b"video")
+    audio_path = tmp_path / "track.mp3"
+    audio_path.write_bytes(b"audio")
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    service = VideoMontageService()
+    monkeypatch.setattr("app.services.video_montage_service.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(service, "_probe_duration", lambda path: 3.0)
+    monkeypatch.setattr(service, "_create_folder", lambda: output_dir)
+    monkeypatch.setattr(service, "_select_audio_track", lambda: (audio_path, 0.0))
+    captured = {}
+
+    def _fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+
+    monkeypatch.setattr("app.services.video_montage_service.subprocess.run", _fake_run)
+
+    service.create_montage(source_videos=source_paths, ratio="16:9")
+
+    cmd = captured["cmd"]
+    assert cmd[cmd.index("-profile:a") + 1] == "aac_low"
+    assert cmd[cmd.index("-ar") + 1] == "48000"
+    assert cmd[cmd.index("-video_track_timescale") + 1] == "90000"
+    assert cmd[cmd.index("-avoid_negative_ts") + 1] == "make_zero"
+    filters = (output_dir / "montaje_filters.txt").read_text(encoding="utf-8")
+    assert "aresample=48000:async=1:first_pts=0" in filters
 
 
 def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_path, monkeypatch):

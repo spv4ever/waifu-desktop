@@ -71,6 +71,9 @@ class VideoMontageService:
     """Renderiza montajes por concatenación de varios vídeos con fundidos y música."""
 
     _FPS = 30
+    _VIDEO_PROFILE = "high"
+    _VIDEO_LEVEL = "4.1"
+    _AUDIO_SAMPLE_RATE = 48000
     _TRANSITION_SECONDS = 0.75
     _FADE_OUT_SECONDS = 0.5
     _AUDIO_RANDOM_START_WINDOW_SECONDS = 60.0
@@ -708,9 +711,45 @@ class VideoMontageService:
                         "-i",
                         str(concat_path),
                         "-map",
-                        "0",
-                        "-c",
-                        "copy",
+                        "0:v:0",
+                        "-map",
+                        "0:a:0?",
+                        "-vf",
+                        (
+                            f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+                            f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,"
+                            f"setsar=1,fps={self._FPS},format=yuv420p"
+                        ),
+                        "-af",
+                        f"aresample={self._AUDIO_SAMPLE_RATE}:async=1:first_pts=0",
+                        "-c:v",
+                        "libx264",
+                        "-preset",
+                        "medium",
+                        "-crf",
+                        "20",
+                        "-profile:v",
+                        self._VIDEO_PROFILE,
+                        "-level:v",
+                        self._VIDEO_LEVEL,
+                        "-c:a",
+                        "aac",
+                        "-profile:a",
+                        "aac_low",
+                        "-b:a",
+                        "192k",
+                        "-ar",
+                        str(self._AUDIO_SAMPLE_RATE),
+                        "-ac",
+                        "2",
+                        "-vsync",
+                        "cfr",
+                        "-video_track_timescale",
+                        "90000",
+                        "-avoid_negative_ts",
+                        "make_zero",
+                        "-movflags",
+                        "+faststart",
                         str(output_path),
                     ],
                     cwd=str(folder),
@@ -729,6 +768,7 @@ class VideoMontageService:
                 "duration_seconds": total_duration,
                 "join_only": True,
                 "audio": "original",
+                "encoding": "H.264 High 4.1 / AAC-LC 48 kHz",
                 "source_videos": [str(path) for path in paths],
             }
             (folder / "montaje.json").write_text(
@@ -794,7 +834,10 @@ class VideoMontageService:
             filter_parts.append("[vc]format=yuv420p[v]")
 
         if audio_input_index is not None:
-            audio_filters = f"[{audio_input_index}:a]atrim=0:{total_duration:.3f},asetpts=PTS-STARTPTS,volume=0.5"
+            audio_filters = (
+                f"[{audio_input_index}:a]atrim=0:{total_duration:.3f},asetpts=PTS-STARTPTS,"
+                f"aresample={self._AUDIO_SAMPLE_RATE}:async=1:first_pts=0,volume=0.5"
+            )
             if fade_out:
                 audio_filters += f",afade=t=out:st={fade_out_start:.3f}:d={self._FADE_OUT_SECONDS}"
             filter_parts.append(f"{audio_filters}[a]")
@@ -803,8 +846,17 @@ class VideoMontageService:
         filter_script_path.write_text(";".join(filter_parts), encoding="utf-8")
         cmd += ["-filter_complex_script", str(filter_script_path), "-map", "[v]"]
         if audio_input_index is not None:
-            cmd += ["-map", "[a]", "-c:a", "aac"]
-        cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-t", f"{total_duration:.3f}", str(output_path)]
+            cmd += [
+                "-map", "[a]", "-c:a", "aac", "-profile:a", "aac_low",
+                "-b:a", "192k", "-ar", str(self._AUDIO_SAMPLE_RATE), "-ac", "2",
+            ]
+        cmd += [
+            "-c:v", "libx264", "-preset", "medium", "-crf", "20",
+            "-profile:v", self._VIDEO_PROFILE, "-level:v", self._VIDEO_LEVEL,
+            "-pix_fmt", "yuv420p", "-vsync", "cfr",
+            "-video_track_timescale", "90000", "-avoid_negative_ts", "make_zero",
+            "-movflags", "+faststart", "-t", f"{total_duration:.3f}", str(output_path),
+        ]
 
         subprocess.run(
             cmd,
@@ -825,6 +877,7 @@ class VideoMontageService:
             "audio": str(audio_path) if audio_path else None,
             "audio_start_seconds": audio_start_time if audio_path else None,
             "join_only": False,
+            "encoding": "H.264 High 4.1 / AAC-LC 48 kHz",
             "source_videos": [str(path) for path in paths],
         }
         (folder / "montaje.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
