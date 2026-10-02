@@ -17,7 +17,14 @@ def format_euros(cents: int) -> str:
 class Product3DReport:
     """Creates a printable A4 landscape delivery note from inventory rows."""
 
-    def generate(self, destination: str | Path, products: Sequence[Product3D], *, stock_only: bool) -> Path:
+    def generate(
+        self,
+        destination: str | Path,
+        products: Sequence[Product3D],
+        *,
+        stock_only: bool,
+        include_cost: bool = False,
+    ) -> Path:
         path = Path(destination)
         if path.suffix.lower() != ".pdf":
             path = path.with_suffix(".pdf")
@@ -33,16 +40,34 @@ class Product3DReport:
             raise OSError(f"No se pudo crear el PDF: {path}")
 
         try:
-            self._paint(painter, writer, products, stock_only=stock_only)
+            self._paint(
+                painter,
+                writer,
+                products,
+                stock_only=stock_only,
+                include_cost=include_cost,
+            )
         finally:
             painter.end()
         return path
 
-    def _paint(self, painter: QPainter, writer: QPdfWriter, products: Sequence[Product3D], *, stock_only: bool) -> None:
+    def _paint(
+        self,
+        painter: QPainter,
+        writer: QPdfWriter,
+        products: Sequence[Product3D],
+        *,
+        stock_only: bool,
+        include_cost: bool = False,
+    ) -> None:
         page = writer.pageLayout().paintRectPixels(writer.resolution())
         margin, row_h = 55, 43
-        widths = (90, 260, 650, 180, 180, 120)
-        headers = ("ID", "Categoría", "Descripción", "Coste", "PVP", "Stock")
+        if include_cost:
+            widths = (90, 260, 650, 180, 180, 120)
+            headers = ("ID", "Categoría", "Descripción", "Coste", "PVP", "Stock")
+        else:
+            widths = (90, 260, 830, 180, 120)
+            headers = ("ID", "Categoría", "Descripción", "PVP", "Stock")
         y = margin
 
         def page_header(continued: bool = False) -> float:
@@ -75,14 +100,14 @@ class Product3DReport:
                 painter.fillRect(QRectF(margin, y, sum(widths), row_h), QColor("#f1f5f9"))
             painter.setPen(QPen(QColor("#cbd5e1"), 1))
             painter.drawLine(margin, int(y + row_h), margin + sum(widths), int(y + row_h))
-            values = (
-                str(product.id), product.category, product.description,
-                format_euros(product.cost_cents), format_euros(product.pvp_cents), str(product.stock),
-            )
+            values = [str(product.id), product.category, product.description]
+            if include_cost:
+                values.append(format_euros(product.cost_cents))
+            values.extend((format_euros(product.pvp_cents), str(product.stock)))
             x = margin
             painter.setPen(QColor("#172033"))
-            for value, width in zip(values, widths):
-                alignment = Qt.AlignVCenter | (Qt.AlignRight if value in values[3:] else Qt.AlignLeft)
+            for column, (value, width) in enumerate(zip(values, widths)):
+                alignment = Qt.AlignVCenter | (Qt.AlignRight if column >= 3 else Qt.AlignLeft)
                 painter.drawText(QRectF(x + 7, y, width - 14, row_h), alignment, value)
                 x += width
             y += row_h

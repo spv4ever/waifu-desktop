@@ -116,6 +116,10 @@ class Product3DWindow(QMainWindow):
             button.clicked.connect(callback)
             actions.addWidget(button)
         actions.addStretch()
+        self.pdf_cost = QCheckBox("Mostrar precio de coste en PDF")
+        self.pdf_cost.setToolTip("Incluye la columna Coste en los albaranes PDF")
+        self.pdf_cost.setChecked(False)
+        actions.addWidget(self.pdf_cost)
         pdf_stock = QPushButton("Albarán PDF · con stock")
         pdf_stock.clicked.connect(lambda: self.export_pdf(True))
         pdf_all = QPushButton("Albarán PDF · listado completo")
@@ -195,7 +199,12 @@ class Product3DWindow(QMainWindow):
         if not filename:
             return
         try:
-            path = self.report.generate(filename, products, stock_only=stock_only)
+            path = self.report.generate(
+                filename,
+                products,
+                stock_only=stock_only,
+                include_cost=self.pdf_cost.isChecked(),
+            )
         except OSError as exc:
             QMessageBox.critical(self, "No se pudo generar el PDF", str(exc))
             return
