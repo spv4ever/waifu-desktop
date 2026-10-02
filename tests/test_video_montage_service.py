@@ -143,13 +143,52 @@ def test_create_montage_crossfades_overlapping_videos(tmp_path, monkeypatch):
         transition_type="dissolve",
     )
 
-    filter_complex = captured["cmd"][captured["cmd"].index("-filter_complex") + 1]
+    filter_script = Path(captured["cmd"][captured["cmd"].index("-filter_complex_script") + 1])
+    filter_complex = filter_script.read_text(encoding="utf-8")
     assert "xfade=transition=dissolve:duration=1.000:offset=3.000" in filter_complex
     assert "xfade=transition=dissolve:duration=1.000:offset=6.000" in filter_complex
     assert "color=c=black" not in filter_complex
     assert result.duration_seconds == 10.0
     metadata = json.loads((output_dir / "montaje.json").read_text(encoding="utf-8"))
     assert metadata["transition_type"] == "dissolve"
+
+
+def test_create_montage_join_only_uses_short_concat_command_and_keeps_streams(tmp_path, monkeypatch):
+    source_paths = [tmp_path / f"video_{index:03d}.mp4" for index in range(149)]
+    for path in source_paths:
+        path.write_bytes(b"video")
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    service = VideoMontageService()
+    monkeypatch.setattr("app.services.video_montage_service.shutil.which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(service, "_probe_duration", lambda path: 2.0)
+    monkeypatch.setattr(service, "_create_folder", lambda: output_dir)
+    captured = {}
+
+    def _fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        concat_path = Path(cmd[cmd.index("-i") + 1])
+        captured["concat"] = concat_path.read_text(encoding="utf-8")
+        Path(cmd[-1]).write_bytes(b"joined")
+
+    monkeypatch.setattr("app.services.video_montage_service.subprocess.run", _fake_run)
+
+    result = service.create_montage(
+        source_videos=source_paths,
+        ratio="9:16",
+        join_only=True,
+    )
+
+    assert len(captured["cmd"]) == 13
+    assert captured["cmd"][captured["cmd"].index("-c") + 1] == "copy"
+    assert captured["cmd"][captured["cmd"].index("-map") + 1] == "0"
+    assert captured["concat"].count("file '") == 149
+    assert result.duration_seconds == 298.0
+    assert result.audio_path is None
+    assert not (output_dir / "montaje_concat.txt").exists()
+    metadata = json.loads((output_dir / "montaje.json").read_text(encoding="utf-8"))
+    assert metadata["join_only"] is True
+    assert metadata["audio"] == "original"
 
 
 def test_create_bulk_images_youtube_video_uses_full_audio_and_marks_images(tmp_path, monkeypatch):
