@@ -10,7 +10,7 @@ from app.config.settings import settings
 def ensure_data_dir() -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-SCHEMA_VERSION = 16
+SCHEMA_VERSION = 17
 
 REQUIRED_COLUMNS: tuple[tuple[str, str], ...] = (
     ("queue_job", "started_at"),
@@ -27,6 +27,7 @@ REQUIRED_TABLES: tuple[str, ...] = (
     "bulk_image_prompt",
     "social_media_post",
     "social_media_asset",
+    "product_3d",
 )
 
 

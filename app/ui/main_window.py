@@ -91,6 +91,7 @@ from app.ui.bulk_images_prompt_window import BulkImagesPromptWindow
 from app.ui.social_tools_window import SocialToolsWindow
 from app.ui.short_creator_window import ShortCreatorWindow
 from app.ui.qr_code_window import QrCodeWindow
+from app.ui.product_3d_window import Product3DWindow
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QProxyStyle, QStyle
 
@@ -332,6 +333,7 @@ class MainWindow(QMainWindow):
         self.social_tools_window: SocialToolsWindow | None = None
         self.short_creator_window: ShortCreatorWindow | None = None
         self.qr_code_window: QrCodeWindow | None = None
+        self.product_3d_window: Product3DWindow | None = None
 
         # Mantener pixmaps originales para reescalar en resizeEvent
         self._pix_base: QPixmap | None = None
@@ -374,6 +376,8 @@ class MainWindow(QMainWindow):
         self.short_creator_action.triggered.connect(self.open_short_creator_window)
         self.qr_code_action = sections_menu.addAction("Generador de códigos QR")
         self.qr_code_action.triggered.connect(self.open_qr_code_window)
+        self.product_3d_action = sections_menu.addAction("Productos 3D")
+        self.product_3d_action.triggered.connect(self.open_product_3d_window)
         self.open_base_action = file_menu.addAction("Abrir Base")
         self.open_up_action = file_menu.addAction("Abrir Upscale")
         self.open_folder_base_action = file_menu.addAction("Abrir Carpeta (Base)")
@@ -451,10 +455,14 @@ class MainWindow(QMainWindow):
         self.qr_code_section_btn = QPushButton("Generador QR →")
         self.qr_code_section_btn.setObjectName("PrimaryButton")
         self.qr_code_section_btn.clicked.connect(self.open_qr_code_window)
+        self.product_3d_section_btn = QPushButton("Productos 3D →")
+        self.product_3d_section_btn.setObjectName("PrimaryButton")
+        self.product_3d_section_btn.clicked.connect(self.open_product_3d_window)
         header.addWidget(self.image_generation_section_btn)
         header.addWidget(self.social_tools_section_btn)
         header.addWidget(self.short_creator_section_btn)
         header.addWidget(self.qr_code_section_btn)
+        header.addWidget(self.product_3d_section_btn)
         layout.addLayout(header)
 
         self.quick_actions_layout = QGridLayout()
@@ -5436,6 +5444,14 @@ class MainWindow(QMainWindow):
         self.qr_code_window.show()
         self.qr_code_window.raise_()
         self.qr_code_window.activateWindow()
+
+    def open_product_3d_window(self) -> None:
+        if self.product_3d_window is None:
+            self.product_3d_window = Product3DWindow(self)
+        self.product_3d_window.refresh()
+        self.product_3d_window.show()
+        self.product_3d_window.raise_()
+        self.product_3d_window.activateWindow()
 
     def delete_selected_prompt(self, prompt_id: int | None = None) -> None:
         pid = prompt_id if prompt_id is not None else self._selected_prompt_id()
