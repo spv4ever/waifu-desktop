@@ -12,6 +12,27 @@ def _add_column_if_missing(conn: sqlite3.Connection, table: str, col: str, colde
 def apply_migrations(conn: sqlite3.Connection) -> None:
     conn.executescript(
         """
+        CREATE TABLE IF NOT EXISTS product_3d (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          category TEXT NOT NULL,
+          description TEXT NOT NULL,
+          cost_cents INTEGER NOT NULL CHECK(cost_cents >= 0),
+          pvp_cents INTEGER NOT NULL CHECK(pvp_cents >= 0),
+          stock INTEGER NOT NULL DEFAULT 0 CHECK(stock >= 0),
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_product_3d_category
+        ON product_3d(category COLLATE NOCASE);
+        CREATE INDEX IF NOT EXISTS idx_product_3d_description
+        ON product_3d(description COLLATE NOCASE);
+        CREATE TRIGGER IF NOT EXISTS trg_product_3d_updated_at
+        AFTER UPDATE ON product_3d
+        FOR EACH ROW
+        BEGIN
+          UPDATE product_3d SET updated_at = datetime('now') WHERE id = NEW.id;
+        END;
+
         CREATE TABLE IF NOT EXISTS social_media_post (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           platform TEXT NOT NULL DEFAULT 'x',

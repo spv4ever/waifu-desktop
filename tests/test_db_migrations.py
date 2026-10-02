@@ -19,3 +19,17 @@ def test_current_version_database_recovers_missing_published_on_x_column() -> No
     assert columns["published_on_x"][4] == "0"
     assert conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
 
+
+def test_current_version_database_recovers_missing_product_table() -> None:
+    conn = sqlite3.connect(":memory:")
+    schema_path = Path(__file__).parents[1] / "app/data/schema.sql"
+    conn.executescript(schema_path.read_text(encoding="utf-8"))
+    conn.execute("DROP TABLE product_3d")
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+    _apply_migrations_if_needed(conn)
+
+    table = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='product_3d'"
+    ).fetchone()
+    assert table is not None
