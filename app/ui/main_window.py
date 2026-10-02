@@ -1463,7 +1463,7 @@ class MainWindow(QMainWindow):
         self.video_montage_dialog.setModal(False)
         self.video_montage_dialog.resize(760, 460)
         video_montage_layout = QVBoxLayout(self.video_montage_dialog)
-        video_montage_group = QGroupBox("Concatenar vídeos con transiciones y música aleatoria")
+        video_montage_group = QGroupBox("Concatenar vídeos")
         video_montage_grid = QGridLayout(video_montage_group)
         video_montage_grid.setHorizontalSpacing(10)
         video_montage_grid.setVerticalSpacing(8)
@@ -1518,6 +1518,13 @@ class MainWindow(QMainWindow):
         self.video_montage_fade_out_checkbox = QCheckBox("Fundido final")
         self.video_montage_fade_out_checkbox.setChecked(True)
         video_montage_grid.addWidget(self.video_montage_fade_out_checkbox, 2, 4)
+
+        self.video_montage_join_only_checkbox = QCheckBox("Solo unir (conservar audio original)")
+        self.video_montage_join_only_checkbox.setToolTip(
+            "Une los archivos sin recodificarlos, conserva sus pistas de audio y admite listas grandes. "
+            "Los vídeos deben tener formatos internos compatibles."
+        )
+        video_montage_grid.addWidget(self.video_montage_join_only_checkbox, 3, 4, 1, 2)
 
         self.video_montage_generate_btn = QPushButton("Crear montaje")
         video_montage_grid.addWidget(self.video_montage_generate_btn, 2, 5)
@@ -4513,6 +4520,7 @@ class MainWindow(QMainWindow):
         transition_seconds = float(self.video_montage_transition_spin.value())
         transition_type = str(self.video_montage_transition_type_combo.currentData() or "fade")
         fade_out = self.video_montage_fade_out_checkbox.isChecked()
+        join_only = self.video_montage_join_only_checkbox.isChecked()
 
         try:
             result = self.video_montage_service.create_montage(
@@ -4521,6 +4529,7 @@ class MainWindow(QMainWindow):
                 transition_seconds=transition_seconds,
                 transition_type=transition_type,
                 fade_out=fade_out,
+                join_only=join_only,
             )
         except Exception as exc:
             QMessageBox.critical(self, "Montar Videos", str(exc))
@@ -4531,7 +4540,7 @@ class MainWindow(QMainWindow):
             "Montar Videos",
             f"Montaje creado: {result.video_path.name}\n"
             f"Duración: {result.duration_seconds:.1f}s · Ratio: {result.ratio}\n"
-            f"Música: {result.audio_path.name if result.audio_path else 'sin música disponible'}",
+            f"Música: {'audio original' if join_only else (result.audio_path.name if result.audio_path else 'sin música disponible')}",
         )
         try:
             open_folder_and_select(result.video_path)

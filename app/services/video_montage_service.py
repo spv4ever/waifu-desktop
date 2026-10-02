@@ -656,6 +656,7 @@ class VideoMontageService:
         transition_seconds: float | None = None,
         transition_type: str = "fade",
         fade_out: bool = True,
+        join_only: bool = False,
     ) -> VideoMontageResult:
         if ratio not in self._RATIO_SIZES:
             raise ValueError("Ratio no soportado. Usa 9:16 o 16:9.")
@@ -686,6 +687,62 @@ class VideoMontageService:
 
         folder = self._create_folder()
         output_path = folder / "montaje.mp4"
+        if join_only:
+            concat_path = folder / "montaje_concat.txt"
+            concat_path.write_text(
+                "".join(
+                    f"file '{str(path).replace(chr(39), chr(39) + chr(92) + chr(39) + chr(39))}'\n"
+                    for path in paths
+                ),
+                encoding="utf-8",
+            )
+            try:
+                subprocess.run(
+                    [
+                        ffmpeg_path,
+                        "-y",
+                        "-f",
+                        "concat",
+                        "-safe",
+                        "0",
+                        "-i",
+                        str(concat_path),
+                        "-map",
+                        "0",
+                        "-c",
+                        "copy",
+                        str(output_path),
+                    ],
+                    cwd=str(folder),
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                )
+            finally:
+                concat_path.unlink(missing_ok=True)
+
+            total_duration = sum(durations)
+            metadata = {
+                "ratio": ratio,
+                "duration_seconds": total_duration,
+                "join_only": True,
+                "audio": "original",
+                "source_videos": [str(path) for path in paths],
+            }
+            (folder / "montaje.json").write_text(
+                json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            return VideoMontageResult(
+                folder=folder,
+                video_path=output_path,
+                source_videos=paths,
+                audio_path=None,
+                duration_seconds=total_duration,
+                ratio=ratio,
+            )
+
         audio_selection = self._select_audio_track()
         audio_path = audio_selection[0] if audio_selection else None
         audio_start_time = audio_selection[1] if audio_selection else 0.0
@@ -742,7 +799,9 @@ class VideoMontageService:
                 audio_filters += f",afade=t=out:st={fade_out_start:.3f}:d={self._FADE_OUT_SECONDS}"
             filter_parts.append(f"{audio_filters}[a]")
 
-        cmd += ["-filter_complex", ";".join(filter_parts), "-map", "[v]"]
+        filter_script_path = folder / "montaje_filters.txt"
+        filter_script_path.write_text(";".join(filter_parts), encoding="utf-8")
+        cmd += ["-filter_complex_script", str(filter_script_path), "-map", "[v]"]
         if audio_input_index is not None:
             cmd += ["-map", "[a]", "-c:a", "aac"]
         cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-t", f"{total_duration:.3f}", str(output_path)]
@@ -765,6 +824,7 @@ class VideoMontageService:
             "duration_seconds": total_duration,
             "audio": str(audio_path) if audio_path else None,
             "audio_start_seconds": audio_start_time if audio_path else None,
+            "join_only": False,
             "source_videos": [str(path) for path in paths],
         }
         (folder / "montaje.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
