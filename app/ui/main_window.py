@@ -1519,10 +1519,10 @@ class MainWindow(QMainWindow):
         self.video_montage_fade_out_checkbox.setChecked(True)
         video_montage_grid.addWidget(self.video_montage_fade_out_checkbox, 2, 4)
 
-        self.video_montage_join_only_checkbox = QCheckBox("Solo unir (conservar audio original)")
+        self.video_montage_join_only_checkbox = QCheckBox("Unir sin transiciones (conservar audio)")
         self.video_montage_join_only_checkbox.setToolTip(
-            "Une los archivos sin recodificarlos, conserva sus pistas de audio y admite listas grandes. "
-            "Los vídeos deben tener formatos internos compatibles."
+            "Une listas grandes, conserva el audio original y normaliza el resultado a H.264/AAC "
+            "para mejorar la compatibilidad y la reproducción en VLC."
         )
         video_montage_grid.addWidget(self.video_montage_join_only_checkbox, 3, 4, 1, 2)
 
