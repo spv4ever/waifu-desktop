@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from math import ceil
 from pathlib import Path
 from typing import Sequence
 
@@ -12,6 +13,10 @@ from app.data.product_3d_repository import Product3D
 
 def format_euros(cents: int) -> str:
     return f"{cents / 100:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def format_page_number(current: int, total: int) -> str:
+    return f"Página {current} de {total}"
 
 
 class Product3DReport:
@@ -69,6 +74,19 @@ class Product3DReport:
             widths = (90, 260, 830, 180, 120)
             headers = ("ID", "Categoría", "Descripción", "PVP", "Stock")
         y = margin
+        table_start_y = margin + 82 + row_h
+        rows_per_page = max(1, int((page.bottom() - 70 - table_start_y) // row_h))
+        total_pages = max(1, ceil(len(products) / rows_per_page))
+        page_number = 1
+
+        def page_footer() -> None:
+            painter.setPen(QColor("#64748b"))
+            painter.setFont(QFont("Arial", 8))
+            painter.drawText(
+                QRectF(margin, page.bottom() - 35, sum(widths), 25),
+                Qt.AlignCenter,
+                format_page_number(page_number, total_pages),
+            )
 
         def page_header(continued: bool = False) -> float:
             nonlocal y
@@ -93,7 +111,9 @@ class Product3DReport:
         painter.setFont(QFont("Arial", 9))
         for index, product in enumerate(products):
             if y + row_h + 70 > page.bottom():
+                page_footer()
                 writer.newPage()
+                page_number += 1
                 y = margin
                 page_header(True)
             if index % 2:
@@ -117,3 +137,4 @@ class Product3DReport:
             QRectF(margin, y + 15, sum(widths), 35), Qt.AlignRight,
             f"Referencias: {len(products)}     Unidades totales: {sum(p.stock for p in products)}",
         )
+        page_footer()

@@ -10,7 +10,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6.QtGui", exc_type=ImportError)
 
 from app.data.product_3d_repository import Product3D
-from app.services.product_3d_report import Product3DReport
+from app.services.product_3d_report import Product3DReport, format_page_number
+
+
+def test_page_number_includes_current_and_total_pages() -> None:
+    assert format_page_number(2, 5) == "Página 2 de 5"
 
 
 def test_pdf_omits_cost_by_default_and_includes_it_on_request(tmp_path: Path) -> None:
@@ -31,3 +35,24 @@ def test_pdf_omits_cost_by_default_and_includes_it_on_request(tmp_path: Path) ->
     assert default_pdf.read_bytes().startswith(b"%PDF")
     assert cost_pdf.read_bytes().startswith(b"%PDF")
     assert default_pdf.read_bytes() != cost_pdf.read_bytes()
+
+
+def test_pdf_contains_current_and_total_page_numbers(tmp_path: Path) -> None:
+    products = [
+        Product3D(
+            id=index,
+            category="Figuras",
+            description=f"Producto {index}",
+            cost_cents=100,
+            pvp_cents=200,
+            stock=1,
+        )
+        for index in range(100)
+    ]
+    destination = tmp_path / "varias-paginas.pdf"
+
+    Product3DReport().generate(destination, products, stock_only=False)
+
+    contents = destination.read_bytes()
+    assert contents.startswith(b"%PDF")
+    assert contents.count(b"/Type /Page") > 2
